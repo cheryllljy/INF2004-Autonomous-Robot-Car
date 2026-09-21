@@ -398,7 +398,8 @@ static obstacle_state_t obs_state_guard(void)
     }
     else
     {
-        /* ECHO_STUCK or NOT_READY: a wiring or power problem. */
+        /* ECHO_STUCK, NO_RESPONSE or NOT_READY: wiring, power, or the
+         * interrupt path. The sensor is not telling us anything. */
         g_fault_run++;
         obs_publish_front(OBSTACLE_RANGE_UNKNOWN);
     }
@@ -535,6 +536,7 @@ static obstacle_state_t obs_state_fault(void)
 {
     obstacle_state_t    next = OBSTACLE_ST_FAULT;
     ultrasonic_result_t res;
+    ultrasonic_status_t status;
 
     obs_tick_enable(false);
     obs_publish_front(OBSTACLE_RANGE_UNKNOWN);
@@ -543,7 +545,12 @@ static obstacle_state_t obs_state_fault(void)
 
     (void)tk_dly_tsk((RELTIM)500);
 
-    if (ultrasonic_ping(&res) != ULTRASONIC_ECHO_STUCK)
+    status = ultrasonic_ping(&res);
+
+    /* Recovery needs evidence the sensor is answering. Anything that
+     * proves ECHO moved counts; silence does not. */
+    if ((status == ULTRASONIC_OK) || (status == ULTRASONIC_NO_ECHO) ||
+        (status == ULTRASONIC_TOO_CLOSE) || (status == ULTRASONIC_TOO_FAR))
     {
         g_good_run++;
     }

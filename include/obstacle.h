@@ -99,7 +99,9 @@ typedef enum
 typedef struct
 {
     int16_t  bearing_deg;   /**< Negative right, positive left.      */
-    uint16_t range_mm;      /**< OBSTACLE_RANGE_UNKNOWN if no echo.  */
+    uint16_t range_mm;      /**< mm, or OBSTACLE_RANGE_CLEAR (sensor
+                                 answered, nothing in range), or
+                                 OBSTACLE_RANGE_UNKNOWN (silent).  */
 } obstacle_sample_t;
 
 /** The profile handed to the vehicle controller. */

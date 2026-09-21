@@ -17,7 +17,12 @@
  *
  * Failure modes handled
  * ---------------------
- *   no echo at all          -> kernel timeout, reported as NO_ECHO
+ *   echo rose, never fell   -> kernel timeout, reported as NO_ECHO
+ *                              (sensor alive, nothing in range)
+ *   echo never rose at all  -> reported as NO_RESPONSE, a fault. This
+ *                              is how a dead sensor, a TRIG/ECHO swap
+ *                              or a dead interrupt is told apart from
+ *                              an empty track.
  *   ECHO stuck high         -> detected before triggering
  *   missed rising edge      -> state machine ignores the lone fall
  *   32-bit microsecond wrap -> unsigned subtraction is wrap correct
@@ -30,6 +35,7 @@
 #include <tk/tkernel.h>
 
 #include "hardware/gpio.h"
+#include "hardware/irq.h"
 #include "hardware/structs/timer.h"
 #include "pico/stdlib.h"
 
@@ -80,7 +86,7 @@ static volatile uint32_t    g_spurious  = 0U;
 
 static ID                  g_echo_sem  = 0;
 static uint32_t            g_last_trig_us = 0U;
-static ultrasonic_stats_t  g_stats = { 0U, 0U, 0U, 0U };
+static ultrasonic_stats_t  g_stats = { 0U, 0U, 0U, 0U, 0U };
 static bool                g_ready = false;
 
 /*=====================================================================*/
@@ -265,6 +271,13 @@ bool ultrasonic_init(void)
             false,
             &ultrasonic_echo_isr);
 
+        /* The SDK only enables the IO_IRQ_BANK0 line in the NVIC when
+         * the call above is made with enabled == true. We register
+         * with the pin's events off (they are switched on per ping),
+         * so the bank interrupt must be enabled explicitly or the ISR
+         * never runs and every ping times out. */
+        irq_set_enabled(IO_IRQ_BANK0, true);
+
         g_cap_state = CAP_IDLE;
         g_ready     = true;
     }
@@ -330,10 +343,19 @@ ultrasonic_status_t ultrasonic_ping(ultrasonic_result_t *p_result)
                     g_stats.reject_count++;
                 }
             }
-            else
+            else if (g_cap_state == CAP_WAIT_FALL)
             {
+                /* ECHO rose and never fell inside the timeout: the
+                 * sensor is alive and heard nothing in range. */
                 g_stats.timeout_count++;
                 status = ULTRASONIC_NO_ECHO;
+            }
+            else
+            {
+                /* ECHO never rose. The sensor did not respond at all,
+                 * which an empty track can never cause. */
+                g_stats.no_response_count++;
+                status = ULTRASONIC_NO_RESPONSE;
             }
 
             g_cap_state     = CAP_IDLE;

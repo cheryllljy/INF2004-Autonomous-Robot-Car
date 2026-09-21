@@ -76,6 +76,7 @@ static const char *status_name(ultrasonic_status_t s)
     {
         case ULTRASONIC_OK:         name = "OK";         break;
         case ULTRASONIC_NO_ECHO:    name = "NO_ECHO";    break;
+        case ULTRASONIC_NO_RESPONSE: name = "NO_RESP";   break;
         case ULTRASONIC_TOO_CLOSE:  name = "TOO_CLOSE";  break;
         case ULTRASONIC_TOO_FAR:    name = "TOO_FAR";    break;
         case ULTRASONIC_ECHO_STUCK: name = "ECHO_STUCK"; break;
@@ -285,6 +286,7 @@ static void test_sweep_profile(void)
     static obstacle_sample_t samples[SWEEP_POINTS];
     obstacle_profile_t       profile;
     uint8_t                  i;
+    uint8_t                  silent = 0U;
     uint32_t                 t0;
 
     puts("\n[E1] Sweep and profile, 11 points at 15 degrees.");
@@ -320,6 +322,12 @@ static void test_sweep_profile(void)
         {
             samples[i].range_mm = OBSTACLE_RANGE_CLEAR;
         }
+        else if (s == ULTRASONIC_NO_RESPONSE)
+        {
+            /* Dead sensor. Must not look like open space. */
+            samples[i].range_mm = OBSTACLE_RANGE_UNKNOWN;
+            silent++;
+        }
         else
         {
             samples[i].range_mm = OBSTACLE_RANGE_UNKNOWN;
@@ -331,6 +339,12 @@ static void test_sweep_profile(void)
 
     printf("  sweep wall time: %lu ms\n",
            (unsigned long)(tkshim_now_ms() - t0));
+
+    if (silent > 0U)
+    {
+        printf("  WARNING: %u of %u points got no response. Run option"
+               " 8.\n", (unsigned)silent, (unsigned)SWEEP_POINTS);
+    }
 
     (void)servo_set_angle(SERVO_ANGLE_CENTRE_DEG);
 
@@ -355,6 +369,44 @@ static void test_sweep_profile(void)
 }
 
 /*=====================================================================*/
+/* E1b - does moving the servo stop the sensor answering?              */
+/*=====================================================================*/
+
+static void test_move_then_ping(void)
+{
+    static const int16_t steps[14] =
+    {
+        0, 0, 15, 0, -15, 0, 45, 0, -45, 0, 75, 0, -75, 0
+    };
+    uint8_t i;
+
+    puts("\n[E1b] Move-then-ping. 300 ms extra settling after every move.");
+    puts("Read the pattern, not single lines:");
+    puts("  fails only at big angles, OK again at 0 -> cable strain");
+    puts("  fails from the first move, never recovers -> power / loose");
+    puts("  all OK -> the sensor needs longer after a move");
+
+    for (i = 0U; i < 14U; i++)
+    {
+        const int16_t target =
+            (int16_t)(SERVO_ANGLE_CENTRE_DEG + steps[i]);
+        const int16_t from = servo_get_angle();
+        ultrasonic_result_t r;
+        ultrasonic_status_t s;
+
+        (void)servo_set_angle(target);
+        (void)tk_dly_tsk((RELTIM)(servo_settle_ms(from, target) + 300U));
+        s = ultrasonic_ping(&r);
+
+        printf("  %+4d deg : %-10s %5u mm\n",
+               steps[i], status_name(s), (unsigned)r.distance_mm);
+    }
+
+    (void)servo_set_angle(SERVO_ANGLE_CENTRE_DEG);
+    puts("[E1b] done.");
+}
+
+/*=====================================================================*/
 /* Health dump                                                         */
 /*=====================================================================*/
 
@@ -368,6 +420,8 @@ static void test_health(void)
     printf("  pings        : %lu\n", (unsigned long)stats.ping_count);
     printf("  timeouts     : %lu\n", (unsigned long)stats.timeout_count);
     printf("  rejects      : %lu\n", (unsigned long)stats.reject_count);
+    printf("  no response  : %lu\n",
+           (unsigned long)stats.no_response_count);
     printf("  spurious edge: %lu\n", (unsigned long)stats.spurious_edges);
 
     if (g_mission_up)
@@ -462,6 +516,7 @@ static void show_menu(void)
     puts("  5  [U3/U4] live stream, blind zone and unplug test");
     puts("  6  [E1]    sweep 11 points and build a profile");
     puts("  7          driver health counters");
+    puts("  8  [E1b]   move-then-ping diagnostic");
     puts("  9          run mission mode (needs a reset to leave)");
     puts("  ?          this menu");
     puts("");
@@ -521,6 +576,7 @@ int main(void)
                 case '5': test_live_stream();   break;
                 case '6': test_sweep_profile(); break;
                 case '7': test_health();        break;
+                case '8': test_move_then_ping(); break;
                 default:                        break;
             }
         }

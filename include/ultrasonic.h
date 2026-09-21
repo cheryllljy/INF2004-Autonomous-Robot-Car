@@ -34,9 +34,15 @@
 typedef enum
 {
     ULTRASONIC_OK = 0,        /**< Range is valid.                    */
-    ULTRASONIC_NO_ECHO,       /**< Timed out: open space, absorbent
-                                   surface, or an object inside the
-                                   blind zone. NEVER read as "clear". */
+    ULTRASONIC_NO_ECHO,       /**< Sensor fired (ECHO went high) but
+                                   no echo came back in range: open
+                                   space, or an absorbent / steeply
+                                   angled surface.                    */
+    ULTRASONIC_NO_RESPONSE,   /**< ECHO never went high after the
+                                   trigger: sensor unpowered, wiring
+                                   wrong, TRIG/ECHO swapped, or the
+                                   interrupt is not firing. ALWAYS a
+                                   fault, never "clear".              */
     ULTRASONIC_TOO_CLOSE,     /**< Echo shorter than the blind zone.  */
     ULTRASONIC_TOO_FAR,       /**< Beyond ULTRASONIC_MAX_VALID_MM.    */
     ULTRASONIC_ECHO_STUCK,    /**< ECHO line high before trigger.     */
@@ -59,6 +65,7 @@ typedef struct
     uint32_t ping_count;
     uint32_t timeout_count;
     uint32_t reject_count;    /**< Out of range or stuck echo.       */
+    uint32_t no_response_count; /**< Trigger sent, ECHO never rose.  */
     uint32_t spurious_edges;
 } ultrasonic_stats_t;
 
