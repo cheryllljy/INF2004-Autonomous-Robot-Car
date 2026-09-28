@@ -12,6 +12,11 @@
 #define IMU_SCL_GPIO  5U
 #define IMU_I2C_HZ    100000U
 
+/* Calibration offsets (in raw LSB) */
+static int32_t g_offset_x = 0;
+static int32_t g_offset_y = 0;
+static int32_t g_offset_z = 0;
+
 /* LSM303D I2C Address (shared by both accelerometer and magnetometer) */
 #define LSM303D_ADDR    0x1DU
 
@@ -22,24 +27,14 @@
 /* Accelerometer Registers */
 #define REG_CTRL1_A     0x20U
 #define REG_CTRL2_A     0x21U
-#define REG_CTRL3_A     0x22U
 #define REG_CTRL4_A     0x23U
-#define REG_CTRL5_A     0x24U
-#define REG_CTRL6_A     0x25U
-#define REG_CTRL7_A     0x26U
 #define REG_OUT_X_L_A   0x28U
 
 /* Magnetometer Registers */
-#define REG_CTRL1_M     0x20U   /* Shared with accelerometer CTRL1 */
-#define REG_CTRL5_M     0x24U   /* Shared with accelerometer CTRL5 */
-#define REG_CTRL6_M     0x25U   /* Shared with accelerometer CTRL6 */
-#define REG_CTRL7_M     0x26U   /* Shared with accelerometer CTRL7 */
+#define REG_CTRL5_M     0x24U
+#define REG_CTRL6_M     0x25U
+#define REG_CTRL7_M     0x26U
 #define REG_OUT_X_L_M   0x08U
-#define REG_OUT_X_H_M   0x09U
-#define REG_OUT_Y_L_M   0x0AU
-#define REG_OUT_Y_H_M   0x0BU
-#define REG_OUT_Z_L_M   0x0CU
-#define REG_OUT_Z_H_M   0x0DU
 
 static uint8_t g_accel_address;
 static bool g_ready;
@@ -53,12 +48,21 @@ static bool imu_read_regs(uint8_t address, uint8_t reg, uint8_t *p_data,
     {
         register_address |= 0x80U;
     }
-    if (i2c_write_blocking(IMU_I2C, address, &register_address, 1U, true) != 1)
+
+    for (int retry = 0; retry < 3; retry++)
     {
-        return false;
+        if (i2c_write_blocking(IMU_I2C, address, &register_address, 1U, true) != 1)
+        {
+            sleep_ms(1);
+            continue;
+        }
+        if (i2c_read_blocking(IMU_I2C, address, p_data, length, false) == (int)length)
+        {
+            return true;
+        }
+        sleep_ms(1);
     }
-    return i2c_read_blocking(IMU_I2C, address, p_data, length, false) ==
-           (int)length;
+    return false;
 }
 
 static bool imu_write_reg(uint8_t address, uint8_t reg, uint8_t value)
@@ -96,7 +100,6 @@ imu_status_t imu_init(void)
 
     printf("I2C0 initialized on SDA=%d, SCL=%d\n", IMU_SDA_GPIO, IMU_SCL_GPIO);
 
-    /* Verify the LSM303D is present */
     if (imu_read_regs(LSM303D_ADDR, REG_WHO_AM_I, &id, 1U, false))
     {
         if (id == LSM303D_ID)
@@ -108,92 +111,90 @@ imu_status_t imu_init(void)
             printf("Unexpected WHO_AM_I value: 0x%02X (expected 0x49)\n", id);
         }
     }
-    
+
     if (g_accel_address == 0U)
     {
         return IMU_ACCEL_NOT_FOUND;
     }
 
-    /* ---- Configure Accelerometer ---- */
-    /* CTRL1_A (0x20): ODR = 100 Hz, all axes enabled  -> 0x57 */
-    if (!imu_write_reg(g_accel_address, REG_CTRL1_A, 0x57U))
-    {
-        return IMU_I2C_ERROR;
-    }
+    /* Accelerometer: 100 Hz, all axes, +/-2g, high-resolution, BDU */
+    if (!imu_write_reg(g_accel_address, REG_CTRL1_A, 0x57U)) return IMU_I2C_ERROR;
+    if (!imu_write_reg(g_accel_address, REG_CTRL2_A, 0x00U)) return IMU_I2C_ERROR;
+    if (!imu_write_reg(g_accel_address, REG_CTRL4_A, 0x88U)) return IMU_I2C_ERROR;
 
-    /* CTRL2_A (0x21): High-pass filter disabled, no reference -> 0x00 */
-    if (!imu_write_reg(g_accel_address, REG_CTRL2_A, 0x00U))
-    {
-        return IMU_I2C_ERROR;
-    }
-
-    /* CTRL4_A (0x23): BDU enabled, +/-2 g, high-resolution -> 0x88 */
-    if (!imu_write_reg(g_accel_address, REG_CTRL4_A, 0x88U))
-    {
-        return IMU_I2C_ERROR;
-    }
-
-    /* ---- Configure Magnetometer ---- */
-    /* CTRL5_M (0x24): Temperature enabled, high-resolution, ODR = 50 Hz -> 0x74 */
-    if (!imu_write_reg(g_accel_address, REG_CTRL5_M, 0x74U))
-    {
-        return IMU_I2C_ERROR;
-    }
-
-    /* CTRL6_M (0x25): Full-scale = +/-4 gauss -> 0x20 */
-    if (!imu_write_reg(g_accel_address, REG_CTRL6_M, 0x20U))
-    {
-        return IMU_I2C_ERROR;
-    }
-
-    /* CTRL7_M (0x26): Continuous-conversion mode, high-resolution -> 0x00 */
-    if (!imu_write_reg(g_accel_address, REG_CTRL7_M, 0x00U))
-    {
-        return IMU_I2C_ERROR;
-    }
+    /* Magnetometer: 50 Hz, high-res, +/-4 gauss, continuous */
+    if (!imu_write_reg(g_accel_address, REG_CTRL5_M, 0x74U)) return IMU_I2C_ERROR;
+    if (!imu_write_reg(g_accel_address, REG_CTRL6_M, 0x20U)) return IMU_I2C_ERROR;
+    if (!imu_write_reg(g_accel_address, REG_CTRL7_M, 0x00U)) return IMU_I2C_ERROR;
 
     g_ready = true;
     return IMU_OK;
 }
 
+void imu_calibrate(void)
+{
+    imu_vector_t sample;
+    int32_t sum_x = 0, sum_y = 0, sum_z = 0;
+    int valid_samples = 0;
+    const int num_samples = 100;
+
+    printf("Calibrating IMU... Keep the sensor still and flat.\n");
+    sleep_ms(1000);
+
+    for (int i = 0; i < num_samples; i++)
+    {
+        if (imu_read_accel(&sample) == IMU_OK)
+        {
+            sum_x += sample.x;
+            sum_y += sample.y;
+            sum_z += sample.z;
+            valid_samples++;
+        }
+        sleep_ms(20);
+    }
+
+    if (valid_samples == 0)
+    {
+        printf("Calibration failed: no valid samples.\n");
+        return;
+    }
+
+    g_offset_x = sum_x / valid_samples;
+    g_offset_y = sum_y / valid_samples;
+    g_offset_z = (sum_z / valid_samples) + 16384;
+
+    printf("Calibration complete: %d/%d samples. Offsets: X=%ld Y=%ld Z=%ld\n",
+           valid_samples, num_samples,
+           (long)g_offset_x, (long)g_offset_y, (long)g_offset_z);
+}
+
 imu_status_t imu_read_accel(imu_vector_t *p_sample)
 {
     uint8_t bytes[6];
-    if (p_sample == NULL)
-    {
-        return IMU_BAD_PARAM;
-    }
-    if (!g_ready)
-    {
-        return IMU_NOT_READY;
-    }
+    if (p_sample == NULL) return IMU_BAD_PARAM;
+    if (!g_ready) return IMU_NOT_READY;
     if (!imu_read_regs(g_accel_address, REG_OUT_X_L_A, bytes, sizeof(bytes), true))
-    {
         return IMU_I2C_ERROR;
-    }
-    p_sample->x = (int16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8U));
-    p_sample->y = (int16_t)((uint16_t)bytes[2] | ((uint16_t)bytes[3] << 8U));
-    p_sample->z = (int16_t)((uint16_t)bytes[4] | ((uint16_t)bytes[5] << 8U));
+
+    int16_t raw_x = (int16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8U));
+    int16_t raw_y = (int16_t)((uint16_t)bytes[2] | ((uint16_t)bytes[3] << 8U));
+    int16_t raw_z = (int16_t)((uint16_t)bytes[4] | ((uint16_t)bytes[5] << 8U));
+
+    p_sample->x = (int16_t)((int32_t)raw_x - g_offset_x);
+    p_sample->y = (int16_t)((int32_t)raw_y - g_offset_y);
+    p_sample->z = (int16_t)((int32_t)raw_z - g_offset_z);
+
     return IMU_OK;
 }
 
 imu_status_t imu_read_mag(imu_vector_t *p_sample)
 {
     uint8_t bytes[6];
-    if (p_sample == NULL)
-    {
-        return IMU_BAD_PARAM;
-    }
-    if (!g_ready)
-    {
-        return IMU_NOT_READY;
-    }
-    /* Read from 0x08 (OUT_X_L_M) with auto-increment for 6 bytes */
+    if (p_sample == NULL) return IMU_BAD_PARAM;
+    if (!g_ready) return IMU_NOT_READY;
     if (!imu_read_regs(g_accel_address, REG_OUT_X_L_M, bytes, sizeof(bytes), true))
-    {
         return IMU_I2C_ERROR;
-    }
-    /* LSM303D magnetometer output is little-endian: X, Y, Z */
+
     p_sample->x = (int16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8U));
     p_sample->y = (int16_t)((uint16_t)bytes[2] | ((uint16_t)bytes[3] << 8U));
     p_sample->z = (int16_t)((uint16_t)bytes[4] | ((uint16_t)bytes[5] << 8U));

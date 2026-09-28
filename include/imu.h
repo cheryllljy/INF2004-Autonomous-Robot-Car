@@ -1,10 +1,6 @@
 /**
  * @file imu.h
- * @brief LSM303DLHC accelerometer and magnetometer driver.
- *
- * The LSM303DLHC contains no gyroscope. Samples are returned as the
- * signed raw register values; calibration and unit conversion belong
- * to the application.
+ * @brief LSM303D accelerometer and magnetometer driver for Grove 3.
  */
 #ifndef IMU_H
 #define IMU_H
@@ -30,16 +26,19 @@ typedef enum
     IMU_BAD_ID
 } imu_status_t;
 
-/** Configure Grove 3 / I2C0 and identify both LSM303DLHC dies. */
+/** Configure Grove 3 / I2C0 and identify the LSM303D. */
 imu_status_t imu_init(void);
+
+/** Calibrate the accelerometer by averaging stationary samples. */
+void imu_calibrate(void);
 
 /** Scan the I2C bus and print found addresses. Useful for debugging. */
 void imu_scan_bus(void);
 
-/** Read one XYZ accelerometer sample (raw 12-bit left-justified values). */
+/** Read one XYZ accelerometer sample (calibrated). */
 imu_status_t imu_read_accel(imu_vector_t *p_sample);
 
-/** Read one XYZ magnetometer sample (raw signed register values). */
+/** Read one XYZ magnetometer sample (raw). */
 imu_status_t imu_read_mag(imu_vector_t *p_sample);
 
 /** Return the detected accelerometer address, or 0 if not initialized. */
