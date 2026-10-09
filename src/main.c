@@ -30,6 +30,8 @@
 #include "obstacle.h"
 #include "servo.h"
 #include "ultrasonic.h"
+#include "wifi.h"
+#include "mqtt.h"
 
 /*=====================================================================*/
 /* Local helpers                                                       */
@@ -38,6 +40,13 @@
 #define SAMPLE_BURST        (50U)
 #define SWEEP_POINTS        (11U)
 #define SWEEP_STEP_DEG      (15)
+
+/*=====================================================================*/
+/* Buddy 1 - WiFi bench test configuration                             */
+/*=====================================================================*/
+
+#define WIFI_TEST_SSID      "Chloeee"
+#define WIFI_TEST_PASSWORD  "Chloeee27~21"
 
 static bool g_drivers_up = false;
 static bool g_mission_up = false;
@@ -66,6 +75,50 @@ static uint32_t isqrt_u32(uint32_t value)
     }
 
     return root >> 1;
+}
+
+/*=====================================================================*/
+/* Buddy 1 - MQTT bench test                                           */
+/*=====================================================================*/
+
+static void test_mqtt_connection(void)
+{
+    int result;
+    int wait_count = 0;
+
+    puts("");
+    puts("[Buddy 1] Starting MQTT test");
+
+    result = mqtt_init();
+
+    if (result != 0)
+    {
+        printf(
+            "[Buddy 1] MQTT initialisation FAILED: %d\n",
+            result
+        );
+
+        return;
+    }
+
+    /*
+     * MQTT and DNS operate asynchronously.
+     * Wait up to approximately 15 seconds for the result.
+     */
+    while (!mqtt_connection_complete() && wait_count < 150)
+    {
+        sleep_ms(100);
+        wait_count++;
+    }
+
+    if (mqtt_is_connected())
+    {
+        puts("[Buddy 1] MQTT connection PASSED");
+    }
+    else
+    {
+        puts("[Buddy 1] MQTT connection FAILED");
+    }
 }
 
 static const char *status_name(ultrasonic_status_t s)
@@ -388,6 +441,150 @@ static void test_health(void)
 /* Mission mode                                                        */
 /*=====================================================================*/
 
+/*=====================================================================*/
+/* Buddy 1 - MQTT robot telemetry                                      */
+/*=====================================================================*/
+
+static void publish_robot_telemetry(
+    uint16_t front_mm,
+    const obstacle_health_t *health)
+{
+    char message[32];
+
+    if (!wifi_is_connected() || !mqtt_is_connected())
+    {
+        return;
+    }
+
+    /* Publish front ultrasonic distance. */
+    if (front_mm == OBSTACLE_RANGE_CLEAR)
+    {
+        (void)mqtt_publish_message(
+            "inf2004/robot/distance",
+            "CLEAR"
+        );
+    }
+    else if (front_mm == OBSTACLE_RANGE_UNKNOWN)
+    {
+        (void)mqtt_publish_message(
+            "inf2004/robot/distance",
+            "UNKNOWN"
+        );
+    }
+    else
+    {
+        snprintf(
+            message,
+            sizeof(message),
+            "%u",
+            (unsigned)front_mm
+        );
+
+        (void)mqtt_publish_message(
+            "inf2004/robot/distance",
+            message
+        );
+    }
+
+    /* Publish obstacle state. */
+    snprintf(
+        message,
+        sizeof(message),
+        "%d",
+        (int)health->state
+    );
+
+    (void)mqtt_publish_message(
+        "inf2004/robot/obstacle_state",
+        message
+    );
+
+    /* Publish number of completed scans. */
+    snprintf(
+        message,
+        sizeof(message),
+        "%lu",
+        (unsigned long)health->scans_completed
+    );
+
+    (void)mqtt_publish_message(
+        "inf2004/robot/scans",
+        message
+    );
+}
+
+/*=====================================================================*/
+/* Buddy 1 - Connection recovery                                       */
+/*=====================================================================*/
+
+static void buddy1_connection_recovery(void)
+{
+    static uint32_t last_recovery_ms = 0U;
+
+    const uint32_t now = tkshim_now_ms();
+
+    /*
+     * Check connection health every 5 seconds.
+     * This prevents constant reconnection attempts.
+     */
+    if ((now - last_recovery_ms) < 5000U)
+    {
+        return;
+    }
+
+    last_recovery_ms = now;
+
+    /*
+     * WiFi must be available before MQTT can reconnect.
+     */
+    if (!wifi_is_connected())
+    {
+        printf("[Buddy 1] WiFi connection lost. Reconnecting...\n");
+
+        if (wifi_connect(WIFI_TEST_SSID, WIFI_TEST_PASSWORD) != 0)
+        {
+            printf("[Buddy 1] WiFi reconnection failed.\n");
+            return;
+        }
+
+        printf("[Buddy 1] WiFi reconnected successfully!\n");
+    }
+
+    /*
+     * WiFi is available. Restore MQTT if necessary.
+     */
+    if (!mqtt_is_connected())
+    {
+        printf("[Buddy 1] MQTT connection lost. Reconnecting...\n");
+
+        if (mqtt_reconnect() != 0)
+        {
+            printf("[Buddy 1] MQTT reconnection attempt failed.\n");
+        }
+    }
+}
+
+/*=====================================================================*/
+/* Buddy 1 - MQTT heartbeat                                             */
+/*=====================================================================*/
+
+static void publish_heartbeat(void)
+{
+    /*
+     * Only send the heartbeat when both WiFi and MQTT
+     * are currently connected.
+     */
+    if (!wifi_is_connected() || !mqtt_is_connected())
+    {
+        return;
+    }
+
+    (void)mqtt_publish_message(
+        "inf2004/robot/heartbeat",
+        "alive"
+    );
+}
+
 /**
  * @brief   Idle hook, called from inside the shim's wait loops.
  *
@@ -398,7 +595,19 @@ static void test_health(void)
 static void mission_monitor(void)
 {
     static uint32_t last_ms = 0U;
-    const uint32_t  now     = tkshim_now_ms();
+    static uint32_t last_mqtt_ms = 0U;
+    static uint32_t last_heartbeat_ms = 0U;
+
+    const uint32_t now = tkshim_now_ms();
+    buddy1_connection_recovery();
+    
+    
+    /* Buddy 1 - report heartbeat every 5 seconds. */
+    if ((now - last_heartbeat_ms) >= 5000U)
+    {
+        last_heartbeat_ms = now;
+        publish_heartbeat();
+    }
 
     if ((now - last_ms) >= 250U)
     {
@@ -407,6 +616,13 @@ static void mission_monitor(void)
 
         last_ms = now;
         obstacle_get_health(&h);
+
+        /* Buddy 1 - publish telemetry once every second. */
+        if ((now - last_mqtt_ms) >= 1000U)
+        {
+            last_mqtt_ms = now;
+            publish_robot_telemetry(front, &h);
+        }
 
         if (front == OBSTACLE_RANGE_CLEAR)
         {
@@ -467,12 +683,88 @@ static void show_menu(void)
     puts("");
 }
 
+/*=====================================================================*/
+/* Buddy 1 - WiFi bench test                                           */
+/*=====================================================================*/
+
+static void test_wifi_connection(void)
+{
+    int result;
+
+    puts("");
+    puts("[Buddy 1] WiFi connection test");
+
+    result = wifi_init();
+
+    if (result != 0)
+    {
+        printf("[Buddy 1] WiFi initialisation FAILED: %d\n", result);
+        return;
+    }
+
+    result = wifi_connect(WIFI_TEST_SSID, WIFI_TEST_PASSWORD);
+
+    if (result != 0)
+    {
+        printf("[Buddy 1] WiFi connection FAILED: %d\n", result);
+        return;
+    }
+
+    puts("[Buddy 1] WiFi connection PASSED");
+}
+
+/*=====================================================================*/
+/* Buddy 1 - MQTT publish bench test                                   */
+/*=====================================================================*/
+
+static void test_mqtt_publish(void)
+{
+    int result;
+
+    puts("");
+    puts("[Buddy 1] Starting MQTT publish test");
+
+    if (!mqtt_is_connected())
+    {
+        puts("[Buddy 1] MQTT publish test SKIPPED: MQTT not connected");
+        return;
+    }
+
+    result = mqtt_publish_message(
+        "inf2004/robot/status",
+        "Hello from pico W"
+    );
+
+    if (result == 0)
+    {
+        puts("[Buddy 1] MQTT publish request accepted");
+    }
+    else
+    {
+        printf(
+            "[Buddy 1] MQTT publish test FAILED: %d\n",
+            result
+        );
+    }
+
+    /*
+     * Give the asynchronous MQTT callback time to complete
+     * before Buddy 5's interactive bench test starts.
+     */
+    sleep_ms(1000);
+}
+
 int main(void)
 {
     stdio_init_all();
 
     /* Give the USB CDC link a moment so the banner is not lost. */
     sleep_ms(2000);
+
+    /* Buddy 1 - WiFi bench test. */
+    test_wifi_connection();
+    test_mqtt_connection();
+    test_mqtt_publish();
 
     puts("");
     puts("Buddy 5: adaptive ultrasonic scanning and obstacle profiling");

@@ -61,7 +61,12 @@ set(OBSTACLE_SOURCES
     src/obstacle_geometry.c
 )
 
-add_executable(buddy5 ${OBSTACLE_SOURCES})
+set(BUDDY1_SOURCES
+    src/wifi.c
+    src/mqtt.c
+)
+
+add_executable(buddy5 ${OBSTACLE_SOURCES} ${BUDDY1_SOURCES})
 
 target_include_directories(buddy5 PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/include
@@ -117,6 +122,15 @@ target_link_libraries(buddy5 PRIVATE
     hardware_clocks
     hardware_timer
     hardware_sync
+)
+
+# ---------------------------------------------------------------------
+# Buddy 1: WiFi communication libraries
+# ---------------------------------------------------------------------
+
+target_link_libraries(buddy5 PRIVATE
+    pico_cyw43_arch_lwip_threadsafe_background
+    pico_lwip_mqtt
 )
 
 # ---------------------------------------------------------------------
