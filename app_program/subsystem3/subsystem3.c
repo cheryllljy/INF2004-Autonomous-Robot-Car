@@ -6,6 +6,8 @@
  */
 
 #include "subsystem3.h"
+#include "buddy3.h"
+#include "buddy3_team_config.h"
 
 EXPORT ID		mbx_samples;	/* IF-01 */
 EXPORT ID		mtx_stats;	/* IF-04 */
@@ -38,5 +40,17 @@ EXPORT ER subsystem3_start(void)
 	/* Pinned to core 0 (TP_PRC1): opposite core to the producer */
 	ID tid = app_start_task(consumer_task, S3_PRI_CONSUMER, TP_PRC1,
 				"consumer_task");
+
+	/* Buddy 3 is opt-in until its pins, IRQ ownership and vehicle interface are approved.
+	 * No existing consumer/task behaviour is replaced by this hook. */
+	#if B3_TEAM_AUTOSTART
+		if (tid >= E_OK) {
+			ER b3_status = buddy3_start(NULL);  /* optional encoder hook */
+			if (b3_status < E_OK) {
+				return b3_status;
+			}
+		}
+	#endif
+
 	return (tid < E_OK) ? tid : E_OK;
 }
