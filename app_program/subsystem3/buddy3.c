@@ -1,6 +1,8 @@
 #include "buddy3.h"
 #include "b3_port.h"
 
+#include <tm/tmonitor.h>
+
 
 /*
  * TEMPORARY DIAGNOSTIC
@@ -768,6 +770,8 @@ static void sensor_task(
 {
     ER status;
 
+    // TEMPORARY DIAGNOSTIC: Count how many service cycles have been completed.
+    unsigned int report_cycles = 0U;
 
     (void)start_code;
     (void)p_extended;
@@ -777,6 +781,20 @@ static void sensor_task(
     {
         service_once();
 
+        /* TEMPORARY REAL-HARDWARE IR SENSOR TEST */
+        if (++report_cycles >= 50U)
+        {
+            uint32_t inputs = b3_port_gpio_get_all();
+
+            tm_printf(
+                (UB*)"[B3 IR] GP26=%u GP27=%u GP28=%u\n",
+                (unsigned)((inputs >> B3_LINE_LEFT_GPIO) & 1U),
+                (unsigned)((inputs >> B3_LINE_RIGHT_GPIO) & 1U),
+                (unsigned)((inputs >> B3_BARCODE_GPIO) & 1U)
+            );
+
+            report_cycles = 0U;
+        }
 
         /*
          * Delay is in task context, not ISR context.

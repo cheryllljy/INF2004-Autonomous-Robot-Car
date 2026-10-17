@@ -37,12 +37,8 @@ This starter does not spoof motion/encoder feedback.
 ## Hardware and integration precautions
 
 1. **GPIO pins:** The imported bench ZIP used GP26/27 for left/right line
-   sensors and GP7 for the barcode sensor. The team's template enables
-   `USE_SDEV_DRV=1`; the sample ADC driver can own GP26–GP28. To avoid
-   stealing those pins, imported `b3_config.h` now defaults to:
-   - GP13: left line DO
-   - GP14: right line DO
-   - GP7: barcode DO
+   sensors and GP28 for the barcode sensor. The team's template enables
+   `USE_SDEV_DRV=1`;
    The physical left/right sensor wires must be moved to GP13/14 **before
    enabling autostart**. Ask the team to record each reservation in `TEAM.md`.
    Do not disable the ADC driver without coordinating with its owner.

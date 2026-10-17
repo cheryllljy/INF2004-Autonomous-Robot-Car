@@ -4,5 +4,5 @@
  */
 #ifndef BUDDY3_TEAM_CONFIG_H
 #define BUDDY3_TEAM_CONFIG_H
-#define B3_TEAM_AUTOSTART 0
+#define B3_TEAM_AUTOSTART 1 // set this for testing 
 #endif

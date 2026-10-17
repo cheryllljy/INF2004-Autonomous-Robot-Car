@@ -14,9 +14,9 @@
 // #define B3_LINE_LEFT_GPIO             13U
 // #define B3_LINE_RIGHT_GPIO            14U
 // #define B3_BARCODE_GPIO               15U
-#define B3_LINE_LEFT_GPIO             13U
-#define B3_LINE_RIGHT_GPIO            14U
-#define B3_BARCODE_GPIO               7U // NOT USING GP28 BECAUSE CANT CONNECT WITHOUT FEMALE TO MALE JUMPER WIRES
+#define B3_LINE_LEFT_GPIO             26U
+#define B3_LINE_RIGHT_GPIO            27U
+#define B3_BARCODE_GPIO               28U
 #define B3_DEBUG_GPIO                 6U
 #define B3_DEBUG_ENABLED              0U
 
@@ -28,7 +28,7 @@
 /* Digital OUT/DO connections. Measure each board's black/white polarity. */
 #define B3_LEFT_BLACK_LEVEL           0U
 #define B3_RIGHT_BLACK_LEVEL          0U
-#define B3_BARCODE_BLACK_LEVEL        1U // behaves like a phototransistor with pull-up resistor, so black = low
+#define B3_BARCODE_BLACK_LEVEL        1U // behaves like a phototransistor with pull-up resistor, so black = high, white = low
 #define B3_INPUT_PULL_UP              1U
 
 #define B3_TASK_PRIORITY              17
