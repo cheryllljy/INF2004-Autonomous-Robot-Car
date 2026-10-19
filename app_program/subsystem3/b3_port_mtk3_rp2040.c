@@ -109,22 +109,8 @@ ER b3_port_gpio_input_init(unsigned int pin, bool pull_up)
     return E_OK;
 }
 
-/* Buddy3 source diagnostics use these pin numbers even when they are not
- * declared in the config file. In team mode with debug off, leave those
- * outputs alone so other students can use the pins safely. */
-static bool b3_is_diagnostic_pin(unsigned int pin)
-{
-    return pin == 2U || pin == 3U || pin == 5U ||
-           pin == 6U || pin == 16U || pin == 17U;
-}
-
 ER b3_port_gpio_output_init(unsigned int pin, bool initial_high)
 {
-#if !B3_DEBUG_ENABLED
-    if (b3_is_diagnostic_pin(pin)) {
-        return E_OK; /* do not configure teammates' GPIOs */
-    }
-#endif
     ER status = gpio_set_pin((UINT)pin, GPIO_MODE_OUT);
     if (E_OK != status)
     {
@@ -140,11 +126,6 @@ uint32_t b3_port_gpio_get_all(void)
 
 void b3_port_gpio_put(unsigned int pin, bool value)
 {
-#if !B3_DEBUG_ENABLED
-    if (b3_is_diagnostic_pin(pin)) {
-        return; /* ignore Buddy 3's temporary LED probes */
-    }
-#endif
     (void)gpio_set_val((UINT)pin, value ? 1U : 0U);
 }
 
@@ -158,8 +139,8 @@ uint32_t b3_port_time_us(void)
 void b3_port_barcode_irq_enable(bool enabled)
 {
     UW reg = IO_BANK0_BASE + B3_IO_PROC0_INTE0_OFFSET +
-             (irq_reg_index(B3_BARCODE_GPIO) * sizeof(UW));
-    UW mask = (UW)irq_hw_mask(B3_BARCODE_GPIO, B3_GPIO_EDGE_BOTH);
+             (irq_reg_index(B3_IR_B_GPIO) * sizeof(UW));
+    UW mask = (UW)irq_hw_mask(B3_IR_B_GPIO, B3_GPIO_EDGE_BOTH);
     if (enabled)
     {
         set_w(reg, mask);
@@ -173,17 +154,17 @@ void b3_port_barcode_irq_enable(bool enabled)
 uint32_t b3_port_barcode_irq_pending(void)
 {
     UW reg = IO_BANK0_BASE + B3_IO_PROC0_INTS0_OFFSET +
-             (irq_reg_index(B3_BARCODE_GPIO) * sizeof(UW));
+             (irq_reg_index(B3_IR_B_GPIO) * sizeof(UW));
     UW raw = in_w(reg);
-    return (uint32_t)((raw >> irq_shift(B3_BARCODE_GPIO)) & B3_GPIO_EDGE_BOTH);
+    return (uint32_t)((raw >> irq_shift(B3_IR_B_GPIO)) & B3_GPIO_EDGE_BOTH);
 }
 
 void b3_port_barcode_irq_ack(uint32_t events)
 {
     UW reg = IO_BANK0_BASE + B3_IO_INTR0_OFFSET +
-             (irq_reg_index(B3_BARCODE_GPIO) * sizeof(UW));
+             (irq_reg_index(B3_IR_B_GPIO) * sizeof(UW));
     /* INTR edge bits are write-one-to-clear. */
-    out_w(reg, (UW)irq_hw_mask(B3_BARCODE_GPIO, events & B3_GPIO_EDGE_BOTH));
+    out_w(reg, (UW)irq_hw_mask(B3_IR_B_GPIO, events & B3_GPIO_EDGE_BOTH));
 }
 
 void b3_port_dispatch_barcode_irq(void)
@@ -194,7 +175,7 @@ void b3_port_dispatch_barcode_irq(void)
         /* Capture/clear the hardware flags first; the delegate stays short and
          * records only timestamp/level/optional odometry into its queue. */
         b3_port_barcode_irq_ack(events);
-        b3_ir_gpio_irq(B3_BARCODE_GPIO, events);
+        b3_ir_gpio_irq(B3_IR_B_GPIO, events);
     }
 }
 

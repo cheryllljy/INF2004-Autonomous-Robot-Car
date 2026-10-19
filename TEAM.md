@@ -71,9 +71,9 @@ fixed.
 | GP20 | | |
 | GP21 | | |
 | GP22 | | |
-| GP26 | | (ADC0 capable) |
-| GP27 | | (ADC1 capable) |
-| GP28 | | (ADC2 capable) |
+| GP26 | S3 (Buddy 3) | IR_R, right line sensor (DO; ADC0 self-check in TEST=1) |
+| GP27 | S3 (Buddy 3) | IR_L, left line sensor (DO; ADC1 self-check) |
+| GP28 | S3 (Buddy 3) | IR_B, barcode sensor, edge IRQ + junction (DO; ADC2 self-check) |
 
 ## 3. Peripherals
 
@@ -110,7 +110,7 @@ the drivers have no locking to stop it.
 | I2C1 | | | |
 | SPI0 | | | |
 | SPI1 | | | |
-| ADC | | | GP26–GP28 |
+| ADC | S3 (Buddy 3) | test only: `subsystem3_test()` (TEST=1) | GP26–GP28 |
 | PWM slices (list) | | | |
 | WiFi radio, TCP/IP, MQTT | *kernel* | `cyw43_utk_task` (built in) | GP23–25, GP29 |
 

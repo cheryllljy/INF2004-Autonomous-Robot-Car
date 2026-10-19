@@ -9,6 +9,8 @@
  * call the RTOS, print, access I2C, or change GPIO configuration. */
 typedef bool (*b3_position_reader_t)(uint32_t *p_ticks);
 
+/* One snapshot of the three IR sensors: IR_L, IR_R (line) and IR_B
+ * (barcode, with timestamp and odometry, if available). */
 typedef struct
 {
     bool left_black;

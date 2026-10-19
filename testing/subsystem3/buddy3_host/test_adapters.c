@@ -9,7 +9,8 @@ static uint32_t g_now = 1000U;
 static uint32_t g_pins = UINT32_MAX;
 static uint32_t g_pending;
 static uint32_t g_initialised;
-static bool g_debug_high;
+static bool g_debug_high; /* any GPIO write: Buddy 3 must make none */
+static uint32_t g_outputs;
 static bool g_irq_enabled;
 static bool g_irq_installed;
 static unsigned int g_irq_calls;
@@ -36,14 +37,16 @@ ER b3_port_gpio_input_init(unsigned int pin, bool pull_up)
 }
 ER b3_port_gpio_output_init(unsigned int pin, bool initial_high)
 {
-    g_initialised |= (1U << pin);
-    if (B3_DEBUG_GPIO == pin) g_debug_high = initial_high;
+    g_outputs |= (1U << pin);
+    g_debug_high = g_debug_high || initial_high;
     return E_OK;
 }
 uint32_t b3_port_gpio_get_all(void) { return g_pins; }
 void b3_port_gpio_put(unsigned int pin, bool value)
 {
-    if (B3_DEBUG_GPIO == pin) g_debug_high = value;
+    (void)pin;
+    (void)value;
+    g_debug_high = true;
 }
 uint32_t b3_port_time_us(void) { return g_now; }
 void b3_port_barcode_irq_enable(bool enabled) { g_irq_enabled = enabled; }
@@ -60,7 +63,7 @@ void b3_port_dispatch_barcode_irq(void)
     if (events != 0U)
     {
         b3_port_barcode_irq_ack(events);
-        b3_ir_gpio_irq(B3_BARCODE_GPIO, events);
+        b3_ir_gpio_irq(B3_IR_B_GPIO, events);
     }
 }
 
@@ -96,17 +99,17 @@ static void one_task_pass(void)
 static void emit(bool black)
 {
     g_now += 1000U;
-    bool high = (black == (B3_BARCODE_BLACK_LEVEL != 0U));
+    bool high = (black == (B3_IR_B_BLACK_LEVEL != 0U));
     if (high)
     {
-        g_pins |= (1U << B3_BARCODE_GPIO);
+        g_pins |= (1U << B3_IR_B_GPIO);
     }
     else
     {
-        g_pins &= ~(1U << B3_BARCODE_GPIO);
+        g_pins &= ~(1U << B3_IR_B_GPIO);
     }
     ++g_irq_calls;
-    b3_ir_gpio_irq(B3_BARCODE_GPIO,
+    b3_ir_gpio_irq(B3_IR_B_GPIO,
                    high ? B3_GPIO_EDGE_RISE : B3_GPIO_EDGE_FALL);
     CHECK(!g_debug_high);
 }
@@ -118,15 +121,10 @@ static void test_driver(void)
     b3_ir_sample_t sample;
     CHECK(E_OK == b3_ir_init(NULL));
     CHECK(g_irq_installed);
-    CHECK((g_initialised & (1U << B3_LINE_LEFT_GPIO)) != 0U);
-    CHECK((g_initialised & (1U << B3_LINE_RIGHT_GPIO)) != 0U);
-    CHECK((g_initialised & (1U << B3_BARCODE_GPIO)) != 0U);
-    // CHECK((g_initialised & (1U << B3_DEBUG_GPIO)) != 0U);
-    #if B3_DEBUG_ENABLED
-        CHECK((g_initialised & (1U << B3_DEBUG_GPIO)) != 0U);
-    #else
-        CHECK((g_initialised & (1U << B3_DEBUG_GPIO)) == 0U);
-    #endif
+    CHECK((g_initialised & (1U << B3_IR_L_GPIO)) != 0U);
+    CHECK((g_initialised & (1U << B3_IR_B_GPIO)) != 0U);
+    CHECK((g_initialised & (1U << B3_IR_R_GPIO)) != 0U);
+    CHECK(0U == g_outputs); /* no diagnostic output pins */
     b3_ir_gpio_irq(0U, B3_GPIO_EDGE_RISE);
     CHECK(B3_IR_EMPTY == b3_ir_pop(&edge));
     emit(true);
@@ -137,7 +135,7 @@ static void test_driver(void)
     g_pending = B3_GPIO_EDGE_FALL;
     CHECK(!b3_ir_read_when_idle(&sample));
     g_pending = 0U;
-    b3_ir_gpio_irq(B3_BARCODE_GPIO, B3_GPIO_EDGE_RISE | B3_GPIO_EDGE_FALL);
+    b3_ir_gpio_irq(B3_IR_B_GPIO, B3_GPIO_EDGE_RISE | B3_GPIO_EDGE_FALL);
     CHECK(B3_IR_DISCONTINUITY == b3_ir_pop(&edge));
     CHECK(1U == b3_ir_fault_count());
     CHECK(E_OK == b3_ir_init(NULL));
@@ -169,7 +167,7 @@ static void test_task_boundary(void)
     context.left_measured_mm_s = 120;
     context.right_measured_mm_s = 120;
     buddy3_set_context(&context);
-    g_pins &= ~((1U << B3_LINE_LEFT_GPIO) | (1U << B3_LINE_RIGHT_GPIO));
+    g_pins &= ~((1U << B3_IR_L_GPIO) | (1U << B3_IR_R_GPIO));
     one_task_pass();
     g_now += 5000U;
     context.time_us = g_now;
