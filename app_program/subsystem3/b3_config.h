@@ -2,33 +2,31 @@
 #ifndef B3_CONFIG_H
 #define B3_CONFIG_H
 
-/* TEAM-REPO INTEGRATION: GP13/14 avoid the template's optional ADC driver
- * ownership of GP26/27/28. The user-tested ZIP used GP26/GP27: you must
- * rewire or reconcile the ADC owner before enabling the Buddy3 startup.
- * Keep the tested GP7 barcode input; the GP7 pin must still be claimed in TEAM.md.
- * Debug pins are disabled here so they cannot disturb other subsystems. */
-/* Safe standalone bench defaults for the supplied mtk3smp-rp2040 profile.
- * GP26..GP28 were intentionally NOT used here because the reference port's
- * default sample-device driver claims them as ADC inputs.
- * Reconcile these values with the team's final Robo Pico pin map. */
-// #define B3_LINE_LEFT_GPIO             13U
-// #define B3_LINE_RIGHT_GPIO            14U
-// #define B3_BARCODE_GPIO               15U
-#define B3_LINE_LEFT_GPIO             26U
-#define B3_LINE_RIGHT_GPIO            27U
-#define B3_BARCODE_GPIO               28U
-#define B3_DEBUG_GPIO                 6U
-#define B3_DEBUG_ENABLED              0U
+/* IR sensor pin map (Robo Pico Grove ports, ADC-capable pins).
+ *   IR_R = GP26 (ADC0)  right line sensor
+ *   IR_L = GP27 (ADC1)  left line sensor
+ *   IR_B = GP28 (ADC2)  barcode sensor (edge IRQ) and junction check
+ * Each module's DO output is read digitally; its threshold is set by the
+ * module's potentiometer. The test build also reads the same pins through
+ * the kernel ADC driver as a self-check (subsystem3_test.c). */
+#define B3_IR_R_GPIO                  26U
+#define B3_IR_L_GPIO                  27U
+#define B3_IR_B_GPIO                  28U
+
+/* ADC channels of the same pins (GPn = ADC(n - 26)), used by the tests. */
+#define B3_IR_R_ADC_CH                (B3_IR_R_GPIO - 26U)
+#define B3_IR_L_ADC_CH                (B3_IR_L_GPIO - 26U)
+#define B3_IR_B_ADC_CH                (B3_IR_B_GPIO - 26U)
 
 /* 1 = Buddy 3 installs the RP2040 IO_IRQ_BANK0 vector itself.
  * Use this for the standalone bench test. Set to 0 in the integrated robot
  * when the team already owns a shared GPIO interrupt dispatcher. */
 #define B3_INSTALL_IO_BANK0_HANDLER   1U
 
-/* Digital OUT/DO connections. Measure each board's black/white polarity. */
-#define B3_LEFT_BLACK_LEVEL           0U
-#define B3_RIGHT_BLACK_LEVEL          0U
-#define B3_BARCODE_BLACK_LEVEL        1U // behaves like a phototransistor with pull-up resistor, so black = high, white = low
+/* Electrical level that means "black". Check with test B3-H01. */
+#define B3_IR_R_BLACK_LEVEL           0U
+#define B3_IR_L_BLACK_LEVEL           0U
+#define B3_IR_B_BLACK_LEVEL           1U /* phototransistor + pull-up: black = high */
 #define B3_INPUT_PULL_UP              1U
 
 #define B3_TASK_PRIORITY              17
@@ -91,20 +89,15 @@
 #define B3_BARCODE_TRACK_GAP_NOMINAL_UM    20000U   /* 20 mm */
 // wait till buddy 2 gives a reliable wheel-distance information, then we can add an actual 141mm distance validation
 
-#if (B3_LINE_LEFT_GPIO > 29U) || \
-    (B3_LINE_RIGHT_GPIO > 29U) || \
-    (B3_BARCODE_GPIO > 29U) || \
-    (B3_DEBUG_GPIO > 29U)
-#error "GPIO number is outside the RP2040 GPIO range"
+#if (B3_IR_R_GPIO < 26U) || (B3_IR_R_GPIO > 28U) || \
+    (B3_IR_L_GPIO < 26U) || (B3_IR_L_GPIO > 28U) || \
+    (B3_IR_B_GPIO < 26U) || (B3_IR_B_GPIO > 28U)
+#error "IR sensors must be on the ADC pins GP26..GP28"
 #endif
 
-#if (B3_LINE_LEFT_GPIO == B3_LINE_RIGHT_GPIO) || \
-    (B3_LINE_LEFT_GPIO == B3_BARCODE_GPIO) || \
-    (B3_LINE_RIGHT_GPIO == B3_BARCODE_GPIO)
+#if (B3_IR_L_GPIO == B3_IR_R_GPIO) || \
+    (B3_IR_L_GPIO == B3_IR_B_GPIO) || \
+    (B3_IR_R_GPIO == B3_IR_B_GPIO)
 #error "Each IR input requires a distinct GPIO"
-#endif
-#if B3_DEBUG_ENABLED && ((B3_DEBUG_GPIO == B3_LINE_LEFT_GPIO) || \
-    (B3_DEBUG_GPIO == B3_LINE_RIGHT_GPIO) || (B3_DEBUG_GPIO == B3_BARCODE_GPIO))
-#error "Debug GPIO conflicts with an IR input"
 #endif
 #endif

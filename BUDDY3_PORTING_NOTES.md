@@ -36,17 +36,17 @@ This starter does not spoof motion/encoder feedback.
 
 ## Hardware and integration precautions
 
-1. **GPIO pins:** The imported bench ZIP used GP26/27 for left/right line
-   sensors and GP28 for the barcode sensor. The team's template enables
-   `USE_SDEV_DRV=1`;
-   The physical left/right sensor wires must be moved to GP13/14 **before
-   enabling autostart**. Ask the team to record each reservation in `TEAM.md`.
-   Do not disable the ADC driver without coordinating with its owner.
-2. **Debug outputs:** The bench code also drives diagnostic GP2/3/5/6/16/17.
-   `B3_DEBUG_ENABLED=0` now, and the imported port adapter skips diagnostic
-   GPIO configuration and writes for those pins, including unconditional
-   bench diagnostics in `buddy3.c` and `b3_barcode.c`. The algorithms were not
-   rewritten to strip their instrumentation.
+1. **GPIO pins:** IR_R = GP26, IR_L = GP27, IR_B = GP28
+   (`B3_IR_R_GPIO`, `B3_IR_L_GPIO`, `B3_IR_B_GPIO` in `b3_config.h`).
+   IR_L and IR_R follow the line; IR_B reads barcodes by edge interrupt
+   and confirms junctions. The DO outputs are read digitally. The kernel
+   ADC driver (`USE_SDEV_DRV=1`) does not reconfigure these pads
+   (`DEVCONF_ADC_PIN_INIT_n` are FALSE), so the test build also reads them
+   as ADC0–2 for a self-check.
+2. **Debug outputs:** removed. Buddy 3 drives no output pins; the old
+   diagnostic LEDs on GP2/3/5/6/16/17 are gone (GP2/GP3 are the encoders).
+   Use `make TEST=1` and the `[TEST] B3-…` lines instead (see
+   `testing/subsystem3/TEST_LOG.md`).
 3. **Priority:** `B3_TASK_PRIORITY=17` is in the current template's S3
    priority band (16–17); the existing S3 consumer remains priority 16.
 4. **GPIO interrupt:** `B3_INSTALL_IO_BANK0_HANDLER=1` assumes nobody else

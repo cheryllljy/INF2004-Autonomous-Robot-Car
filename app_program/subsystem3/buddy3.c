@@ -1,22 +1,6 @@
 #include "buddy3.h"
 #include "b3_port.h"
 
-#include <tm/tmonitor.h>
-
-
-/*
- * TEMPORARY DIAGNOSTIC
- *
- * GP3 ON = Buddy3 barcode scanning is enabled.
- *
- * Other diagnostic LEDs are currently:
- *
- * GP2 = barcode IRQ fault
- * GP4 = scan became active (bench code)
- * GP5 = valid barcode edge queued
- * GP6 = barcode ISR entered
- */
-#define B3_DIAG_SCAN_ENABLED_GPIO 3U
 
 
 static b3_context_t g_context;
@@ -475,21 +459,6 @@ static void service_once(void)
 
 
     /*
-     * TEMPORARY DIAGNOSTIC:
-     *
-     * GP3 ON means scan_enabled is TRUE.
-     *
-     * Unlike the other LEDs, this reflects the
-     * CURRENT scan_enabled state rather than
-     * permanently latching.
-     */
-    b3_port_gpio_put(
-        B3_DIAG_SCAN_ENABLED_GPIO,
-        scan_enabled
-    );
-
-
-    /*
      * Reset motion statistics whenever
      * no barcode is active.
      */
@@ -617,7 +586,8 @@ static void service_once(void)
 
 
     /*
-     * Junction candidate handling.
+     * Junction candidate handling: IR_L, IR_R and IR_B
+     * all black for long enough means a wide crossing patch.
      */
     if (sample.barcode.black &&
         output.line.left_black &&
@@ -674,9 +644,6 @@ static void service_once(void)
     }
 
 
-    /*
-     * This is what your GP4 bench LED eventually reads.
-     */
     output.scan_active =
         b3_barcode_active(
             &g_scan
@@ -770,9 +737,6 @@ static void sensor_task(
 {
     ER status;
 
-    // TEMPORARY DIAGNOSTIC: Count how many service cycles have been completed.
-    unsigned int report_cycles = 0U;
-
     (void)start_code;
     (void)p_extended;
 
@@ -780,21 +744,6 @@ static void sensor_task(
     for (;;)
     {
         service_once();
-
-        /* TEMPORARY REAL-HARDWARE IR SENSOR TEST */
-        if (++report_cycles >= 50U)
-        {
-            uint32_t inputs = b3_port_gpio_get_all();
-
-            tm_printf(
-                (UB*)"[B3 IR] GP26=%u GP27=%u GP28=%u\n",
-                (unsigned)((inputs >> B3_LINE_LEFT_GPIO) & 1U),
-                (unsigned)((inputs >> B3_LINE_RIGHT_GPIO) & 1U),
-                (unsigned)((inputs >> B3_BARCODE_GPIO) & 1U)
-            );
-
-            report_cycles = 0U;
-        }
 
         /*
          * Delay is in task context, not ISR context.
@@ -868,25 +817,6 @@ ER buddy3_start(
     status =
         b3_ir_init(
             position_reader
-        );
-
-
-    if (E_OK != status)
-    {
-        return status;
-    }
-
-
-    /*
-     * TEMPORARY DIAGNOSTIC:
-     *
-     * GP3 indicates whether scan_enabled
-     * is true inside service_once().
-     */
-    status =
-        b3_port_gpio_output_init(
-            B3_DIAG_SCAN_ENABLED_GPIO,
-            false
         );
 
 
