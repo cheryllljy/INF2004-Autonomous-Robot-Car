@@ -1,0 +1,27 @@
+Tested cyclic handler
+cyc_check.c tests for:
+
+The shortest and longest handler-to-handler period (expect 20 ms ± 2 ms, NFR5).
+The longest delay from handler to task running.
+The number of missed wakeups.
+
+1. In subsystem2.c:
+uncomment cyc_check_init() & cyc_check_start()
+2. make SMP=0 -j8
+observe cyc outputs on serial : 
+cyc: period 19988..20013 us, max wake latency 10 us, missed 0
+cyc: period 19990..20013 us, max wake latency 11 us, missed 0
+cyc: period 19987..20014 us, max wake latency 10 us, missed 0
+
+3. make clean && make -j8
+observe cyc outputs on serial :
+cyc: period 19985..20014 us, max wake latency 9 us, missed 0
+cyc: period 19989..20012 us, max wake latency 11 us, missed 0
+cyc: period 19992..20010 us, max wake latency 9 us, missed 0
+
+Results:
+Period - off by at most 15 us (19985..20014), well within 20ms period from NFR5
+max latency is 9 - 11 us - negligible to 20 ms cycle 
+0 missed wakeups 
+
+NFR5 PASSED for buddy 2

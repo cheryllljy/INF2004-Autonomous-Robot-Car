@@ -6,7 +6,7 @@
  */
 
 #include "subsystem2.h"
-
+#include "cyc_check.h"
 EXPORT ID	sem_slots;	/* IF-02, see subsystem2.h */
 EXPORT ID	mpf_samples;
 
@@ -19,6 +19,7 @@ EXPORT ER subsystem2_init(void)
 	   (tk_wai_sem) before each sample; the consumer gives one back
 	   (tk_sig_sem).  It never exceeds the number of memory blocks, so
 	   the producer can never run out of memory. */
+	// cyc_check_init();
 	csem.sematr  = TA_TFIFO;	/* waiting tasks queue in FIFO order */
 	csem.isemcnt = S2_POOL_COUNT;	/* initial count */
 	csem.maxsem  = S2_POOL_COUNT;	/* maximum count */
@@ -39,6 +40,7 @@ EXPORT ER subsystem2_init(void)
 EXPORT ER subsystem2_start(void)
 {
 	/* Pinned to core 1 (TP_PRC2): samples cross to subsystem 3 on core 0 */
+	// cyc_check_start();
 	ID tid = app_start_task(producer_task, S2_PRI_PRODUCER, TP_PRC2,
 				"producer_task");
 	return (tid < E_OK) ? tid : E_OK;
