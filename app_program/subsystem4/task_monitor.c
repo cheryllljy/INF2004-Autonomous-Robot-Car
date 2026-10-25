@@ -12,6 +12,7 @@
 #include "../subsystem1/subsystem1.h"	/* IF-05: tid_led */
 #include "../subsystem2/subsystem2.h"	/* sem_slots, mpf_samples (read only) */
 #include "../subsystem3/subsystem3.h"	/* IF-04: app_stats, mtx_stats */
+#include "imu.h"
 
 EXPORT UW	s4_lines_received;
 
@@ -48,6 +49,11 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 	T_RMPF		rmpf;
 	T_RTSK		rtsk;
 	SYSTIM		now;
+	imu_vector_t	accel;
+	imu_vector_t	mag;
+	imu_status_t	imu_status;
+	imu_status_t	accel_status;
+	imu_status_t	mag_status;
 	UW		reports = 0;
 	BOOL		led_paused = FALSE;
 	ER		er;
@@ -55,6 +61,14 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 	(void)stacd; (void)exinf;
 
 	tm_printf((UB*)"monitor: I am task %d\n", tk_get_tid());
+	imu_status = imu_init();
+	if (imu_status == IMU_OK) {
+		tm_printf((UB*)"monitor: IMU ready at 0x%02X\n",
+			  (UINT)imu_accel_address());
+	} else {
+		tm_printf((UB*)"monitor: IMU init failed, status=%d\n",
+			  (INT)imu_status);
+	}
 
 	while (1) {
 		/* 1. Arm the one-shot alarm, then wait for EITHER bit.
@@ -97,7 +111,31 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 			  snap.received ? (INT)(snap.sum / (W)snap.received) : 0,
 			  rsem.semcnt, (INT)rmpf.frbcnt);
 
-		/* 4. Every few reports, pause or resume subsystem 1's LED task
+		/* The monitor task is the sole owner of I2C0 and the IMU. */
+		if (imu_status != IMU_OK) {
+			imu_status = imu_init();
+		}
+		if (imu_status == IMU_OK) {
+			accel_status = imu_read_accel(&accel);
+			mag_status = imu_read_mag(&mag);
+			if (accel_status == IMU_OK && mag_status == IMU_OK) {
+				tm_printf((UB*)"monitor: IMU accel=(%d,%d,%d) "
+					  "mag=(%d,%d,%d)\n",
+					  (INT)accel.x, (INT)accel.y, (INT)accel.z,
+					  (INT)mag.x, (INT)mag.y, (INT)mag.z);
+			} else {
+				tm_printf((UB*)"monitor: IMU read failed, "
+					  "accel=%d mag=%d\n",
+					  (INT)accel_status, (INT)mag_status);
+				if (accel_status != IMU_OK) {
+					imu_status = accel_status;
+				} else {
+					imu_status = mag_status;
+				}
+			}
+		}
+
+		/* Every few reports, pause or resume subsystem 1's LED task
 		      (IF-05) and look at it with tk_ref_tsk. */
 		if (++reports % S4_LED_TOGGLE_REPORTS == 0) {
 			if (led_paused) {
