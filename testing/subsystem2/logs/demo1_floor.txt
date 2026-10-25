@@ -1,0 +1,74 @@
+microT-Kernel Version 3.00
+
+
+=== micro T-Kernel on Raspberry Pi Pico W (spec 0x6300, product 0x0003) ===
+dual-core (SMP) build, usermain on core 0
+all subsystems started
+
+monitor: I am task 10
+wifi: cyw43_utk_task starting (proc 1)
+wifi: cyw43_init() ...
+wifi: cyw43_init() returned, bringing interface up ...
+demo: 1) forward 300 mm at 100 mm/s
+  t=200 ms DRIVING vL 94 vR 88 mm/s dist 14 mm heading 0 deg
+  t=420 ms DRIVING vL 116 vR 116 mm/s dist 40 mm heading 0 deg
+  t=620 ms DRIVING vL 110 vR 110 mm/s dist 62 mm heading 0 deg
+  t=840 ms DRIVING vL 104 vR 108 mm/s dist 86 mm heading 0 deg
+  t=1040 ms DRIVING vL 102 vR 108 mm/s dist 107 mm heading 0 deg
+  t=1260 ms DRIVING vL 104 vR 102 mm/s dist 130 mm heading 0 deg
+  t=1460 ms DRIVING vL 96 vR 100 mm/s dist 150 mm heading 0 deg
+  t=1680 ms DRIVING vL 100 vR 102 mm/s dist 172 mm heading 0 deg
+  t=1880 ms DRIVING vL 102 vR 102 mm/s dist 193 mm heading 0 deg
+  t=2100 ms DRIVING vL 98 vR 100 mm/s dist 215 mm heading 0 deg
+  t=2300 ms DRIVING vL 98 vR 98 mm/s dist 234 mm heading 0 deg
+  t=2520 ms DRIVING vL 100 vR 100 mm/s dist 256 mm heading 0 deg
+  t=2720 ms DRIVING vL 100 vR 100 mm/s dist 276 mm heading 0 deg
+  t=2940 ms DRIVING vL 50 vR 50 mm/s dist 292 mm heading 0 deg
+  t=3140 ms STOPPING vL 24 vR 26 mm/s dist 298 mm heading 0 deg
+  -> IDLE, result DONE, fault none, dist 298 mm (L 298, R 298), heading 0 deg, overruns 0
+demo: 2) turn left 90 deg
+  t=220 ms TURNING vL -68 vR 76 mm/s dist 298 mm heading 14 deg
+  t=420 ms TURNING vL -80 vR 82 mm/s dist 299 mm heading 33 deg
+  t=640 ms TURNING vL -74 vR 72 mm/s dist 299 mm heading 53 deg
+  t=840 ms TURNING vL -82 vR 76 mm/s dist 298 mm heading 71 deg
+  t=1060 ms TURNING vL -36 vR 32 mm/s dist 298 mm heading 85 deg
+  t=1260 ms STOPPING vL -6 vR 6 mm/s dist 298 mm heading 90 deg
+  -> IDLE, result DONE, fault none, dist 298 mm (L 221, R 375), heading 90 deg, overruns 0
+demo: 3) forward 200 mm
+  t=220 ms DRIVING vL 90 vR 84 mm/s dist 312 mm heading 88 deg
+  t=420 ms DRIVING vL 112 vR 116 mm/s dist 335 mm heading 89 deg
+  t=640 ms DRIVING vL 108 vR 112 mm/s dist 359 mm heading 89 deg
+  t=840 ms DRIVING vL 106 vR 108 mm/s dist 381 mm heading 90 deg
+  t=1060 ms DRIVING vL 106 vR 104 mm/s dist 404 mm heading 90 deg
+  t=1260 ms DRIVING vL 102 vR 106 mm/s dist 425 mm heading 90 deg
+  t=1480 ms DRIVING vL 102 vR 100 mm/s dist 447 mm heading 90 deg
+  t=1680 ms DRIVING vL 98 vR 102 mm/s dist 467 mm heading 90 deg
+  t=1900 ms DRIVING vL 76 vR 76 mm/s dist 487 mm heading 90 deg
+  t=2100 ms DRIVING vL 32 vR 28 mm/s dist 495 mm heading 90 deg
+  -> IDLE, result DONE, fault none, dist 497 mm (L 421, R 574), heading 90 deg, overruns 0
+demo: 4) turn right 90 deg
+  t=200 ms TURNING vL 74 vR -74 mm/s dist 497 mm heading 75 deg
+  t=420 ms TURNING vL 82 vR -80 mm/s dist 497 mm heading 54 deg
+  t=620 ms TURNING vL 80 vR -78 mm/s dist 498 mm heading 35 deg
+  t=840 ms TURNING vL 74 vR -76 mm/s dist 498 mm heading 15 deg
+  t=1040 ms TURNING vL 34 vR -34 mm/s dist 497 mm heading 4 deg
+  t=1260 ms STOPPING vL 2 vR -4 mm/s dist 497 mm heading -1 deg
+  -> IDLE, result DONE, fault none, dist 497 mm (L 498, R 496), heading -1 deg, overruns 0
+demo: 5) backward 200 mm
+  t=200 ms DRIVING vL -76 vR -82 mm/s dist 485 mm heading 0 deg
+  t=420 ms DRIVING vL -116 vR -120 mm/s dist 459 mm heading 0 deg
+  t=620 ms DRIVING vL -114 vR -110 mm/s dist 436 mm heading 0 deg
+  t=840 ms DRIVING vL -104 vR -106 mm/s dist 412 mm heading -1 deg
+  t=1040 ms DRIVING vL -106 vR -108 mm/s dist 391 mm heading -1 deg
+  t=1260 ms DRIVING vL -104 vR -104 mm/s dist 368 mm heading -1 deg
+  t=1460 ms DRIVING vL -102 vR -102 mm/s dist 347 mm heading -1 deg
+  t=1680 ms DRIVING vL -104 vR -100 mm/s dist 325 mm heading -1 deg
+  t=1880 ms DRIVING vL -74 vR -74 mm/s dist 307 mm heading -1 deg
+  t=2100 ms STOPPING vL -30 vR -30 mm/s dist 299 mm heading -1 deg
+  -> IDLE, result DONE, fault none, dist 298 mm (L 299, R 297), heading -1 deg, overruns 0
+demo: 6) E-stop test: 500 mm move, E-stop after 1 s
+  -> ESTOP, result ESTOP, fault none, dist 395 mm (L 396, R 393), heading -1 deg, overruns 0
+demo: clearing the E-stop and resetting
+  -> IDLE, result DONE
+demo: finished OK
+

@@ -118,6 +118,7 @@ static const uint32_t s_pin_b[2] = { CAL_PIN_L_B, CAL_PIN_R_B };
 
 static uint32_t s_ticks[2];         /* filtered edge counts, [0] = left, [1] = right */
 static uint32_t s_raw[2];           /* every transition seen                         */
+static bool s_hw_ok;                /* motion_hw_init() result, done in motion_cal_init() on core 0 */
 static uint32_t s_prev[2];
 static uint32_t s_last_edge_us[2];
 
@@ -355,10 +356,9 @@ static void cal_isr_check(void)
     static const uint32_t duties[5] = { 100U, 200U, 300U, 400U, 500U };
     uint32_t i;
 
-    if (!motion_hw_init())
+    if (!s_hw_ok)
     {
-        tm_printf((UB *)"ISR check: motion_hw_init() failed\n");
-        return;
+        tm_printf((UB *)"ISR check: motion_hw_init() failed (see the tk_def_int value below: -41 = already owned, -99 = not on core 0)\n");
     }
     {
         int32_t def_st;
@@ -367,7 +367,7 @@ static void cal_isr_check(void)
         uint32_t calls;
 
         motion_hw_irq_status(&def_st, &en_st, &inte0, &calls);
-        tm_printf((UB *)"ISR setup: tk_def_int returned %d (0 = OK, -41 = someone else already owns the interrupt), INTE0 = 0x%x\n",
+        tm_printf((UB *)"ISR setup: tk_def_int returned %d (0 = OK, -41 = someone else owns the interrupt, -99 = set up from core 1), INTE0 = 0x%x\n",
                   (int)def_st, (unsigned int)inte0);
         (void)en_st;
     }
@@ -617,7 +617,7 @@ static void cal_task(INT stacd, void *exinf)
         }
     }
     tm_printf((UB *)"cal: hardware ready\n");
-    tm_printf((UB *)"\n=== Buddy 2 calibration firmware v8b ===\n");
+    tm_printf((UB *)"\n=== Buddy 2 calibration firmware v9 ===\n");
     tm_printf((UB *)"PWM %u Hz assuming %u Hz system clock. Press GP20 to start each step,\n",
               (unsigned int)MOTOR_PWM_FREQ_HZ, (unsigned int)CAL_SYS_CLK_HZ);
     tm_printf((UB *)"and again during a run to abort it. Lift the wheels for the first runs.\n");
@@ -678,6 +678,10 @@ static ID s_cal_task_id;
 
 void motion_cal_init(void)
 {
+    /* Runs in subsystem2_init(), i.e. usermain on core 0: the encoder interrupt must be
+     * enabled from core 0 (each core has its own interrupt controller). */
+    s_hw_ok = motion_hw_init();
+
     /* The kernel refuses a priority above its configured maximum with E_PAR.
      * Busy polling must not starve other tasks, so try the lowest priority
      * first and step towards the higher ones until one is accepted. */

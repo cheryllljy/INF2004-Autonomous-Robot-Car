@@ -25,7 +25,7 @@
 #include <tk/tkernel.h>
 
 #define MC_SIDES            (2U)
-#define MC_DT_S             ((float)MOTION_CONTROL_PERIOD_MS / 1000.0f)
+#define MC_DT_NOMINAL_S     ((float)MOTION_CONTROL_PERIOD_MS / 1000.0f)
 #define MC_HIST_LEN         (SPEED_WINDOW_PERIODS + 1U)
 #define MC_ESTOP_ALL        (MOTION_ESTOP_IMU | MOTION_ESTOP_OBSTACLE | MOTION_ESTOP_VEHICLE)
 #define MC_INTEG_MAX_PM     (300.0f)
@@ -58,6 +58,10 @@ static int32_t  s_pos_ticks[MC_SIDES];  /* signed odometry ticks, forward = + */
 static int32_t  s_dir[MC_SIDES] = { 1, 1 };
 static int32_t  s_hist[MC_SIDES][MC_HIST_LEN];
 static uint32_t s_hist_idx;
+static uint32_t s_hist_t_us[MC_HIST_LEN];   /* time stamp of every history sample */
+static uint32_t s_t_last_us;
+static float    s_dt_s = MC_DT_NOMINAL_S;   /* ACTUAL time since the last cycle, from the hardware timer */
+static uint32_t s_dt_ms = MOTION_CONTROL_PERIOD_MS;
 static float    s_speed[MC_SIDES];      /* measured mm/s, signed */
 static float    s_goal[MC_SIDES];       /* wanted mm/s */
 static float    s_set[MC_SIDES];        /* ramped setpoint mm/s */
@@ -213,6 +217,30 @@ static void mc_enter_fault(motion_fault_t fault)
 
 /* ---------- Odometry and speed ---------- */
 
+/* Measure the real time since the last cycle. The kernel tick may not be exactly
+ * 20 ms (clock set-up differences), so speed and the PID use this, not 20 ms. */
+static void mc_update_time(void)
+{
+    const uint32_t now = motion_hw_time_us();
+    uint32_t dt_us = (s_t_last_us == 0U) ? (MOTION_CONTROL_PERIOD_MS * 1000U) : (now - s_t_last_us);
+
+    s_t_last_us = now;
+    if (dt_us > ((MOTION_CONTROL_PERIOD_MS + 2U) * 1000U) || (dt_us + 2000U) < (MOTION_CONTROL_PERIOD_MS * 1000U))
+    {
+        s_overrun_count++;                      /* outside the +/-2 ms jitter allowed by NFR5 */
+    }
+    if (dt_us < 1000U)
+    {
+        dt_us = 1000U;
+    }
+    else if (dt_us > 100000U)
+    {
+        dt_us = 100000U;
+    }
+    s_dt_s = (float)dt_us / 1000000.0f;
+    s_dt_ms = (dt_us + 500U) / 1000U;
+}
+
 static void mc_update_odometry(void)
 {
     uint32_t side;
@@ -231,11 +259,15 @@ static void mc_update_odometry(void)
     s_hist_idx = (s_hist_idx + 1U) % MC_HIST_LEN;
     newest = s_hist_idx;
     oldest = (s_hist_idx + 1U) % MC_HIST_LEN;
+    s_hist_t_us[newest] = s_t_last_us;
     for (side = 0U; side < MC_SIDES; side++)
     {
+        const uint32_t window_us = s_t_last_us - s_hist_t_us[oldest];
+
         s_hist[side][newest] = s_pos_ticks[side];
-        s_speed[side] = ((float)(s_pos_ticks[side] - s_hist[side][oldest]) * MM_PER_TICK) /
-                        ((float)SPEED_WINDOW_PERIODS * MC_DT_S);
+        s_speed[side] = (window_us < 1000U) ? 0.0f
+                      : (((float)(s_pos_ticks[side] - s_hist[side][oldest]) * MM_PER_TICK) /
+                         ((float)window_us / 1000000.0f));
     }
 }
 
@@ -249,7 +281,7 @@ static void mc_check_stall(void)
 
         if ((mag >= MOTION_STALL_MIN_PWM_PM) && (s_delta[side] == 0U))
         {
-            s_stall_ms[side] += MOTION_CONTROL_PERIOD_MS;
+            s_stall_ms[side] += s_dt_ms;
         }
         else
         {
@@ -265,7 +297,7 @@ static void mc_check_stall(void)
          * Means the encoder is not telling the truth (or the wheel is jammed). */
         if ((mag >= (MOTION_DUTY_MAX_PM - 5)) && (mc_absf(s_speed[side]) < (0.5f * mc_absf(s_set[side]))))
         {
-            s_runaway_ms[side] += MOTION_CONTROL_PERIOD_MS;
+            s_runaway_ms[side] += s_dt_ms;
         }
         else
         {
@@ -298,7 +330,7 @@ static int32_t mc_speed_control(uint32_t side)
     }
 
     err = mag_set - (s_speed[side] * sgn);
-    integ = mc_clampf(s_integ[side] + (MOTION_SPEED_KI * err * MC_DT_S),
+    integ = mc_clampf(s_integ[side] + (MOTION_SPEED_KI * err * s_dt_s),
                       -MC_INTEG_MAX_PM, MC_INTEG_MAX_PM);
     u = (float)MOTOR_FF_OFFSET_PM + (mag_set / (MM_PER_TICK * MOTOR_FF_TICKS_PER_PM)) +
         (MOTION_SPEED_KP * err) + integ;
@@ -481,7 +513,7 @@ static void mc_plan_turn(void)
 
 static void mc_run_state(void)
 {
-    const float step = (float)MOTION_ACCEL_MMPS2 * MC_DT_S;
+    const float step = (float)MOTION_ACCEL_MMPS2 * s_dt_s;
     uint32_t side;
 
     switch (s_state)
@@ -708,6 +740,7 @@ static void mc_control_cycle(void)
         mc_enter_estop(estop);                  /* before anything else */
     }
 
+    mc_update_time();
     mc_update_odometry();
     if (!mc_latched())
     {
@@ -740,6 +773,7 @@ static void mc_task(INT stacd, void *exinf)
         for (i = 0U; i < MC_HIST_LEN; i++)
         {
             s_hist[side][i] = 0;
+            s_hist_t_us[i] = motion_hw_time_us();
         }
     }
     s_state = MOTION_STATE_IDLE;

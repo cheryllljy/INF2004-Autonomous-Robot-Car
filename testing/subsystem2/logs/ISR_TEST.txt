@@ -1,0 +1,33 @@
+microT-Kernel Version 3.00
+
+
+=== micro T-Kernel on Raspberry Pi Pico W (spec 0x6300, product 0x0003) ===
+dual-core (SMP) build, usermain on core 0
+motion_cal: init, task id 4, priority 30
+motion_cal: start
+cal: task running
+all subsystems started
+
+monitor: I am task 9
+wifi: cyw43_utk_task starting (proc 1)
+wifi: cyw43_init() ...
+wifi: cyw43_init() returned, bringing interface up ...
+cal: hardware ready
+
+=== Buddy 2 calibration firmware v9 ===
+PWM 20000 Hz assuming 125000000 Hz system clock. Press GP20 to start each step,
+and again during a run to abort it. Lift the wheels for the first runs.
+
+[ISR check BOTH wheels lifted: both motors run about 6 s] run 1 of 1. Press GP20 to start.
+[ISR check BOTH wheels lifted: both motors run about 6 s] run 1 of 1. Press GP20 to start.
+ISR setup: tk_def_int returned 0 (0 = OK, -41 = someone else owns the interrupt, -99 = set up from core 1), INTE0 = 0xcc00
+ISR check: both motors at a fixed duty, 1 s each (wheels lifted!)
+  duty 100: polled L 463 R 485 | ISR L 463 R 485 | expected about 250
+  duty 200: polled L 1011 R 1046 | ISR L 1011 R 1046 | expected about 750
+  duty 300: polled L 1543 R 1592 | ISR L 1542 R 1592 | expected about 1250
+  duty 400: polled L 2074 R 2134 | ISR L 2075 R 2135 | expected about 1750
+  duty 500: polled L 2612 R 2670 | ISR L 2612 R 2671 | expected about 2250
+ISR handler ran 15616 times in total
+RESULT ISR check done. ISR should match polled; if ISR is far lower, the interrupt path loses edges.
+
+All calibration steps finished.

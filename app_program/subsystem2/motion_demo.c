@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include "motion_config.h"
 #include "motion_control.h"
+#include "motion_hw.h"
 
 #if MOTION_DEMO
 
@@ -151,6 +152,19 @@ static void demo_task(INT stacd, void *exinf)
 
     DEMO_GPIO20_CTRL = 5U;                      /* SIO function: GP20 readable as a plain input */
     (void)tk_dly_tsk(8000);
+
+    {   /* Is the kernel's time the same as the hardware timer's? */
+        motion_status_t a;
+        motion_status_t b;
+        const uint32_t t0 = motion_hw_time_us();
+
+        motion_get_status(&a);
+        (void)tk_dly_tsk(1000);
+        motion_get_status(&b);
+        tm_printf((UB *)"clock check: tk_dly_tsk(1000) took %u ms by the hardware timer; %u control cycles in that time (expect 50)\n",
+                  (unsigned int)((motion_hw_time_us() - t0) / 1000U),
+                  (unsigned int)(b.cycle_count - a.cycle_count));
+    }
 
     if (demo_step("1) forward 300 mm at 100 mm/s", motion_move(300, 100), 8000U) &&
         demo_step("2) turn left 90 deg", motion_turn(90, 90), 6000U) &&

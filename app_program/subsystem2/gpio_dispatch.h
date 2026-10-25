@@ -32,6 +32,12 @@
  * the Buddy 3 headers are not wanted in this build. */
 #define GPIO_DISPATCH_BUDDY3        (1)
 
+/* gpio_dispatch_start() reports this in the tk_def_int status when it is called from
+ * core 1. Every RP2040 core has its own interrupt controller, and the handler reads
+ * the core 0 registers, so the interrupt must be enabled FROM CORE 0: call it from
+ * subsystem init code (usermain runs on core 0), never from a task. */
+#define GPIO_DISPATCH_ERR_WRONG_CORE    (-99)
+
 typedef void (*gpio_dispatch_cb_t)(uint32_t pin);
 
 /* events != 0: the dispatcher enables these edge events for the pin, and clears

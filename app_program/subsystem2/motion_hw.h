@@ -11,7 +11,9 @@
 #define MOTION_SIDE_LEFT    (0U)
 #define MOTION_SIDE_RIGHT   (1U)
 
-/* Release the PWM/GPIO blocks, set up the motor PWM and the encoder interrupt. */
+/* Release the PWM/GPIO blocks, set up the motor PWM and the encoder interrupt.
+ * Call it from subsystem init code (usermain, core 0), NOT from a task: the
+ * interrupt has to be enabled from core 0. */
 bool motion_hw_init(void);
 
 /* duty in permille, signed: + = forward, - = reverse, 0 = coast (both inputs low). */

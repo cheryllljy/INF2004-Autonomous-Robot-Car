@@ -27,7 +27,7 @@
 
 /* ---------- Geometry ---------- */
 #define WHEEL_DIAMETER_MM       (65.0f)     /* 6.5cm = 65mm       */
-#define TRACK_WIDTH_MM          (97.0f)    /* 11.2cm == 112mm */
+#define TRACK_WIDTH_MM          (112.0f)    /* 11.2cm == 112mm */
 #define MC_PI                   (3.14159265f)
 #define WHEEL_CIRCUMFERENCE_MM  (MC_PI * WHEEL_DIAMETER_MM)
 #define DIST_SCALE              (1.000f)    /* TODO: correct with the 1-2 m drive test */

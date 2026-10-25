@@ -16,6 +16,7 @@
 #endif
 
 #define GD_REG32(addr)      (*(volatile uint32_t *)(addr))
+#define GD_SIO_CPUID        GD_REG32(0xD0000000U)   /* 0 on core 0, 1 on core 1 */
 #define GD_IO_BANK0_BASE    (0x40014000U)
 #define GD_INTR(reg)        GD_REG32(GD_IO_BANK0_BASE + 0x0F0U + (4U * (reg)))   /* latched edge events (write 1 to clear) */
 #define GD_INTE(reg)        GD_REG32(GD_IO_BANK0_BASE + 0x100U + (4U * (reg)))   /* core 0 enable  */
@@ -112,6 +113,11 @@ bool gpio_dispatch_start(void)
     if (s_started)
     {
         return true;
+    }
+    if (GD_SIO_CPUID != 0U)
+    {
+        s_def_status = GPIO_DISPATCH_ERR_WRONG_CORE;    /* NVIC enable would land on core 1 */
+        return false;
     }
 
 #if GPIO_DISPATCH_BUDDY3
