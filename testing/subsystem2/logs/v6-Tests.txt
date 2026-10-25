@@ -1,0 +1,407 @@
+microT-Kernel Version 3.00
+
+
+=== micro T-Kernel on Raspberry Pi Pico W (spec 0x6300, product 0x0003) ===
+dual-core (SMP) build, usermain on core 0
+motion_cal: init, task id 4, priority 30
+motion_cal: start
+all subsystems started
+
+cal: task running
+wifi: cyw43_utk_task starting (proc 1)
+wifi: cyw43_init() ...
+wifi: cyw43_init() returned, bringing interface up ...
+cal: hardware ready
+
+=== Buddy 2 calibration firmware v6 ===
+PWM 20000 Hz assuming 125000000 Hz system clock. Press GP20 to start each step,
+and again during a run to abort it. Lift the wheels for the first runs.
+
+[Hand test LEFT 10 turns by hand slowly, GP20 again when done] run 1 of 1. Press GP20 to start.
+RESULT hand test LEFT: 12701 ticks (raw 12701). If you turned it exactly 10 times: 1270 ticks per turn.
+  other wheel counted 0 (should be about 0)
+
+[Hand test RIGHT 10 turns by hand slowly, GP20 again when done] run 1 of 1. Press GP20 to start.
+RESULT hand test RIGHT: 12732 ticks (raw 12732). If you turned it exactly 10 times: 1273 ticks per turn.
+  other wheel counted 0 (should be about 0)
+
+
+[Dead-zone LEFT A-driven] run 1 of 3. Press GP20 to start.
+Sweep LEFT motor, A-driven: raising duty (permille)
+  duty 10: ticks 2 (raw 2, 2 ticks/s), other wheel 1
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 145 (raw 145, 181 ticks/s), other wheel 0
+  lowering duty from 180
+  duty 180: ticks 564 (raw 564, 705 ticks/s)
+  duty 170: ticks 509 (raw 509, 636 ticks/s)
+  duty 160: ticks 467 (raw 467, 583 ticks/s)
+  duty 150: ticks 447 (raw 447, 558 ticks/s)
+  duty 140: ticks 400 (raw 400, 500 ticks/s)
+  duty 130: ticks 356 (raw 356, 445 ticks/s)
+  duty 120: ticks 330 (raw 330, 412 ticks/s)
+  duty 110: ticks 270 (raw 270, 337 ticks/s)
+  duty 100: ticks 218 (raw 218, 272 ticks/s)
+  duty 90: ticks 172 (raw 172, 215 ticks/s)
+  duty 80: ticks 113 (raw 113, 141 ticks/s)
+  duty 70: ticks 62 (raw 62, 77 ticks/s)
+  duty 60: ticks 0 (raw 0, 0 ticks/s)
+RESULT LEFT A-driven: start 80 pm, stop 60 pm
+
+[Dead-zone LEFT A-driven] run 2 of 3. Press GP20 to start.
+Sweep LEFT motor, A-driven: raising duty (permille)
+  duty 10: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 131 (raw 131, 163 ticks/s), other wheel 0
+  lowering duty from 180
+  duty 180: ticks 521 (raw 521, 651 ticks/s)
+  duty 170: ticks 467 (raw 467, 583 ticks/s)
+  duty 160: ticks 418 (raw 418, 522 ticks/s)
+  duty 150: ticks 358 (raw 358, 447 ticks/s)
+  duty 140: ticks 329 (raw 329, 411 ticks/s)
+  duty 130: ticks 267 (raw 267, 333 ticks/s)
+  duty 120: ticks 250 (raw 250, 312 ticks/s)
+  duty 110: ticks 223 (raw 223, 278 ticks/s)
+  duty 100: ticks 189 (raw 189, 236 ticks/s)
+  duty 90: ticks 160 (raw 160, 200 ticks/s)
+  duty 80: ticks 134 (raw 134, 167 ticks/s)
+  duty 70: ticks 14 (raw 14, 17 ticks/s)
+  duty 60: ticks 0 (raw 0, 0 ticks/s)
+RESULT LEFT A-driven: start 80 pm, stop 60 pm
+
+[Dead-zone LEFT A-driven] run 3 of 3. Press GP20 to start.
+Sweep LEFT motor, A-driven: raising duty (permille)
+  duty 10: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 90: ticks 120 (raw 120, 150 ticks/s), other wheel 0
+  lowering duty from 190
+  duty 190: ticks 550 (raw 550, 687 ticks/s)
+  duty 180: ticks 496 (raw 496, 620 ticks/s)
+  duty 170: ticks 442 (raw 442, 552 ticks/s)
+  duty 160: ticks 410 (raw 410, 512 ticks/s)
+  duty 150: ticks 375 (raw 375, 468 ticks/s)
+  duty 140: ticks 306 (raw 306, 382 ticks/s)
+  duty 130: ticks 280 (raw 280, 350 ticks/s)
+  duty 120: ticks 278 (raw 278, 347 ticks/s)
+  duty 110: ticks 232 (raw 232, 290 ticks/s)
+  duty 100: ticks 195 (raw 195, 243 ticks/s)
+  duty 90: ticks 150 (raw 150, 187 ticks/s)
+  duty 80: ticks 122 (raw 122, 152 ticks/s)
+  duty 70: ticks 33 (raw 33, 41 ticks/s)
+  duty 60: ticks 0 (raw 0, 0 ticks/s)
+RESULT LEFT A-driven: start 90 pm, stop 60 pm
+
+[Dead-zone LEFT B-driven] run 1 of 3. Press GP20 to start.
+Sweep LEFT motor, B-driven: raising duty (permille)
+  duty 10: ticks 3 (raw 3, 3 ticks/s), other wheel 0
+  lowering duty from 110
+  duty 110: ticks 298 (raw 298, 372 ticks/s)
+  duty 100: ticks 267 (raw 267, 333 ticks/s)
+  duty 90: ticks 205 (raw 205, 256 ticks/s)
+  duty 80: ticks 160 (raw 160, 200 ticks/s)
+  duty 70: ticks 115 (raw 115, 143 ticks/s)
+  duty 60: ticks 15 (raw 15, 18 ticks/s)
+  duty 50: ticks 0 (raw 0, 0 ticks/s)
+RESULT LEFT B-driven: start 10 pm, stop 50 pm
+
+[Dead-zone LEFT B-driven] run 2 of 3. Press GP20 to start.
+Sweep LEFT motor, B-driven: raising duty (permille)
+  duty 10: ticks 1 (raw 1, 1 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 90: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 100: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 110: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 120: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 130: ticks 308 (raw 308, 385 ticks/s), other wheel 0
+  lowering duty from 230
+  duty 230: ticks 724 (raw 724, 905 ticks/s)
+  duty 220: ticks 675 (raw 675, 843 ticks/s)
+  duty 210: ticks 637 (raw 637, 796 ticks/s)
+  duty 200: ticks 606 (raw 606, 757 ticks/s)
+  duty 190: ticks 582 (raw 582, 727 ticks/s)
+  duty 180: ticks 538 (raw 538, 672 ticks/s)
+  duty 170: ticks 478 (raw 478, 597 ticks/s)
+  duty 160: ticks 427 (raw 427, 533 ticks/s)
+  duty 150: ticks 371 (raw 371, 463 ticks/s)
+  duty 140: ticks 332 (raw 332, 415 ticks/s)
+  duty 130: ticks 281 (raw 281, 351 ticks/s)
+  duty 120: ticks 244 (raw 244, 305 ticks/s)
+  duty 110: ticks 197 (raw 197, 246 ticks/s)
+  duty 100: ticks 159 (raw 159, 198 ticks/s)
+  duty 90: ticks 110 (raw 110, 137 ticks/s)
+  duty 80: ticks 4 (raw 4, 5 ticks/s)
+  duty 70: ticks 0 (raw 0, 0 ticks/s)
+RESULT LEFT B-driven: start 130 pm, stop 70 pm
+
+[Dead-zone LEFT B-driven] run 3 of 3. Press GP20 to start.
+Sweep LEFT motor, B-driven: raising duty (permille)
+  duty 10: ticks 1 (raw 1, 1 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 31 (raw 31, 38 ticks/s), other wheel 0
+  lowering duty from 160
+  duty 160: ticks 450 (raw 450, 562 ticks/s)
+  duty 150: ticks 409 (raw 409, 511 ticks/s)
+  duty 140: ticks 372 (raw 372, 465 ticks/s)
+  duty 130: ticks 324 (raw 324, 405 ticks/s)
+  duty 120: ticks 257 (raw 257, 321 ticks/s)
+  duty 110: ticks 214 (raw 214, 267 ticks/s)
+  duty 100: ticks 172 (raw 172, 215 ticks/s)
+  duty 90: ticks 121 (raw 121, 151 ticks/s)
+  duty 80: ticks 25 (raw 25, 31 ticks/s)
+  duty 70: ticks 0 (raw 0, 0 ticks/s)
+RESULT LEFT B-driven: start 60 pm, stop 70 pm
+
+[Dead-zone RIGHT A-driven] run 1 of 3. Press GP20 to start.
+Sweep RIGHT motor, A-driven: raising duty (permille)
+  duty 10: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 1 (raw 1, 1 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 90: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 100: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 110: ticks 210 (raw 210, 262 ticks/s), other wheel 0
+  lowering duty from 210
+  duty 210: ticks 608 (raw 608, 760 ticks/s)
+  duty 200: ticks 554 (raw 554, 692 ticks/s)
+  duty 190: ticks 470 (raw 470, 587 ticks/s)
+  duty 180: ticks 443 (raw 443, 553 ticks/s)
+  duty 170: ticks 396 (raw 396, 495 ticks/s)
+  duty 160: ticks 445 (raw 445, 556 ticks/s)
+  duty 150: ticks 430 (raw 430, 537 ticks/s)
+  duty 140: ticks 397 (raw 397, 496 ticks/s)
+  duty 130: ticks 356 (raw 356, 445 ticks/s)
+  duty 120: ticks 300 (raw 300, 375 ticks/s)
+  duty 110: ticks 229 (raw 229, 286 ticks/s)
+  duty 100: ticks 176 (raw 176, 220 ticks/s)
+  duty 90: ticks 160 (raw 160, 200 ticks/s)
+  duty 80: ticks 83 (raw 83, 103 ticks/s)
+  duty 70: ticks 0 (raw 0, 0 ticks/s)
+RESULT RIGHT A-driven: start 110 pm, stop 70 pm
+
+[Dead-zone RIGHT A-driven] run 2 of 3. Press GP20 to start.
+Sweep RIGHT motor, A-driven: raising duty (permille)
+  duty 10: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 90: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 100: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 110: ticks 39 (raw 39, 48 ticks/s), other wheel 0
+  lowering duty from 210
+  duty 210: ticks 657 (raw 657, 821 ticks/s)
+  duty 200: ticks 594 (raw 594, 742 ticks/s)
+  duty 190: ticks 523 (raw 523, 653 ticks/s)
+  duty 180: ticks 487 (raw 487, 608 ticks/s)
+  duty 170: ticks 439 (raw 439, 548 ticks/s)
+  duty 160: ticks 405 (raw 405, 506 ticks/s)
+  duty 150: ticks 363 (raw 363, 453 ticks/s)
+  duty 140: ticks 314 (raw 314, 392 ticks/s)
+  duty 130: ticks 266 (raw 266, 332 ticks/s)
+  duty 120: ticks 233 (raw 233, 291 ticks/s)
+  duty 110: ticks 218 (raw 218, 272 ticks/s)
+  duty 100: ticks 172 (raw 172, 215 ticks/s)
+  duty 90: ticks 116 (raw 116, 145 ticks/s)
+  duty 80: ticks 0 (raw 0, 0 ticks/s)
+RESULT RIGHT A-driven: start 110 pm, stop 80 pm
+
+[Dead-zone RIGHT A-driven] run 3 of 3. Press GP20 to start.
+Sweep RIGHT motor, A-driven: raising duty (permille)
+  duty 10: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 90: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 100: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 110: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 120: ticks 152 (raw 152, 190 ticks/s), other wheel 0
+  lowering duty from 220
+  duty 220: ticks 618 (raw 618, 772 ticks/s)
+  duty 210: ticks 590 (raw 590, 737 ticks/s)
+  duty 200: ticks 522 (raw 522, 652 ticks/s)
+  duty 190: ticks 504 (raw 504, 630 ticks/s)
+  duty 180: ticks 489 (raw 489, 611 ticks/s)
+  duty 170: ticks 449 (raw 449, 561 ticks/s)
+  duty 160: ticks 417 (raw 417, 521 ticks/s)
+  duty 150: ticks 363 (raw 363, 453 ticks/s)
+  duty 140: ticks 302 (raw 302, 377 ticks/s)
+  duty 130: ticks 248 (raw 248, 310 ticks/s)
+  duty 120: ticks 188 (raw 188, 235 ticks/s)
+  duty 110: ticks 135 (raw 135, 168 ticks/s)
+  duty 100: ticks 107 (raw 107, 133 ticks/s)
+  duty 90: ticks 11 (raw 11, 13 ticks/s)
+  duty 80: ticks 0 (raw 0, 0 ticks/s)
+RESULT RIGHT A-driven: start 120 pm, stop 80 pm
+
+[Dead-zone RIGHT B-driven] run 1 of 3. Press GP20 to start.
+Sweep RIGHT motor, B-driven: raising duty (permille)
+  duty 10: ticks 1 (raw 1, 1 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 34 (raw 34, 42 ticks/s), other wheel 0
+  lowering duty from 160
+  duty 160: ticks 423 (raw 423, 528 ticks/s)
+  duty 150: ticks 363 (raw 363, 453 ticks/s)
+  duty 140: ticks 324 (raw 324, 405 ticks/s)
+  duty 130: ticks 329 (raw 329, 411 ticks/s)
+  duty 120: ticks 320 (raw 320, 400 ticks/s)
+  duty 110: ticks 305 (raw 305, 381 ticks/s)
+  duty 100: ticks 276 (raw 276, 345 ticks/s)
+  duty 90: ticks 232 (raw 232, 290 ticks/s)
+  duty 80: ticks 168 (raw 168, 210 ticks/s)
+  duty 70: ticks 132 (raw 132, 165 ticks/s)
+  duty 60: ticks 25 (raw 25, 31 ticks/s)
+  duty 50: ticks 0 (raw 0, 0 ticks/s)
+RESULT RIGHT B-driven: start 60 pm, stop 50 pm
+
+[Dead-zone RIGHT B-driven] run 2 of 3. Press GP20 to start.
+Sweep RIGHT motor, B-driven: raising duty (permille)
+  duty 10: ticks 1 (raw 1, 1 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 90: ticks 170 (raw 170, 212 ticks/s), other wheel 0
+  lowering duty from 190
+  duty 190: ticks 562 (raw 562, 702 ticks/s)
+  duty 180: ticks 497 (raw 497, 621 ticks/s)
+  duty 170: ticks 427 (raw 427, 533 ticks/s)
+  duty 160: ticks 422 (raw 422, 527 ticks/s)
+  duty 150: ticks 445 (raw 445, 556 ticks/s)
+  duty 140: ticks 433 (raw 433, 541 ticks/s)
+  duty 130: ticks 379 (raw 379, 473 ticks/s)
+  duty 120: ticks 319 (raw 319, 398 ticks/s)
+  duty 110: ticks 259 (raw 259, 323 ticks/s)
+  duty 100: ticks 206 (raw 206, 257 ticks/s)
+  duty 90: ticks 145 (raw 145, 181 ticks/s)
+  duty 80: ticks 103 (raw 103, 128 ticks/s)
+  duty 70: ticks 10 (raw 10, 12 ticks/s)
+  duty 60: ticks 0 (raw 0, 0 ticks/s)
+RESULT RIGHT B-driven: start 90 pm, stop 60 pm
+
+[Dead-zone RIGHT B-driven] run 3 of 3. Press GP20 to start.
+Sweep RIGHT motor, B-driven: raising duty (permille)
+  duty 10: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 20: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 30: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 40: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 50: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 60: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 70: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 80: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 90: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 100: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 110: ticks 0 (raw 0, 0 ticks/s), other wheel 0
+  duty 120: ticks 240 (raw 240, 300 ticks/s), other wheel 0
+  lowering duty from 220
+  duty 220: ticks 592 (raw 592, 740 ticks/s)
+  duty 210: ticks 609 (raw 609, 761 ticks/s)
+  duty 200: ticks 664 (raw 664, 830 ticks/s)
+  duty 190: ticks 624 (raw 624, 780 ticks/s)
+  duty 180: ticks 560 (raw 560, 700 ticks/s)
+  duty 170: ticks 476 (raw 476, 595 ticks/s)
+  duty 160: ticks 395 (raw 395, 493 ticks/s)
+  duty 150: ticks 328 (raw 328, 410 ticks/s)
+  duty 140: ticks 277 (raw 277, 346 ticks/s)
+  duty 130: ticks 255 (raw 255, 318 ticks/s)
+  duty 120: ticks 182 (raw 182, 227 ticks/s)
+  duty 110: ticks 144 (raw 144, 180 ticks/s)
+  duty 100: ticks 46 (raw 46, 57 ticks/s)
+  duty 90: ticks 0 (raw 0, 0 ticks/s)
+RESULT RIGHT B-driven: start 120 pm, stop 90 pm
+
+[Coast vs brake LEFT ] run 1 of 1. Press GP20 to start.
+
+[Coast vs brake LEFT ] run 1 of 1. Press GP20 to start.
+RESULT LEFT coast (both low): 2220 ticks/s before the cut, 88 ticks in the next second
+  ticks per 10 ms after the cut, 100 ms per row:
+     0 ms: 20 15 12 9 7 7 5 4 3 3
+   100 ms: 1 1 0 1 0 0 0 0 0 0
+   200 ms: 0 0 0 0 0 0 0 0 0 0
+   300 ms: 0 0 0 0 0 0 0 0 0 0
+   400 ms: 0 0 0 0 0 0 0 0 0 0
+   500 ms: 0 0 0 0 0 0 0 0 0 0
+   600 ms: 0 0 0 0 0 0 0 0 0 0
+   700 ms: 0 0 0 0 0 0 0 0 0 0
+   800 ms: 0 0 0 0 0 0 0 0 0 0
+   900 ms: 0 0 0 0 0 0 0 0 0 0
+RESULT LEFT brake (both high): 2260 ticks/s before the cut, 316 ticks in the next second
+  ticks per 10 ms after the cut, 100 ms per row:
+     0 ms: 21 21 19 19 19 17 17 17 15 15
+   100 ms: 13 13 12 12 11 10 9 9 8 7
+   200 ms: 6 6 5 4 3 3 2 1 1 0
+   300 ms: 0 1 0 0 0 0 0 0 0 0
+   400 ms: 0 0 0 0 0 0 0 0 0 0
+   500 ms: 0 0 0 0 0 0 0 0 0 0
+   600 ms: 0 0 0 0 0 0 0 0 0 0
+   700 ms: 0 0 0 0 0 0 0 0 0 0
+   800 ms: 0 0 0 0 0 0 0 0 0 0
+   900 ms: 0 0 0 0 0 0 0 0 0 0
+
+[Coast vs brake RIGHT ] run 1 of 1. Press GP20 to start.
+RESULT RIGHT coast (both low): 2360 ticks/s before the cut, 93 ticks in the next second
+  ticks per 10 ms after the cut, 100 ms per row:
+     0 ms: 21 16 13 10 8 6 5 4 3 2
+   100 ms: 2 2 1 0 0 0 0 0 0 0
+   200 ms: 0 0 0 0 0 0 0 0 0 0
+   300 ms: 0 0 0 0 0 0 0 0 0 0
+   400 ms: 0 0 0 0 0 0 0 0 0 0
+   500 ms: 0 0 0 0 0 0 0 0 0 0
+   600 ms: 0 0 0 0 0 0 0 0 0 0
+   700 ms: 0 0 0 0 0 0 0 0 0 0
+   800 ms: 0 0 0 0 0 0 0 0 0 0
+   900 ms: 0 0 0 0 0 0 0 0 0 0
+RESULT RIGHT brake (both high): 2150 ticks/s before the cut, 309 ticks in the next second
+  ticks per 10 ms after the cut, 100 ms per row:
+     0 ms: 21 20 19 18 17 18 16 15 14 14
+   100 ms: 13 12 12 11 10 9 9 8 8 7
+   200 ms: 7 6 5 4 4 3 3 3 2 1
+   300 ms: 0 0 0 0 0 0 0 0 0 0
+   400 ms: 0 0 0 0 0 0 0 0 0 0
+   500 ms: 0 0 0 0 0 0 0 0 0 0
+   600 ms: 0 0 0 0 0 0 0 0 0 0
+   700 ms: 0 0 0 0 0 0 0 0 0 0
+   800 ms: 0 0 0 0 0 0 0 0 0 0
+   900 ms: 0 0 0 0 0 0 0 0 0 0
+
+All calibration steps finished.

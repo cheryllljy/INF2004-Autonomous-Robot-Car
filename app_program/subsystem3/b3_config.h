@@ -21,7 +21,7 @@
 /* 1 = Buddy 3 installs the RP2040 IO_IRQ_BANK0 vector itself.
  * Use this for the standalone bench test. Set to 0 in the integrated robot
  * when the team already owns a shared GPIO interrupt dispatcher. */
-#define B3_INSTALL_IO_BANK0_HANDLER   1U
+#define B3_INSTALL_IO_BANK0_HANDLER   0U
 
 /* Electrical level that means "black". Check with test B3-H01. */
 #define B3_IR_R_BLACK_LEVEL           0U

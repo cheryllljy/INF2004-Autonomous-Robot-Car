@@ -6,7 +6,8 @@
  */
 
 #include "subsystem2.h"
-#include "cyc_check.h"
+// #include "cyc_check.h"
+#include "motion_control.h"
 EXPORT ID	sem_slots;	/* IF-02, see subsystem2.h */
 EXPORT ID	mpf_samples;
 
@@ -14,6 +15,14 @@ EXPORT ER subsystem2_init(void)
 {
 	T_CSEM	csem = {0};
 	T_CMPF	cmpf = {0};
+#if MOTION_CALIBRATION_BUILD  
+	motion_cal_init();  
+#else
+	motion_init();
+#if MOTION_DEMO
+	motion_demo_init();
+#endif
+#endif
 
 	/* Semaphore: a counter of free "slots".  The producer takes one
 	   (tk_wai_sem) before each sample; the consumer gives one back
@@ -43,5 +52,16 @@ EXPORT ER subsystem2_start(void)
 	// cyc_check_start();
 	ID tid = app_start_task(producer_task, S2_PRI_PRODUCER, TP_PRC2,
 				"producer_task");
+#if MOTION_CALIBRATION_BUILD  
+	motion_cal_start(); 
+#else
+	motion_start();
+#if MOTION_DEMO
+	motion_demo_start();
+#endif
+#endif
+
+
+
 	return (tid < E_OK) ? tid : E_OK;
 }

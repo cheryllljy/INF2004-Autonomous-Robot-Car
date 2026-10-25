@@ -1,9 +1,9 @@
 /*
  * motion_control.h - Buddy 2 public API
  *
- * 1. VehicleController sends the motion commands through the motion_cmd message buffer
+ * 1. VehicleController sends the motion commands through the motion_cmd message buffer (FR26)
  * 
- * 2. The e-stop flag (Emergency Stop) is checked every cycle (20ms)
+ * 2. The e-stop flag (Emergency Stop) is checked every cycle (20ms) (NFR21)
  * 
  * 3. MotionControl data can be read using motion_get_status()
  * 
@@ -18,6 +18,19 @@
  */
 #ifndef MOTION_CONTROL_H
 #define MOTION_CONTROL_H
+
+/* Set to 1 by the calibration build option (see the makefile). Same style as
+ * the template's APP_TEST: tested with #if, so a value of 0 means "off". */
+#ifndef MOTION_CALIBRATION_BUILD
+#define MOTION_CALIBRATION_BUILD    (0)
+#endif
+
+/* 1 = build motion_demo.c: a mock VehicleController that drives scripted moves
+ * for bench testing. Set to 1 temporarily, then back to 0. */
+#ifndef MOTION_DEMO
+#define MOTION_DEMO                 (1)
+#endif
+
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -54,8 +67,8 @@ typedef enum {
     MOTION_STATE_FAULT,
     MOTION_STATE_LINE_FOLLOWING,    /* steering from LineSense */
     MOTION_STATE_ESTOP
-#ifdef MOTION_CALIBRATION_BUILD,
-    MOTION_STATE_CALIBRATE,     /* development firmware only */
+#ifdef MOTION_CALIBRATION_BUILD
+    , MOTION_STATE_CALIBRATE,     /* development firmware only */
 #endif
 } motion_state_t;
 
@@ -79,11 +92,12 @@ typedef enum {
 /* Returned when a motion COMPLETES (motion_wait_done) */
 typedef enum {
     MOTION_RESULT_NONE = 0, /* Check why */
-    MOTION_RESULT_DONE = 0, /* target reached within tolerance */
+    MOTION_RESULT_DONE, /* target reached within tolerance */
     MOTION_RESULT_STOPPED,  /* interrupted by motion_stop() */
     // MOTION_RESULT_TIMEOUT,  /* wait timed out; motion may still be running */
     MOTION_RESULT_FAULT,    /* stall or encoder fault */
-    MOTION_RESULT_ESTOP     
+    MOTION_RESULT_ESTOP,
+    MOTION_RESULT_REJECTED  /* command was refused */     
 } motion_result_t;
 
 /* motion_cmd message buffer format */
@@ -166,6 +180,11 @@ void motion_estop_request(uint32_t source_bits);
 /* Reset by VehicleController: clear bits then motion_reset() */
 void motion_estop_clear(uint32_t source_bits);
 
+/* PROPOSED: let MotionControl raise its MOTION_EVT_* bits on VehicleController's
+ * vehicle_evt flag. flgid = that flag's ID, bit_shift = first bit of Motion's
+ * 4-bit group. Until this is called, results are only visible in the status. */
+void motion_attach_vehicle_evt(int32_t flgid, uint32_t bit_shift);
+
 /* ---------- Status (for any tasks) ---------- */
 void motion_get_status(motion_status_t *out);
 
@@ -207,11 +226,22 @@ int32_t motion_ticks_to_mm(int32_t ticks);
  * Used for Phases 1-4 from a serial test harness. They return
  * MOTION_ERR_INVALID unless the controller is in CALIBRATE mode.          */
 
-motion_err_t motion_enter_calibration(void);
-motion_err_t motion_exit_calibration(void);
+// motion_err_t motion_enter_calibration(void);
+// motion_err_t motion_exit_calibration(void);
 motion_err_t motion_raw_set_pwm(int32_t left_pm, int32_t right_pm); /* -1000..1000 */
 void         motion_raw_get_ticks(int32_t *left, int32_t *right);
+
+/* calibration tasks (motion_cal.c): call from subsystem2_init() & start() */
+void motion_cal_init(void);
+void motion_cal_start(void);
 #endif /* MOTION_CALIBRATION_BUILD */
+
+#if MOTION_DEMO
+/* Bench demo (motion_demo.c): call from subsystem2_init() / subsystem2_start() */
+void motion_demo_init(void);
+void motion_demo_start(void);
+#endif
+
 
 // #ifdef __cplusplus
 // }

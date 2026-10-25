@@ -1,0 +1,102 @@
+microT-Kernel Version 3.00
+
+
+=== micro T-Kernel on Raspberry Pi Pico W (spec 0x6300, product 0x0003) ===
+dual-core (SMP) build, usermain on core 0
+all subsystems started
+
+wifi: cyw43_utk_task starting (proc 1)
+wifi: cyw43_init() ...
+wifi: cyw43_init() returned, bringing interface up ...
+demo: 1) forward 500 mm at 200 mm/s
+  t=0 ms state 2 vL 10 vR 6 mm/s dist 0 mm heading 0 deg
+  t=200 ms state 2 vL 34 vR 34 mm/s dist 9 mm heading 0 deg
+  t=400 ms state 2 vL 36 vR 36 mm/s dist 20 mm heading 0 deg
+  t=600 ms state 2 vL 36 vR 38 mm/s dist 31 mm heading 0 deg
+  t=800 ms state 2 vL 36 vR 36 mm/s dist 41 mm heading 0 deg
+  t=1000 ms state 2 vL 36 vR 38 mm/s dist 52 mm heading 0 deg
+  t=1200 ms state 2 vL 36 vR 38 mm/s dist 63 mm heading 0 deg
+  t=1400 ms state 2 vL 36 vR 36 mm/s dist 74 mm heading 0 deg
+  t=1600 ms state 2 vL 36 vR 36 mm/s dist 85 mm heading 0 deg
+  t=1800 ms state 2 vL 36 vR 36 mm/s dist 96 mm heading 0 deg
+  t=2000 ms state 2 vL 36 vR 38 mm/s dist 107 mm heading 0 deg
+  t=2200 ms state 2 vL 36 vR 36 mm/s dist 118 mm heading 0 deg
+  t=2400 ms state 2 vL 36 vR 36 mm/s dist 129 mm heading 0 deg
+  t=2600 ms state 2 vL 38 vR 36 mm/s dist 140 mm heading 0 deg
+  t=2800 ms state 2 vL 36 vR 36 mm/s dist 151 mm heading 0 deg
+  t=3000 ms state 2 vL 36 vR 36 mm/s dist 161 mm heading 0 deg
+  t=3200 ms state 2 vL 38 vR 38 mm/s dist 172 mm heading 0 deg
+  t=3400 ms state 2 vL 36 vR 38 mm/s dist 183 mm heading 0 deg
+  t=3600 ms state 2 vL 36 vR 36 mm/s dist 194 mm heading 0 deg
+  t=3800 ms state 2 vL 36 vR 36 mm/s dist 205 mm heading 0 deg
+  t=4000 ms state 2 vL 36 vR 36 mm/s dist 216 mm heading 0 deg
+  t=4200 ms state 2 vL 36 vR 36 mm/s dist 227 mm heading 0 deg
+  t=4400 ms state 2 vL 36 vR 36 mm/s dist 238 mm heading 0 deg
+  t=4600 ms state 2 vL 34 vR 36 mm/s dist 249 mm heading 0 deg
+  t=4800 ms state 2 vL 36 vR 36 mm/s dist 260 mm heading 0 deg
+  t=5000 ms state 2 vL 36 vR 36 mm/s dist 270 mm heading 0 deg
+  t=5200 ms state 2 vL 36 vR 38 mm/s dist 281 mm heading 0 deg
+  t=5400 ms state 2 vL 36 vR 38 mm/s dist 292 mm heading 0 deg
+  t=5600 ms state 2 vL 36 vR 36 mm/s dist 303 mm heading 0 deg
+  t=5800 ms state 2 vL 36 vR 36 mm/s dist 314 mm heading 0 deg
+  t=6000 ms state 2 vL 36 vR 36 mm/s dist 325 mm heading 0 deg
+  t=6200 ms state 2 vL 36 vR 36 mm/s dist 336 mm heading 0 deg
+  t=6400 ms state 2 vL 34 vR 36 mm/s dist 346 mm heading 0 deg
+  t=6600 ms state 2 vL 36 vR 38 mm/s dist 357 mm heading 0 deg
+  t=6800 ms state 2 vL 36 vR 36 mm/s dist 368 mm heading 0 deg
+  t=7000 ms state 2 vL 36 vR 36 mm/s dist 379 mm heading 0 deg
+  t=7200 ms state 2 vL 38 vR 36 mm/s dist 390 mm heading 0 deg
+  t=7400 ms state 2 vL 36 vR 36 mm/s dist 401 mm heading 0 deg
+  t=7600 ms state 2 vL 36 vR 36 mm/s dist 412 mm heading 0 deg
+  t=7800 ms state 2 vL 36 vR 36 mm/s dist 423 mm heading 0 deg
+  -> state 2 fault 0 result 0, dist 434 mm (L 433, R 434), heading 0 deg, overruns 0
+demo: 2) turn left 90 deg
+  t=0 ms state 2 vL 38 vR 36 mm/s dist 436 mm heading 0 deg
+  t=200 ms state 2 vL 36 vR 36 mm/s dist 447 mm heading 0 deg
+  t=400 ms state 2 vL 38 vR 34 mm/s dist 458 mm heading 0 deg
+  t=600 ms state 2 vL 36 vR 36 mm/s dist 469 mm heading 0 deg
+  t=800 ms state 2 vL 38 vR 36 mm/s dist 480 mm heading 0 deg
+  t=1000 ms state 2 vL 36 vR 34 mm/s dist 490 mm heading 0 deg
+  t=1200 ms state 4 vL 34 vR 34 mm/s dist 501 mm heading 0 deg
+  -> state 1 fault 0 result 1, dist 503 mm (L 502, R 503), heading 0 deg, overruns 0
+demo: 3) forward 300 mm
+  t=0 ms state 2 vL 8 vR 10 mm/s dist 503 mm heading 0 deg
+  t=200 ms state 2 vL 34 vR 32 mm/s dist 512 mm heading 0 deg
+  t=400 ms state 2 vL 36 vR 36 mm/s dist 523 mm heading 0 deg
+  t=600 ms state 2 vL 36 vR 38 mm/s dist 534 mm heading 0 deg
+  t=800 ms state 2 vL 36 vR 38 mm/s dist 545 mm heading 0 deg
+  t=1000 ms state 2 vL 36 vR 36 mm/s dist 556 mm heading 0 deg
+  t=1200 ms state 2 vL 36 vR 38 mm/s dist 567 mm heading 0 deg
+  t=1400 ms state 2 vL 36 vR 36 mm/s dist 578 mm heading 0 deg
+  t=1600 ms state 2 vL 36 vR 36 mm/s dist 589 mm heading 0 deg
+  t=1800 ms state 2 vL 36 vR 36 mm/s dist 600 mm heading 0 deg
+  t=2000 ms state 2 vL 38 vR 36 mm/s dist 610 mm heading 0 deg
+  t=2200 ms state 2 vL 36 vR 34 mm/s dist 621 mm heading 0 deg
+  t=2400 ms state 2 vL 36 vR 36 mm/s dist 632 mm heading 0 deg
+  t=2600 ms state 2 vL 36 vR 36 mm/s dist 643 mm heading 0 deg
+  t=2800 ms state 2 vL 38 vR 36 mm/s dist 654 mm heading 0 deg
+  t=3000 ms state 2 vL 36 vR 36 mm/s dist 665 mm heading 0 deg
+  t=3200 ms state 2 vL 36 vR 36 mm/s dist 676 mm heading 0 deg
+  t=3400 ms state 2 vL 34 vR 36 mm/s dist 687 mm heading 0 deg
+  t=3600 ms state 2 vL 36 vR 36 mm/s dist 698 mm heading 0 deg
+  t=3800 ms state 2 vL 36 vR 36 mm/s dist 709 mm heading 0 deg
+  t=4000 ms state 2 vL 36 vR 36 mm/s dist 719 mm heading 0 deg
+  t=4200 ms state 2 vL 36 vR 36 mm/s dist 730 mm heading 0 deg
+  t=4400 ms state 2 vL 36 vR 36 mm/s dist 741 mm heading 0 deg
+  t=4600 ms state 2 vL 36 vR 38 mm/s dist 752 mm heading 0 deg
+  t=4800 ms state 2 vL 36 vR 36 mm/s dist 763 mm heading 0 deg
+  t=5000 ms state 2 vL 38 vR 0 mm/s dist 771 mm heading -3 deg
+  -> state 5 fault 2 result 3, dist 774 mm (L 780, R 767), heading -5 deg, overruns 0
+demo: 4) turn right 90 deg
+  t=0 ms state 5 vL 32 vR 26 mm/s dist 776 mm heading -5 deg
+  -> state 5 fault 2 result 5, dist 776 mm (L 783, R 769), heading -5 deg, overruns 0
+demo: 5) backward 300 mm
+  t=0 ms state 5 vL 8 vR 2 mm/s dist 776 mm heading -5 deg
+  -> state 5 fault 2 result 5, dist 776 mm (L 783, R 769), heading -5 deg, overruns 0
+demo: 6) E-stop test: 1000 mm move, E-stop after 1 s
+  t=0 ms state 7 vL 0 vR 0 mm/s dist 776 mm heading -5 deg
+  -> state 7 fault 2 result 4, dist 776 mm (L 783, R 769), heading -5 deg, overruns 0
+demo: clearing the E-stop and resetting
+  t=0 ms state 1 vL 0 vR 0 mm/s dist 776 mm heading -5 deg
+  -> state 1 fault 0 result 1, dist 776 mm (L 783, R 769), heading -5 deg, overruns 0
+demo: finished
