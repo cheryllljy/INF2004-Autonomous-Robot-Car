@@ -10,6 +10,17 @@
 #include "subsystem1.h"
 #include "../test_report.h"
 
+/* Buddy 1 CR1 test implemented in buddy1_cr1_test.c */
+#if APP_TEST
+extern void b1_cr1_test(void);
+#endif
+
+
+#if TM_NET_LWIP
+IMPORT INT buddy1_wifi_test(void);
+#endif
+
+
 #if APP_TEST
 
 EXPORT void subsystem1_test(void)
@@ -39,7 +50,17 @@ EXPORT void subsystem1_test(void)
 		TEST_CHECK("S1-U02", waiting >= 9, "LED task sleeps between ticks");
 	}
 
+	#if TM_NET_LWIP
+		TEST_CHECK(
+			"B1-W01",
+			buddy1_wifi_test() == 1,
+			"Wi-Fi connected with IP address"
+		);
+	#endif
+
 	TEST_SUMMARY("subsystem1");
+	b1_cr1_test();
+
 }
 
 #endif /* APP_TEST */
