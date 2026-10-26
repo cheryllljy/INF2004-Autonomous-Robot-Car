@@ -79,6 +79,7 @@ static const uint32_t s_pin_rev[2] = { MH_L_REV, MH_R_REV };
 
 static volatile uint32_t s_ticks[2];            /* written by the ISR only */
 static volatile uint32_t s_last_edge_us[2];
+static volatile uint32_t s_min_edge_ticks = ENCODER_MIN_EDGE_US;
 
 /* ---------- Encoder edges ---------- */
 
@@ -103,7 +104,8 @@ void motion_encoder_isr(uint32_t gpio)
     }
 
     now = MH_TIMER_RAWL;
-    if ((now - s_last_edge_us[side]) >= ENCODER_MIN_EDGE_US)
+    // if ((now - s_last_edge_us[side]) >= ENCODER_MIN_EDGE_US)
+    if ((now - s_last_edge_us[side]) >= s_min_edge_ticks)
     {
         s_last_edge_us[side] = now;
         s_ticks[side]++;
@@ -126,6 +128,11 @@ int32_t motion_ticks_to_mm(int32_t ticks)
 uint32_t motion_hw_ticks(uint32_t side)
 {
     return s_ticks[side];
+}
+
+void motion_hw_set_encoder_min_edge_ticks(uint32_t ticks)
+{
+    s_min_edge_ticks = (ticks == 0U) ? 1U : ticks;
 }
 
 uint32_t motion_hw_time_us(void)

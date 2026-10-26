@@ -9,8 +9,8 @@
 #define MOTION_CONFIG_H
 
 /* ---------- Pins (from the Week 6 pin table) ---------- */
-#define PIN_ENC_L               (2U)    /* GP2, edge IRQ                            */
-#define PIN_ENC_R               (3U)    /* GP3                                      */
+#define PIN_ENC_L               (2U)    /* GP2, edge IRQ  // ori = 2                          */
+#define PIN_ENC_R               (3U)    /* GP3            // ori = 3                          */
 #define PIN_M1_A                (8U)    /* PWM slice 4, channel A                   */
 #define PIN_M1_B                (9U)    /* PWM slice 4, channel B                   */
 #define PIN_M2_A                (10U)   /* PWM slice 5, channel A                   */

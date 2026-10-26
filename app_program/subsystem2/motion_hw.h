@@ -22,6 +22,11 @@ void motion_hw_motor_set(uint32_t side, int32_t duty_pm);
 /* Unsigned count of encoder edges since boot (direction is not sensed). */
 uint32_t motion_hw_ticks(uint32_t side);
 
+/* Set the encoder ISR debounce threshold in raw TIMER ticks. The motion task
+ * calibrates this against kernel time because TIMERAWL may not match its
+ * nominal 1 MHz rate on every startup. */
+void motion_hw_set_encoder_min_edge_ticks(uint32_t ticks);
+
 /* Diagnostics for the encoder interrupt (from gpio_dispatch.c): what tk_def_int()
  * returned (0 = OK, -41 = another handler already owns the interrupt), the INTE0
  * register read back, and how many times the shared handler has run.

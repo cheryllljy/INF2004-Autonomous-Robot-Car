@@ -58,8 +58,10 @@ static int32_t  s_pos_ticks[MC_SIDES];  /* signed odometry ticks, forward = + */
 static int32_t  s_dir[MC_SIDES] = { 1, 1 };
 static int32_t  s_hist[MC_SIDES][MC_HIST_LEN];
 static uint32_t s_hist_idx;
-static uint32_t s_hist_t_us[MC_HIST_LEN];   /* time stamp of every history sample */
-static uint32_t s_t_last_us;
+static uint32_t s_hist_t_ms[MC_HIST_LEN];   /* time stamp of every history sample using monotonic kernel time */
+static uint32_t s_t_last_ms;
+static uint32_t s_edge_clock_last_raw;
+static bool     s_edge_clock_valid;          /* compare is timings valid */
 static float    s_dt_s = MC_DT_NOMINAL_S;   /* ACTUAL time since the last cycle, from the hardware timer */
 static uint32_t s_dt_ms = MOTION_CONTROL_PERIOD_MS;
 static float    s_speed[MC_SIDES];      /* measured mm/s, signed */
@@ -221,10 +223,31 @@ static void mc_enter_fault(motion_fault_t fault)
  * 20 ms (clock set-up differences), so speed and the PID use this, not 20 ms. */
 static void mc_update_time(void)
 {
-    const uint32_t now = motion_hw_time_us();
-    uint32_t dt_us = (s_t_last_us == 0U) ? (MOTION_CONTROL_PERIOD_MS * 1000U) : (now - s_t_last_us);
+    SYSTIM now_tim = {0};
+    uint32_t    now;
+    uint32_t    dt_us;
+    uint32_t    raw_now;    
 
-    s_t_last_us = now;
+    /* The RP2040 raw timer is used by the encoder ISR, but its rate is not
+     * trusted for control timing: the power-cycle log showed it advancing
+     * 23 ms during a 1000 ms kernel delay. Use the kernel's monotonic clock,
+     * which also paces the cyclic handler, for speed and PID calculations. */
+    if (tk_get_otm(&now_tim) >= E_OK)
+    {
+        now = now_tim.lo;
+    }
+    else
+    {
+        now = s_t_last_ms + MOTION_CONTROL_PERIOD_MS;
+    }
+
+    dt_us = (s_t_last_ms == 0U) ? (MOTION_CONTROL_PERIOD_MS * 1000U)
+                                : ((now - s_t_last_ms) * 1000U);
+
+    // const uint32_t now = motion_hw_time_us();
+    // uint32_t dt_us = (s_t_last_us == 0U) ? (MOTION_CONTROL_PERIOD_MS * 1000U) : (now - s_t_last_us);
+
+    s_t_last_ms = now;
     if (dt_us > ((MOTION_CONTROL_PERIOD_MS + 2U) * 1000U) || (dt_us + 2000U) < (MOTION_CONTROL_PERIOD_MS * 1000U))
     {
         s_overrun_count++;                      /* outside the +/-2 ms jitter allowed by NFR5 */
@@ -239,6 +262,23 @@ static void mc_update_time(void)
     }
     s_dt_s = (float)dt_us / 1000000.0f;
     s_dt_ms = (dt_us + 500U) / 1000U;
+
+    /* Keep the encoder's physical 100 us debounce interval when TIMERAWL's
+     * rate differs from 1 MHz. The ISR only reads this single aligned word. */
+    raw_now = motion_hw_time_us();
+    if (s_edge_clock_valid && (s_dt_ms != 0U))
+    {
+        const uint32_t raw_elapsed = raw_now - s_edge_clock_last_raw;
+        uint32_t min_edge_ticks = (ENCODER_MIN_EDGE_US * raw_elapsed) / (s_dt_ms * 1000U);
+
+        if (min_edge_ticks == 0U)
+        {
+            min_edge_ticks = 1U;
+        }
+        motion_hw_set_encoder_min_edge_ticks(min_edge_ticks);
+    }
+    s_edge_clock_last_raw = raw_now;
+    s_edge_clock_valid = true;
 }
 
 static void mc_update_odometry(void)
@@ -259,10 +299,10 @@ static void mc_update_odometry(void)
     s_hist_idx = (s_hist_idx + 1U) % MC_HIST_LEN;
     newest = s_hist_idx;
     oldest = (s_hist_idx + 1U) % MC_HIST_LEN;
-    s_hist_t_us[newest] = s_t_last_us;
+    s_hist_t_ms[newest] = s_t_last_ms;
     for (side = 0U; side < MC_SIDES; side++)
     {
-        const uint32_t window_us = s_t_last_us - s_hist_t_us[oldest];
+        const uint32_t window_us = s_t_last_ms - s_hist_t_ms[oldest];
 
         s_hist[side][newest] = s_pos_ticks[side];
         s_speed[side] = (window_us < 1000U) ? 0.0f
@@ -696,7 +736,8 @@ static void mc_publish(void)
     st.fault = s_fault;
     st.last_result = s_result;
     st.estop_sources = s_estop_src;
-    st.timestamp_ms = motion_hw_time_us() / 1000U;
+    // st.timestamp_ms = motion_hw_time_us() / 1000U;
+    st.timestamp_ms = s_t_last_ms;
     st.cycle_count = s_cycle_count;
     st.overrun_count = s_overrun_count;
     st.speed_l_mmps = (int16_t)s_speed[0];
@@ -773,7 +814,16 @@ static void mc_task(INT stacd, void *exinf)
         for (i = 0U; i < MC_HIST_LEN; i++)
         {
             s_hist[side][i] = 0;
-            s_hist_t_us[i] = motion_hw_time_us();
+            // s_hist_t_us[i] = motion_hw_time_us();
+            SYSTIM now_tim = {0};
+            if (tk_get_otm(&now_tim) >= E_OK)
+            {
+                s_hist_t_ms[i] = now_tim.lo;
+            }
+            else
+            {
+                s_hist_t_ms[i] = 0U;
+            }
         }
     }
     s_state = MOTION_STATE_IDLE;

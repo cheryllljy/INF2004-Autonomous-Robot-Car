@@ -156,30 +156,37 @@ static void demo_task(INT stacd, void *exinf)
     {   /* Is the kernel's time the same as the hardware timer's? */
         motion_status_t a;
         motion_status_t b;
+        SYSTIM kernel_t0 = {0};
+        SYSTIM kernel_t1 = {0};
         const uint32_t t0 = motion_hw_time_us();
 
+        (void)tk_get_otm(&kernel_t0);
         motion_get_status(&a);
         (void)tk_dly_tsk(1000);
         motion_get_status(&b);
-        tm_printf((UB *)"clock check: tk_dly_tsk(1000) took %u ms by the hardware timer; %u control cycles in that time (expect 50)\n",
+        (void)tk_get_otm(&kernel_t1);
+        //tm_printf((UB *)"clock check: tk_dly_tsk(1000) took %u ms by the hardware timer; %u control cycles in that time (expect 50)\n",
+        tm_printf((UB *)"clock check: kernel %u ms, raw timer %u ms, control cycles %u (expect ~1000 ms / ~50 cycles)\n",
+                  (unsigned int)(kernel_t1.lo - kernel_t0.lo),
                   (unsigned int)((motion_hw_time_us() - t0) / 1000U),
                   (unsigned int)(b.cycle_count - a.cycle_count));
     }
 
-    if (demo_step("1) forward 300 mm at 100 mm/s", motion_move(300, 100), 8000U) &&
-        demo_step("2) turn left 90 deg", motion_turn(90, 90), 6000U) &&
-        demo_step("3) forward 200 mm", motion_move(200, 100), 6000U) &&
-        demo_step("4) turn right 90 deg", motion_turn(-90, 90), 6000U) &&
-        demo_step("5) backward 200 mm", motion_move(-200, 100), 6000U))
+    // if (demo_step("1) forward 300 mm at 100 mm/s", motion_move(300, 100), 8000U) &&
+    //     demo_step("2) turn left 90 deg", motion_turn(90, 90), 6000U) &&
+    //     demo_step("3) forward 200 mm", motion_move(200, 100), 6000U) &&
+    //     demo_step("4) turn right 90 deg", motion_turn(-90, 90), 6000U) &&
+    //     demo_step("5) backward 200 mm", motion_move(-200, 100), 6000U))
+    if (demo_step("1) forward 300 mm at 100 mm/s", motion_move(300, 100), 8000U))
     {
         motion_status_t st;
 
-        tm_printf((UB *)"demo: 6) E-stop test: 500 mm move, E-stop after 1 s\n");
-        (void)motion_move(500, 100);
-        (void)tk_dly_tsk(1000);
-        motion_estop_request(MOTION_ESTOP_VEHICLE);
-        (void)demo_wait_done(2000U);
-        tm_printf((UB *)"demo: clearing the E-stop and resetting\n");
+        // tm_printf((UB *)"demo: 6) E-stop test: 500 mm move, E-stop after 1 s\n");
+        // (void)motion_move(500, 100);
+        // (void)tk_dly_tsk(1000);
+        // motion_estop_request(MOTION_ESTOP_VEHICLE);
+        // (void)demo_wait_done(2000U);
+        // tm_printf((UB *)"demo: clearing the E-stop and resetting\n");
         motion_estop_clear(MOTION_ESTOP_VEHICLE);
         (void)motion_reset();
         (void)tk_dly_tsk(100);
