@@ -7,8 +7,8 @@
 #define WIFI_SECRETS_H
 
 /* Wi-Fi credentials */
-#define WIFI_SSID     "Chloeee"
-#define WIFI_PASSWORD "Chloeee27~21"
+#define WIFI_SSID     "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 
 /* MQTT configuration */
 #define MQTT_BROKER_IP   "192.168.1.36"
