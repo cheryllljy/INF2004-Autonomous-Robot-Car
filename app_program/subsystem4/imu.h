@@ -15,7 +15,13 @@ typedef struct
     int16_t z;
 } imu_vector_t;
 
-typedef enum
+/*
+ * The seven status codes need 3 bits of information. Store them in the
+ * smallest addressable C integer type; enum constants remain readable.
+ */
+typedef uint8_t imu_status_t;
+
+enum
 {
     IMU_OK = 0,
     IMU_BAD_PARAM,
@@ -24,7 +30,14 @@ typedef enum
     IMU_ACCEL_NOT_FOUND,
     IMU_MAG_NOT_FOUND,
     IMU_BAD_ID
-} imu_status_t;
+};
+
+typedef struct
+{
+    uint8_t init : 3;
+    uint8_t accel : 3;
+    uint8_t mag : 3;
+} imu_status_set_t;
 
 /** Open I2C0 and configure Grove 3's LSM303D. */
 imu_status_t imu_init(void);

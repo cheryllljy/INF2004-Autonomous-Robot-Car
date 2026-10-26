@@ -51,9 +51,7 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 	SYSTIM		now;
 	imu_vector_t	accel;
 	imu_vector_t	mag;
-	imu_status_t	imu_status;
-	imu_status_t	accel_status;
-	imu_status_t	mag_status;
+	imu_status_set_t imu_status = {0};
 	UW		reports = 0;
 	BOOL		led_paused = FALSE;
 	ER		er;
@@ -61,13 +59,13 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 	(void)stacd; (void)exinf;
 
 	tm_printf((UB*)"monitor: I am task %d\n", tk_get_tid());
-	imu_status = imu_init();
-	if (imu_status == IMU_OK) {
+	imu_status.init = imu_init();
+	if (imu_status.init == IMU_OK) {
 		tm_printf((UB*)"monitor: IMU ready at 0x%02X\n",
 			  (UINT)imu_accel_address());
 	} else {
 		tm_printf((UB*)"monitor: IMU init failed, status=%d\n",
-			  (INT)imu_status);
+			  (INT)imu_status.init);
 	}
 
 	while (1) {
@@ -112,13 +110,14 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 			  rsem.semcnt, (INT)rmpf.frbcnt);
 
 		/* The monitor task is the sole owner of I2C0 and the IMU. */
-		if (imu_status != IMU_OK) {
-			imu_status = imu_init();
+		if (imu_status.init != IMU_OK) {
+			imu_status.init = imu_init();
 		}
-		if (imu_status == IMU_OK) {
-			accel_status = imu_read_accel(&accel);
-			mag_status = imu_read_mag(&mag);
-			if (accel_status == IMU_OK && mag_status == IMU_OK) {
+		if (imu_status.init == IMU_OK) {
+			imu_status.accel = imu_read_accel(&accel);
+			imu_status.mag = imu_read_mag(&mag);
+			if (imu_status.accel == IMU_OK &&
+			    imu_status.mag == IMU_OK) {
 				tm_printf((UB*)"monitor: IMU accel=(%d,%d,%d) "
 					  "mag=(%d,%d,%d)\n",
 					  (INT)accel.x, (INT)accel.y, (INT)accel.z,
@@ -126,12 +125,8 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 			} else {
 				tm_printf((UB*)"monitor: IMU read failed, "
 					  "accel=%d mag=%d\n",
-					  (INT)accel_status, (INT)mag_status);
-				if (accel_status != IMU_OK) {
-					imu_status = accel_status;
-				} else {
-					imu_status = mag_status;
-				}
+					  (INT)imu_status.accel,
+					  (INT)imu_status.mag);
 			}
 		}
 
