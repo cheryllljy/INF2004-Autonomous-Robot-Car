@@ -268,6 +268,24 @@ static bool prepare_result(
 
 
 /*
+ * Time mode only: an element far longer than the shortest one seen in this
+ * scan cannot be part of the same barcode, whatever its printed size.
+ * Encoder mode is skipped because wheel speed may vary between elements.
+ */
+static bool too_long_for_scan(
+    const b3_barcode_t *p_scan,
+    uint32_t elapsed)
+{
+    return
+        !p_scan->positions_valid &&
+        (p_scan->count >= 2U) &&
+        ((uint64_t)elapsed >
+         (uint64_t)p_scan->min_time_width *
+         B3_MAX_ELEMENT_RATIO);
+}
+
+
+/*
  * Process one barcode GPIO edge.
  */
 bool b3_barcode_edge(
@@ -370,7 +388,12 @@ bool b3_barcode_edge(
 
             ((edge.time_us -
               p_scan->started_us) >
-             B3_MAX_SCAN_US))
+             B3_MAX_SCAN_US) ||
+
+            too_long_for_scan(
+                p_scan,
+                elapsed
+            ))
         {
             reject(
                 p_scan,
@@ -378,6 +401,14 @@ bool b3_barcode_edge(
             );
 
             return emitted;
+        }
+
+
+        if ((0U == p_scan->count) ||
+            (elapsed < p_scan->min_time_width))
+        {
+            p_scan->min_time_width =
+                elapsed;
         }
 
 
@@ -546,9 +577,13 @@ bool b3_barcode_poll(
      * too long.
      */
     if (p_scan->collecting &&
-        ((current.time_us -
-          p_scan->last.time_us) >
-         B3_MAX_ELEMENT_US))
+        (((current.time_us -
+           p_scan->last.time_us) >
+          B3_MAX_ELEMENT_US) ||
+         too_long_for_scan(
+             p_scan,
+             current.time_us -
+             p_scan->last.time_us)))
     {
         reject(
             p_scan,

@@ -5,12 +5,19 @@
 #include <stdint.h>
 #include "b3_config.h"
 
+/* Straddle layout: IR_L and IR_R sit either side of the line.
+ *   both white  CENTRED   on track, drive straight
+ *   IR_L black  LEFT      drifted right, line under IR_L: steer left
+ *   IR_R black  RIGHT     drifted left, line under IR_R: steer right
+ *   both black  CROSSING  a crossing line or junction patch: drive straight
+ * LOST is no longer produced (both white is the normal state). */
 typedef enum
 {
     B3_LINE_CENTRED = 0,
     B3_LINE_LEFT,
     B3_LINE_RIGHT,
-    B3_LINE_LOST
+    B3_LINE_LOST,
+    B3_LINE_CROSSING
 } b3_line_state_t;
 
 typedef struct
@@ -32,7 +39,7 @@ typedef struct
 typedef struct
 {
     b3_line_state_t state;
-    int8_t error; /* -1 = line to left; +1 = line to right; 0 = centred. */
+    int8_t error; /* -1 = line under IR_L (steer left); +1 = under IR_R (steer right); 0 = straight. */
     int16_t left_mm_s;
     int16_t right_mm_s;
     bool left_black;

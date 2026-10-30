@@ -8,10 +8,41 @@
 #include "subsystem3.h"
 #include "buddy3.h"
 #include "buddy3_team_config.h"
+#include "b3_config.h"
+#include "b3_port.h"
+#include "gpio_dispatch.h"
+#if B3_USE_B2_ODOMETRY
+#include "../subsystem2/motion_hw.h"
+#endif
 
 EXPORT ID		mbx_samples;	/* IF-01 */
 EXPORT ID		mtx_stats;	/* IF-04 */
 EXPORT APP_STATS	app_stats;
+
+#if !B3_INSTALL_IO_BANK0_HANDLER && !B3_BARCODE_ANALOG
+/* GP28 barcode edges, called by the shared GPIO dispatcher (interrupt context).
+   Buddy 3 enables and acknowledges its own edge events. */
+static void s3_barcode_irq(uint32_t pin)
+{
+	(void)pin;
+	b3_port_dispatch_barcode_irq();
+}
+#endif
+
+#if B3_USE_B2_ODOMETRY
+/* Buddy 2's encoder count as Buddy 3's position reader. Called from the
+   barcode edge callback, so it must not block: it only reads two words that
+   the encoder callback (same handler) writes. Average of both wheels. */
+static bool s3_read_b2_ticks(uint32_t *p_ticks)
+{
+	*p_ticks = (motion_hw_ticks(MOTION_SIDE_LEFT) +
+		    motion_hw_ticks(MOTION_SIDE_RIGHT)) / 2U;
+	return true;
+}
+#define S3_POSITION_READER	s3_read_b2_ticks
+#else
+#define S3_POSITION_READER	NULL
+#endif
 
 EXPORT ER subsystem3_init(void)
 {
@@ -32,7 +63,26 @@ EXPORT ER subsystem3_init(void)
 	   holder is temporarily raised to the waiter's priority. */
 	cmtx.mtxatr = TA_INHERIT;
 	mtx_stats = tk_cre_mtx(&cmtx);
-	return (mtx_stats < E_OK) ? mtx_stats : E_OK;
+	if (mtx_stats < E_OK) {
+		return mtx_stats;
+	}
+
+#if !B3_INSTALL_IO_BANK0_HANDLER
+	/* The team's one GPIO interrupt handler (gpio_dispatch.c, owned by
+	   Buddy 3). Runs here in usermain on core 0. If Buddy 2 already
+	   started it in subsystem2_init(), this start call just returns true.
+	   With B3_BARCODE_ANALOG, GP28 is an ADC input read by Buddy 3's own
+	   TIMER sampler, so only Buddy 2's encoder pins use the dispatcher. */
+#if !B3_BARCODE_ANALOG
+	if (!gpio_dispatch_register(B3_IR_B_GPIO, 0U, s3_barcode_irq)) {
+		return E_SYS;
+	}
+#endif
+	if (!gpio_dispatch_start()) {
+		return E_SYS;
+	}
+#endif
+	return E_OK;
 }
 
 EXPORT ER subsystem3_start(void)
@@ -45,7 +95,7 @@ EXPORT ER subsystem3_start(void)
 	 * No existing consumer/task behaviour is replaced by this hook. */
 	#if B3_TEAM_AUTOSTART
 		if (tid >= E_OK) {
-			ER b3_status = buddy3_start(NULL);  /* optional encoder hook */
+			ER b3_status = buddy3_start(S3_POSITION_READER);
 			if (b3_status < E_OK) {
 				return b3_status;
 			}

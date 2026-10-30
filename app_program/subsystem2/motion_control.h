@@ -28,7 +28,7 @@
 /* 1 = build motion_demo.c: a mock VehicleController that drives scripted moves
  * for bench testing. Set to 1 temporarily, then back to 0. */
 #ifndef MOTION_DEMO
-#define MOTION_DEMO                 (1)
+#define MOTION_DEMO                 (0) // temp set this to 0 for testing with Buddy 3
 #endif
 
 

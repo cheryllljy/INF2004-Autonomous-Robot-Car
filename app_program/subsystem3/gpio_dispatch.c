@@ -1,19 +1,13 @@
 /*
  * gpio_dispatch.c - one IO_IRQ_BANK0 handler shared by all subsystems.
  * See gpio_dispatch.h. Uses the core 0 (PROC0) interrupt registers.
- *
- * NOT compiled against the real kernel: tk_def_int / EnableInt as used by Buddy 3.
+ * Owner: Buddy 3 (moved from subsystem2/, code written by Buddy 2).
  */
 #include <stdint.h>
 #include <stdbool.h>
 #include "gpio_dispatch.h"
 
 #include <tk/tkernel.h>
-
-#if GPIO_DISPATCH_BUDDY3
-#include "../subsystem3/b3_config.h"
-#include "../subsystem3/b3_port.h"
-#endif
 
 #define GD_REG32(addr)      (*(volatile uint32_t *)(addr))
 #define GD_SIO_CPUID        GD_REG32(0xD0000000U)   /* 0 on core 0, 1 on core 1 */
@@ -33,10 +27,11 @@ static gd_entry_t s_tab[GPIO_DISPATCH_MAX_PINS];
 static volatile uint32_t s_count;
 static volatile uint32_t s_calls;
 static int32_t s_def_status;
-static uint32_t s_inte0;
 static bool s_started;
 
-/* The one handler. */
+/* The one handler. Runs to completion, so two callbacks never overlap: if two
+ * pins fire together, one run serves both; an edge that arrives during the run
+ * re-pends the interrupt and the handler runs again. */
 static void gd_handler(UINT intno)
 {
     uint32_t ints[4];
@@ -98,14 +93,6 @@ bool gpio_dispatch_register(uint32_t pin, uint32_t events, gpio_dispatch_cb_t cb
     return true;
 }
 
-#if GPIO_DISPATCH_BUDDY3
-static void gd_buddy3_cb(uint32_t pin)
-{
-    (void)pin;
-    b3_port_dispatch_barcode_irq();
-}
-#endif
-
 bool gpio_dispatch_start(void)
 {
     T_DINT dint = {0};
@@ -120,15 +107,10 @@ bool gpio_dispatch_start(void)
         return false;
     }
 
-#if GPIO_DISPATCH_BUDDY3
-    (void)gpio_dispatch_register(B3_IR_B_GPIO, 0U, gd_buddy3_cb);
-#endif
-
     dint.intatr = TA_HLNG;
     dint.inthdr = gd_handler;
     s_def_status = (int32_t)tk_def_int(GPIO_DISPATCH_IRQ_NUMBER, &dint);
     EnableInt(GPIO_DISPATCH_IRQ_NUMBER, GPIO_DISPATCH_IRQ_LEVEL);   /* returns nothing in this kernel */
-    s_inte0 = GD_INTE(0U);
     s_started = (s_def_status >= 0);
     return s_started;
 }

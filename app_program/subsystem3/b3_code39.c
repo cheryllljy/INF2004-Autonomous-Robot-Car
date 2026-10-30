@@ -34,9 +34,41 @@ bool b3_code39_pattern(char symbol, uint16_t *p_pattern)
     return false;
 }
 
-static bool decode_symbol(const uint32_t widths[9], char *p_symbol,
-                          uint32_t *p_narrow)
+/*
+ * Threshold skew: if the sensor threshold sits nearer white or black, every
+ * bar reads longer or shorter by the same amount and every space the
+ * opposite way (seen on the car 2026-10-30: narrow bars 15 ms, narrow spaces
+ * 40 ms). Every Code 39 character has at least one narrow bar and one narrow
+ * space, so half the difference between the shortest space and the shortest
+ * bar estimates that shift. Elements 0, 2, 4, 6, 8 are bars.
+ */
+static int64_t skew_of(const uint32_t widths[9])
 {
+    uint32_t min_bar = UINT32_MAX;
+    uint32_t min_space = UINT32_MAX;
+    size_t i;
+    for (i = 0U; i < 9U; ++i)
+    {
+        if (0U == (i % 2U))
+        {
+            if (widths[i] < min_bar)
+            {
+                min_bar = widths[i];
+            }
+        }
+        else if (widths[i] < min_space)
+        {
+            min_space = widths[i];
+        }
+    }
+    return ((int64_t)min_space - (int64_t)min_bar) / 2;
+}
+
+static bool decode_symbol(const uint32_t raw[9], char *p_symbol,
+                          uint32_t *p_narrow, int64_t *p_skew)
+{
+    uint32_t widths[9];
+    int64_t skew;
     uint32_t sorted[9];
     uint64_t narrow_sum = 0U;
     uint64_t wide_sum = 0U;
@@ -45,12 +77,24 @@ static bool decode_symbol(const uint32_t widths[9], char *p_symbol,
     size_t j;
     for (i = 0U; i < 9U; ++i)
     {
-        if ((0U == widths[i]) || (widths[i] > B3_MAX_ENCODER_RUN_TICKS))
+        if ((0U == raw[i]) || (raw[i] > B3_MAX_ENCODER_RUN_TICKS))
         {
             return false;
         }
+    }
+    skew = skew_of(raw);
+    for (i = 0U; i < 9U; ++i)
+    {
+        int64_t w = (0U == (i % 2U)) ? ((int64_t)raw[i] + skew)
+                                     : ((int64_t)raw[i] - skew);
+        if (w <= 0)
+        {
+            return false;
+        }
+        widths[i] = (uint32_t)w;
         sorted[i] = widths[i];
     }
+    *p_skew = skew;
     /* Fixed nine-element insertion sort. Never called from an ISR. */
     for (i = 1U; i < 9U; ++i)
     {
@@ -125,23 +169,28 @@ static bool decode_forward(const uint32_t widths[B3_BARCODE_RUNS],
     uint32_t n_first;
     uint32_t n_middle;
     uint32_t n_last;
-    uint64_t gap_reference;
-    if (!decode_symbol(&widths[0], &first, &n_first) ||
-        !decode_symbol(&widths[10], &middle, &n_middle) ||
-        !decode_symbol(&widths[20], &last, &n_last) ||
+    int64_t s_first;
+    int64_t s_middle;
+    int64_t s_last;
+    int64_t gap;
+    int64_t gap_reference;
+    if (!decode_symbol(&widths[0], &first, &n_first, &s_first) ||
+        !decode_symbol(&widths[10], &middle, &n_middle, &s_middle) ||
+        !decode_symbol(&widths[20], &last, &n_last, &s_last) ||
         ('*' != first) || ('*' != last) || ('*' == middle))
     {
         return false;
     }
-    gap_reference = ((uint64_t)n_first + n_middle) / 2U;
-    if (((uint64_t)widths[9] * 2U < gap_reference) ||
-        ((uint64_t)widths[9] > gap_reference * 2U))
+    /* Gaps are spaces, so they carry the same skew as their neighbours. */
+    gap = (int64_t)widths[9] - (s_first + s_middle) / 2;
+    gap_reference = ((int64_t)n_first + n_middle) / 2;
+    if ((gap * 2 < gap_reference) || (gap > gap_reference * 2))
     {
         return false;
     }
-    gap_reference = ((uint64_t)n_middle + n_last) / 2U;
-    if (((uint64_t)widths[19] * 2U < gap_reference) ||
-        ((uint64_t)widths[19] > gap_reference * 2U))
+    gap = (int64_t)widths[19] - (s_middle + s_last) / 2;
+    gap_reference = ((int64_t)n_middle + n_last) / 2;
+    if ((gap * 2 < gap_reference) || (gap > gap_reference * 2))
     {
         return false;
     }
