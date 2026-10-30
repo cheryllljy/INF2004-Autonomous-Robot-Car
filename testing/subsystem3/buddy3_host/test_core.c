@@ -113,8 +113,14 @@ static void test_invalid_frames(void)
     CHECK(!b3_code39_decode(widths, &result));
     
     /* Too close to narrow width: reject. */
-    make_frame('A', 1000U, 2200U, widths);
+    make_frame('A', 1000U, 1700U, widths);
     CHECK(!b3_code39_decode(widths, &result));
+
+    /* Code 39 allows 2:1 and 2.2:1: accept. */
+    make_frame('A', 1000U, 2000U, widths);
+    CHECK(b3_code39_decode(widths, &result));
+    make_frame('A', 1000U, 2200U, widths);
+    CHECK(b3_code39_decode(widths, &result));
 
     /* Within school-barcode tolerance: accept. */
     make_frame('A', 1000U, 2500U, widths);
@@ -234,6 +240,63 @@ static void test_encoder_widths(void)
     (void)puts("PASS: encoder width fusion and low-resolution encoder fallback");
 }
 
+static void test_any_size(void)
+{
+    static const uint32_t narrow[] = {300U, 5000U, 30000U, 150000U, 250000U};
+    uint32_t times[B3_BARCODE_RUNS];
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge;
+    size_t k;
+    /* From 0.03 mm to 25 mm narrow bars at 100 mm/s, quiet zone 10 narrow. */
+    for (k = 0U; k < sizeof(narrow) / sizeof(narrow[0]); ++k)
+    {
+        make_frame('Q', narrow[k], narrow[k] * 3U, times);
+        edge = feed_frame(&scan, 500000U, times, NULL, narrow[k] * 11U);
+        CHECK(scan.pending);
+        edge.time_us += narrow[k] * 11U;
+        CHECK(b3_barcode_poll(&scan, edge, &result));
+        CHECK('Q' == result.symbol);
+    }
+    /* *Z* captured on the car (H09, 2026-10-30): the threshold skews narrow
+       black to ~15 ms and wide white to ~110 ms, a 7.5x spread. */
+    {
+        static const uint32_t car[B3_BARCODE_RUNS] = {
+            16827U, 81236U, 18807U, 37487U, 76933U, 35960U, 74065U, 35060U,
+            19679U, 36965U, 21383U, 112812U, 77487U, 40733U, 75796U, 42415U,
+            16308U, 42326U, 15073U, 43733U, 14813U, 101473U, 13871U, 34415U,
+            65280U, 38852U, 77933U, 41790U, 16419U};
+        edge = feed_frame(&scan, 500000U, car, NULL, 300000U);
+        CHECK(scan.pending);
+        edge.time_us += 300000U;
+        CHECK(b3_barcode_poll(&scan, edge, &result));
+        CHECK('Z' == result.symbol);
+    }
+    /* A white run over B3_MAX_ELEMENT_RATIO x the shortest element aborts at
+       once, even though it is far under the absolute B3_MAX_ELEMENT_US cap. */
+    make_frame('Q', 5000U, 15000U, times);
+    edge = feed_frame(&scan, 500000U, times, NULL, 60000U);
+    b3_barcode_init(&scan, edge);
+    edge.black = false;
+    edge.time_us += 60000U;
+    b3_barcode_init(&scan, edge);
+    edge.time_us += 60000U;
+    edge.black = true;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));   /* start */
+    edge.time_us += 5000U;
+    edge.black = false;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    edge.time_us += 5000U;
+    edge.black = true;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    CHECK(b3_barcode_active(&scan));
+    edge.time_us += (B3_MAX_ELEMENT_RATIO + 1U) * 5000U;
+    edge.black = true;
+    CHECK(!b3_barcode_poll(&scan, edge, &result));
+    CHECK(!b3_barcode_active(&scan));
+    (void)puts("PASS: any barcode size from 0.03 mm to 25 mm bars; relative long-element abort; skewed car scan");
+}
+
 static void test_timeout_noise_wrap(void)
 {
     uint32_t times[B3_BARCODE_RUNS];
@@ -267,37 +330,37 @@ static void test_line_logic(void)
 {
     b3_line_t line;
     b3_line_result_t result;
+    /* Straddle layout: both white = on track, drive straight from the start. */
     b3_line_init(&line, 0U);
     result = b3_line_step(&line, false, false, 0U, 120);
-    CHECK(result.stop);
-    (void)b3_line_step(&line, true, true, 1000U, 120);
-    result = b3_line_step(&line, true, true, 4000U, 120);
-    CHECK(B3_LINE_CENTRED == result.state);
+    CHECK(!result.stop && (B3_LINE_CENTRED == result.state));
     CHECK((120 == result.left_mm_s) && (120 == result.right_mm_s));
-    (void)b3_line_step(&line, false, true, 4100U, 120);
-    result = b3_line_step(&line, true, true, 4500U, 120);
+    /* A 0.4 ms black flicker is filtered out. */
+    (void)b3_line_step(&line, true, false, 4100U, 120);
+    result = b3_line_step(&line, false, false, 4500U, 120);
     CHECK(B3_LINE_CENTRED == result.state);
     (void)b3_line_step(&line, true, false, 5000U, 120);
     result = b3_line_step(&line, true, false, 8000U, 120);
     CHECK(B3_LINE_LEFT == result.state);
-    CHECK(result.left_mm_s < result.right_mm_s);
+    CHECK(result.left_mm_s < result.right_mm_s); /* IR_L black: turn left */
     (void)b3_line_step(&line, false, true, 9000U, 120);
     result = b3_line_step(&line, false, true, 12000U, 120);
     CHECK(B3_LINE_RIGHT == result.state);
-    CHECK(result.right_mm_s < result.left_mm_s);
-    (void)b3_line_step(&line, false, false, 13000U, 120);
-    result = b3_line_step(&line, false, false, 16000U, 120);
-    CHECK(B3_LINE_LOST == result.state);
-    CHECK(!result.stop);
+    CHECK(result.right_mm_s < result.left_mm_s); /* IR_R black: turn right */
+    (void)b3_line_step(&line, true, true, 13000U, 120);
+    result = b3_line_step(&line, true, true, 16000U, 120);
+    CHECK(B3_LINE_CROSSING == result.state && !result.stop);
+    CHECK((120 == result.left_mm_s) && (120 == result.right_mm_s));
+    (void)b3_line_step(&line, false, false, 17000U, 120);
     result = b3_line_step(&line, false, false, 70000U, 120);
-    CHECK(result.stop && result.recovery_needed);
-    CHECK((0 == result.left_mm_s) && (0 == result.right_mm_s));
+    CHECK(B3_LINE_CENTRED == result.state && !result.stop);
     b3_line_init(&line, UINT32_MAX - 1000U);
     (void)b3_line_step(&line, true, false, UINT32_MAX - 1000U, 20);
     result = b3_line_step(&line, true, false, 2000U, 20);
     CHECK(B3_LINE_LEFT == result.state);
     CHECK((result.left_mm_s >= 0) && (result.right_mm_s >= 0));
-    (void)puts("PASS: line polarity, steering direction, filtering and lost-line stop");
+    (void)puts("PASS: straddle line rules, steering direction, filtering and crossings");
+
 }
 
 int main(void)
@@ -308,6 +371,7 @@ int main(void)
     test_stream_and_quiet();
     test_encoder_widths();
     test_timeout_noise_wrap();
+    test_any_size();
     test_line_logic();
     (void)printf("All %u checks passed. Host logic tests; no hardware timing claim.\n", g_checks);
     return EXIT_SUCCESS;

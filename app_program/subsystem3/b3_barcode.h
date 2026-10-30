@@ -30,6 +30,7 @@ typedef struct
     uint32_t leading_ticks;
     uint32_t started_us;
     uint32_t required_trailing;
+    uint32_t min_time_width;
     uint32_t rejected;
     uint8_t count;
     bool collecting;

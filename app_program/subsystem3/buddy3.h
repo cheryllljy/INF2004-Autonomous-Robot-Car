@@ -63,4 +63,9 @@ void buddy3_get_snapshot(b3_snapshot_t *p_snapshot);
 bool buddy3_pop_navigation(b3_nav_event_t *p_event);
 b3_nav_command_t buddy3_map_symbol(char symbol);
 
+#if defined(APP_TEST) && APP_TEST
+/* Test build only: restart the longest-service-gap measurement. */
+void buddy3_test_reset_max_gap(void);
+#endif
+
 #endif

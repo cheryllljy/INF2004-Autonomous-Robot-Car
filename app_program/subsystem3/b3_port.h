@@ -37,4 +37,15 @@ void b3_port_barcode_irq_ack(uint32_t events);
 ER b3_port_install_barcode_irq(void);
 void b3_port_dispatch_barcode_irq(void);
 
+/* Analog barcode input (B3_BARCODE_ANALOG). The pin becomes an ADC input,
+ * and b3_port_barcode_irq_enable() starts/stops a TIMER alarm interrupt that
+ * reads it every B3_ANALOG_SAMPLE_US and calls b3_ir_analog_sample().
+ * In this mode b3_port_barcode_irq_pending() is 0 and ack/dispatch do
+ * nothing. b3_port_adc_read() is a polled 12-bit read (0..4095), safe from
+ * tasks and the sampler on either core; it returns -1 while the kernel
+ * "adca" driver has a conversion in flight. */
+ER b3_port_adc_input_init(unsigned int pin);
+int32_t b3_port_adc_read(unsigned int channel);
+ER b3_port_install_barcode_sampler(void);
+
 #endif

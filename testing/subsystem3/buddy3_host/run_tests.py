@@ -15,17 +15,23 @@ if not cc:
 base = [cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-pedantic',
         '-I', str(source), '-I', str(here)]
 with tempfile.TemporaryDirectory(prefix='buddy3_host_') as td:
-    for label, names, extra in [
-        ('core', ['b3_code39.c', 'b3_barcode.c', 'b3_line.c'], ['test_core.c', 'test_noop_port.c']),
-        ('adapters', ['b3_code39.c', 'b3_barcode.c', 'b3_line.c', 'b3_ir.c', 'buddy3.c'], ['test_adapters.c']),
+    adapters = ['b3_code39.c', 'b3_barcode.c', 'b3_line.c', 'b3_ir.c', 'buddy3.c']
+    # IR_B both ways: AO + adaptive threshold (B3_BARCODE_ANALOG 1) and
+    # DO + GPIO edge interrupt (0), whatever b3_config.h currently selects.
+    for label, names, extra, defs in [
+        ('core', ['b3_code39.c', 'b3_barcode.c', 'b3_line.c'], ['test_core.c', 'test_noop_port.c'], []),
+        ('adapters-analog', adapters, ['test_adapters.c'], ['-DB3_BARCODE_ANALOG=1U']),
+        ('adapters-do', adapters, ['test_adapters.c'], ['-DB3_BARCODE_ANALOG=0U']),
     ]:
-        cmd = base + ['-I', str(here/'mock')]
+        cmd = base + defs + ['-I', str(here/'mock')]
         cmd += [str(source/n) for n in names]
         cmd += [str(here/n) for n in extra]
         cmd += ['-o', str(Path(td)/label)]
         subprocess.run(cmd, check=True)
+        print(f'--- {label}')
         subprocess.run([str(Path(td)/label)], check=True)
-    subprocess.run(base + ['-I', str(here/'mock'), '-c',
-                    str(source/'b3_port_mtk3_rp2040.c'), '-o',
-                    str(Path(td)/'port.o')], check=True)
-    print('PASS: Buddy3 port adapter mock compile-check')
+    for mode in ('0U', '1U'):
+        subprocess.run(base + ['-DB3_BARCODE_ANALOG=' + mode, '-I', str(here/'mock'), '-c',
+                        str(source/'b3_port_mtk3_rp2040.c'), '-o',
+                        str(Path(td)/'port.o')], check=True)
+    print('PASS: Buddy3 port adapter mock compile-check (DO and analog)')

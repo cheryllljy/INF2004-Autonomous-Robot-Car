@@ -1,12 +1,13 @@
 /*
  * gpio_dispatch.h - the team's ONE handler for the RP2040 GPIO interrupt.
+ * Owner: Buddy 3 (moved here from subsystem2/, code written by Buddy 2).
  *
  * All GPIO pins share one interrupt (IO_IRQ_BANK0, number 13). Only one
  * handler can own it, so every subsystem registers its pin here instead of
  * calling tk_def_int() itself:
- *   Buddy 2: encoders GP2, GP3      (registered by motion_hw.c)
- *   Buddy 3: barcode sensor GP28    (registered below, calls b3_port_dispatch_barcode_irq())
- *   Buddy 5: ultrasonic echo GP17   (register it the same way)
+ *   Buddy 2: encoders GP2, GP3      (registered by subsystem2/motion_hw.c)
+ *   Buddy 3: barcode sensor GP28    (registered by subsystem3/subsystem3.c)
+ *   Buddy 5: echo uses PWM hardware, no GPIO interrupt
  *
  * Callbacks run in INTERRUPT context: count or time-stamp and return. No
  * blocking calls, no printing.
@@ -28,10 +29,6 @@
 #define GPIO_DISPATCH_IRQ_LEVEL     (1)     /* same level Buddy 3 uses                      */
 #define GPIO_DISPATCH_MAX_PINS      (8U)
 
-/* 1 = also route GP28 to Buddy 3's b3_port_dispatch_barcode_irq(). Set to 0 if
- * the Buddy 3 headers are not wanted in this build. */
-#define GPIO_DISPATCH_BUDDY3        (1)
-
 /* gpio_dispatch_start() reports this in the tk_def_int status when it is called from
  * core 1. Every RP2040 core has its own interrupt controller, and the handler reads
  * the core 0 registers, so the interrupt must be enabled FROM CORE 0: call it from
@@ -46,8 +43,10 @@ typedef void (*gpio_dispatch_cb_t)(uint32_t pin);
  *              cb is called whenever the pin shows any event. */
 bool gpio_dispatch_register(uint32_t pin, uint32_t events, gpio_dispatch_cb_t cb);
 
-/* Install the one handler (idempotent). Returns false if tk_def_int() failed,
- * for example because another handler already owns the interrupt. */
+/* Install the one handler. Safe to call more than once (Buddy 2 and Buddy 3 both
+ * call it; the first call installs, later calls return true). Returns false if
+ * tk_def_int() failed or it was called from core 1. Pins can be registered
+ * before or after this call. */
 bool gpio_dispatch_start(void);
 
 /* Diagnostics: tk_def_int() return value (0 = OK, -41 = already defined),

@@ -14,7 +14,7 @@
 #include "motion_config.h"
 #include "motion_control.h"
 #include "motion_hw.h"
-#include "gpio_dispatch.h"
+#include "../subsystem3/gpio_dispatch.h"   /* shared dispatcher, owned by Buddy 3 */
 
 #include <tk/tkernel.h>
 

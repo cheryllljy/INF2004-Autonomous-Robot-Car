@@ -302,7 +302,12 @@ static void mc_update_odometry(void)
     s_hist_t_ms[newest] = s_t_last_ms;
     for (side = 0U; side < MC_SIDES; side++)
     {
-        const uint32_t window_us = s_t_last_ms - s_hist_t_ms[oldest];
+        /* Buddy 3 fix (2026-10-28): the history times are kernel ms since the
+         * switch away from TIMERAWL, but this was still used as us. An 80 ms
+         * window read as "80 us" (< 1000), so every wheel speed was 0: the PI
+         * integrator wound up and the car drove faster than asked (~170 mm/s
+         * for 100), and the stop-lag braking used speed 0 (300 mm move -> 362 mm). */
+        const uint32_t window_us = (s_t_last_ms - s_hist_t_ms[oldest]) * 1000U;
 
         s_hist[side][newest] = s_pos_ticks[side];
         s_speed[side] = (window_us < 1000U) ? 0.0f

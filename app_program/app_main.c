@@ -54,6 +54,11 @@
  */
 
 #include "app.h"
+#include "vehicle_controller/vehicle_controller.h"
+
+#ifndef APP_TEST_START_DELAY_S
+#define APP_TEST_START_DELAY_S	5	/* seconds before the test run starts */
+#endif
 
 /*
  * Create and start one task (declared in app.h for every subsystem).
@@ -107,19 +112,25 @@ EXPORT INT usermain(void)
 	tm_printf((UB*)"single-core build\n");
 #endif
 
-	/* Phase 1: every subsystem creates its kernel objects */
-	CHECK(subsystem1_init(), "subsystem1_init");
+	// /* Phase 1: every subsystem creates its kernel objects */
+	// CHECK(subsystem1_init(), "subsystem1_init");
 	CHECK(subsystem2_init(), "subsystem2_init");
 	CHECK(subsystem3_init(), "subsystem3_init");
-	CHECK(subsystem4_init(), "subsystem4_init");
-	CHECK(subsystem5_init(), "subsystem5_init");
+	// CHECK(subsystem4_init(), "subsystem4_init");
+	// CHECK(subsystem5_init(), "subsystem5_init");
+#if VC_ENABLE
+	CHECK(vc_init(), "vc_init");	/* after the subsystems it reads */
+#endif
 
 	/* Phase 2: every subsystem starts its tasks */
 	//CHECK(subsystem1_start(), "subsystem1_start");
 	CHECK(subsystem2_start(), "subsystem2_start");
-	//CHECK(subsystem3_start(), "subsystem3_start");
+	CHECK(subsystem3_start(), "subsystem3_start");
 	//CHECK(subsystem4_start(), "subsystem4_start");
 	//CHECK(subsystem5_start(), "subsystem5_start");
+#if VC_ENABLE
+	CHECK(vc_start(), "vc_start");
+#endif
 
 	tm_printf((UB*)"all subsystems started\n\n");
 
@@ -127,6 +138,15 @@ EXPORT INT usermain(void)
 	/* Test build (make TEST=1): run every subsystem's tests in turn,
 	   here in the initial task, while the system is running.  Tests may
 	   call tk_dly_tsk() to let the other tasks work for a while. */
+	/* Give time to open the serial monitor before the first result */
+	{
+		INT	n;
+
+		for (n = APP_TEST_START_DELAY_S; n > 0; n--) {
+			tm_printf((UB*)"[TEST] starting in %d s\n", n);
+			tk_dly_tsk(1000);
+		}
+	}
 	tm_printf((UB*)"[TEST] === test run start ===\n");
 	subsystem1_test();
 	subsystem2_test();

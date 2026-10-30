@@ -16,6 +16,12 @@ static b3_barcode_t g_scan;
 
 static bool g_started;
 
+/* Worker task and the cyclic handler that wakes it every
+   B3_SERVICE_DELAY_MS. A cyclic wake-up keeps a steady period; a
+   tk_dly_tsk() after each pass stretches to almost two 10 ms ticks. */
+static ID g_task_id;
+static ID g_cyc_id;
+
 static bool g_motion_good;
 
 static int32_t g_min_speed;
@@ -35,6 +41,18 @@ static uint32_t g_dropped_events;
 
 static uint32_t g_last_service_us;
 static uint32_t g_max_service_gap_us;
+
+#if defined(APP_TEST) && APP_TEST
+/* Test build only: set by the test, cleared by the task (single writer
+   of g_max_service_gap_us stays the task). */
+static volatile bool g_reset_max_gap;
+
+void buddy3_test_reset_max_gap(void)
+{
+    g_reset_max_gap =
+        true;
+}
+#endif
 
 
 /*
@@ -400,6 +418,18 @@ static void service_once(void)
         B3_FEEDBACK_MAX_AGE_US;
 
 
+#if defined(APP_TEST) && APP_TEST
+    if (g_reset_max_gap)
+    {
+        g_max_service_gap_us =
+            0U;
+
+        g_reset_max_gap =
+            false;
+    }
+#endif
+
+
     if ((now - g_last_service_us) >
         g_max_service_gap_us)
     {
@@ -746,11 +776,11 @@ static void sensor_task(
         service_once();
 
         /*
-         * Delay is in task context, not ISR context.
+         * Sleep until the cyclic handler wakes us (task context).
          */
         status =
-            tk_dly_tsk(
-                B3_SERVICE_DELAY_MS
+            tk_slp_tsk(
+                TMO_FEVR
             );
 
 
@@ -786,6 +816,20 @@ static void sensor_task(
             tk_ext_tsk();
         }
     }
+}
+
+
+/*
+ * Cyclic handler: wake the worker every B3_SERVICE_DELAY_MS.
+ */
+static void service_cyc_handler(
+    void *p_extended)
+{
+    (void)p_extended;
+
+    (void)tk_wup_tsk(
+        g_task_id
+    );
 }
 
 
@@ -958,6 +1002,47 @@ ER buddy3_start(
             task_id,
             0
         );
+
+
+    if (E_OK == status)
+    {
+        T_CCYC cyclic =
+            (T_CCYC){0};
+
+
+        g_task_id =
+            task_id;
+
+        cyclic.cycatr =
+            TA_HLNG |
+            TA_STA;
+
+        cyclic.cychdr =
+            (FP)service_cyc_handler;
+
+        cyclic.cyctim =
+            B3_SERVICE_DELAY_MS;
+
+        cyclic.cycphs =
+            B3_SERVICE_DELAY_MS;
+
+
+        g_cyc_id =
+            tk_cre_cyc(
+                &cyclic
+            );
+
+
+        if (g_cyc_id < 0)
+        {
+            status =
+                g_cyc_id;
+
+            (void)tk_ter_tsk(
+                task_id
+            );
+        }
+    }
 
 
     if (E_OK != status)
