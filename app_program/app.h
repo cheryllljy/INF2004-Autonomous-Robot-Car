@@ -49,7 +49,7 @@ IMPORT ER subsystem5_init(void);
 IMPORT ER subsystem2_start(void);
 IMPORT ER subsystem3_start(void);
 //IMPORT ER subsystem4_start(void);
-//IMPORT ER subsystem5_start(void);
+IMPORT ER subsystem5_start(void);
 
 #if APP_TEST
 IMPORT void subsystem1_test(void);

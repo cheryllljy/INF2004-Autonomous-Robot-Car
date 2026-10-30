@@ -22,6 +22,14 @@ EXPORT ID	flg_vc = 0;
 
 LOCAL volatile uint32_t	g_status_word;	/* written only by vc_task */
 
+/* Odometry for Buddy 5 (IF-S5-4). motion_get_status() locks a mutex, which
+   S5's callback must not do, so vc_task copies speed and distance here and
+   S5 reads them lock-free. Two words, so a sequence count guards against a
+   torn read: odd = write in progress (single writer, so no RMW race). */
+LOCAL volatile uint32_t	g_odo_seq;
+LOCAL volatile int32_t	g_odo_speed_mm_s;
+LOCAL volatile int32_t	g_odo_dist_mm;
+
 #define VC_TURN_ANGLE_DEG	90
 #define VC_TURN_TIMEOUT_MS	5000
 
@@ -161,10 +169,38 @@ LOCAL void handle_flags(void)
 /*  3. Inputs from the other subsystems                               */
 /* ------------------------------------------------------------------ */
 
+/* IF-S5-4: called from Buddy 5's task; never blocks */
+LOCAL bool vc_odometry(int32_t *p_speed_mm_s, int32_t *p_distance_mm)
+{
+	uint32_t	seq;
+	INT		tries;
+
+	for (tries = 0; tries < 3; tries++) {
+		seq = g_odo_seq;
+		__sync_synchronize();
+		*p_speed_mm_s  = g_odo_speed_mm_s;
+		*p_distance_mm = g_odo_dist_mm;
+		__sync_synchronize();
+		if (((seq & 1U) == 0U) && (seq != 0U) && (seq == g_odo_seq)) {
+			return true;
+		}
+	}
+	return false;			/* no data yet, or kept colliding */
+}
+
 /* OWNER: Buddy 2 -- motion status and motion faults */
 LOCAL void read_motion(void)
 {
 	motion_get_status(&vc.motion);
+
+	g_odo_seq++;			/* odd: writing */
+	__sync_synchronize();
+	g_odo_speed_mm_s = ((int32_t)vc.motion.speed_l_mmps +
+			    vc.motion.speed_r_mmps) / 2;
+	g_odo_dist_mm    = vc.motion.distance_total_mm;
+	__sync_synchronize();
+	g_odo_seq++;			/* even: done */
+
 	if (vc.motion.state == MOTION_STATE_FAULT) {
 		vc_raise_fault((vc.motion.fault == MOTION_FAULT_ENCODER_TIMEOUT) ?
 			       VC_FAULT_ENCODER : VC_FAULT_MOTOR_STALL);
@@ -343,7 +379,8 @@ EXPORT ER vc_init(void)
 
 	/* IF-S5-5: Buddy 5 sets its own cause bit on a sensor fault */
 	obstacle_register_estop(flg_vc, VC_FAULT_NO_ECHO);
-	/* TODO Buddy 2 + Buddy 5: obstacle_register_odometry() */
+	/* IF-S5-4: Buddy 2's speed and distance, via vc_task's copy */
+	obstacle_register_odometry(vc_odometry);
 	return E_OK;
 }
 
