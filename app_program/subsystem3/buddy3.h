@@ -49,6 +49,7 @@ typedef struct
     int32_t task_error;
     bool scan_active;
     bool junction_candidate;
+    uint32_t junction_sequence; /* +1 per junction reached; compare to detect a new one */
     bool control_active;
     bool stop_required;
 } b3_snapshot_t;

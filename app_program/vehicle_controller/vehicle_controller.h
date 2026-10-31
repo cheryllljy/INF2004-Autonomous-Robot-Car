@@ -11,6 +11,7 @@
  *	----------
  *	IF-VC-1  any task / ISR -> VC   vc_raise_fault(cause bits)   flg_vc 0..7
  *	IF-VC-2  Buddy 1 -> VC          vc_post_command(VC_CMD_*)    flg_vc 8..15
+ *	         (START/STOP/RESET, and TURN_* after MQTT maps a barcode letter)
  *	IF-VC-3  VC -> any task (read)  vc_get_status_word()         one 32-bit read
  *	IF-VC-4  VC -> Buddy 1          vc_fill_telemetry()          B1_Telemetry
  *	Plus the existing ones it consumes: Buddy 2 motion_*(), Buddy 3

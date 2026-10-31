@@ -97,11 +97,11 @@
 #define B3_JUNCTION_MIN_PATCH_UM      14000U 
 #define B3_JUNCTION_MIN_SPEED_MM_S    80
 
-/* Barcode -> command map in buddy3_map_symbol() (buddy3.c). On 2026-10-30
- * nyx said to use the brief's example (A left, B right, C straight, D U-turn)
- * until the real table is given on the day; edit only that switch then.
- * 0 = every symbol maps to B3_NAV_NONE. */
-#define B3_ENABLE_EXAMPLE_NAV_MAP     1U
+/* Barcode -> command map in buddy3_map_symbol() (buddy3.c). Off: from
+ * 2026-10-31 Buddy 3 only reports the letter (nav event .barcode.symbol)
+ * and the MQTT side maps it to a command, so every symbol maps to
+ * B3_NAV_NONE here. 1 = the brief's example A/B/C/D map, for bench tests. */
+#define B3_ENABLE_EXAMPLE_NAV_MAP     0U
 
 
 /* Code 39 allows wide:narrow from 2:1 to 3:1 (school barcode ~3:1).
