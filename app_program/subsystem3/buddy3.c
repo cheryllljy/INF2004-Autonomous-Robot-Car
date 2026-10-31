@@ -35,6 +35,12 @@ static bool g_side_black;
 static int32_t g_side_min_speed;
 static bool g_side_motion_good;
 
+/* Junction notification: counts each new junction (rising edge of
+ * junction_candidate) so the VehicleController cannot miss one between
+ * snapshot reads. Added 2026-10-30. */
+static bool g_prev_junction;
+static uint32_t g_junction_sequence;
+
 static bool g_event_fault;
 
 static uint32_t g_dropped_events;
@@ -703,6 +709,19 @@ static void service_once(void)
         );
 
 
+    if (output.junction_candidate &&
+        !g_prev_junction)
+    {
+        ++g_junction_sequence;
+    }
+
+    g_prev_junction =
+        output.junction_candidate;
+
+    output.junction_sequence =
+        g_junction_sequence;
+
+
     output.control_active =
         fresh &&
         context.follow_enabled;
@@ -921,6 +940,12 @@ ER buddy3_start(
 
 
     g_sequence =
+        0U;
+
+    g_prev_junction =
+        false;
+
+    g_junction_sequence =
         0U;
 
 

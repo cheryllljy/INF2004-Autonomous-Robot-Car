@@ -38,9 +38,10 @@ typedef struct {
 	UINT		faults;		/* latched causes seen this pass */
 	motion_status_t	motion;
 	b3_snapshot_t	line;
-	b3_nav_command_t last_nav;
+	b3_nav_command_t pending_turn;	/* from MQTT, done at next junction */
 	char		last_symbol;
 	uint32_t	last_seq;
+	uint32_t	junctions;	/* Buddy 3 junction_sequence seen */
 	INT		state_ms;	/* time in the current state */
 	INT		since_send_ms;
 	int16_t		sent_l;
@@ -163,6 +164,18 @@ LOCAL void handle_flags(void)
 		    (vc.state == VC_STATE_STOPPED))) {
 		enter(VC_STATE_LINE_FOLLOW);
 	}
+
+	/* Turn commands come from the MQTT side after it mapped the barcode
+	   letter. Keep the latest one for the next junction. */
+	if (cmds & VC_FLG_CMD(VC_CMD_TURN_LEFT)) {
+		vc.pending_turn = B3_NAV_LEFT;
+	} else if (cmds & VC_FLG_CMD(VC_CMD_TURN_RIGHT)) {
+		vc.pending_turn = B3_NAV_RIGHT;
+	} else if (cmds & VC_FLG_CMD(VC_CMD_U_TURN)) {
+		vc.pending_turn = B3_NAV_UTURN;
+	} else if (cmds & VC_FLG_CMD(VC_CMD_GO_STRAIGHT)) {
+		vc.pending_turn = B3_NAV_STRAIGHT;
+	}
 }
 
 /* ------------------------------------------------------------------ */
@@ -249,6 +262,48 @@ LOCAL void read_obstacle(void)
 /*  4. Buddy 3: line following and barcodes                           */
 /* ------------------------------------------------------------------ */
 
+/* OWNER: Buddy 1 -- publish the barcode letter over MQTT. The MQTT side
+   maps it to a command and calls vc_post_command(VC_CMD_TURN_*). */
+LOCAL void on_barcode(char symbol, uint32_t sequence)
+{
+	(void)symbol; (void)sequence;		/* TODO Buddy 1 */
+}
+
+/* OWNER: Buddy 1 -- publish "junction reached" if the dashboard wants it */
+LOCAL void on_junction(uint32_t count)
+{
+	(void)count;				/* TODO Buddy 1 */
+}
+
+/* Do the pending turn at the junction. None pending: keep going straight. */
+LOCAL void take_junction(void)
+{
+	b3_nav_command_t turn = vc.pending_turn;
+
+	vc.pending_turn = B3_NAV_NONE;
+	switch (turn) {
+	case B3_NAV_LEFT:
+		stop_motors();
+		(void)motion_turn_left(VC_TURN_ANGLE_DEG);
+		enter(VC_STATE_TURNING);
+		break;
+	case B3_NAV_RIGHT:
+		stop_motors();
+		(void)motion_turn_right(VC_TURN_ANGLE_DEG);
+		enter(VC_STATE_TURNING);
+		break;
+	case B3_NAV_UTURN:
+		stop_motors();
+		(void)motion_u_turn();
+		enter(VC_STATE_TURNING);
+		break;
+	case B3_NAV_STRAIGHT:
+	case B3_NAV_NONE:
+	default:
+		break;				/* Buddy 3 drives over the crossing */
+	}
+}
+
 LOCAL void exchange_line(void)
 {
 	b3_context_t	ctx = {0};
@@ -272,35 +327,24 @@ LOCAL void exchange_line(void)
 		vc_raise_fault(VC_FAULT_LINE);
 	}
 
+	/* Barcode: Buddy 3 gives only the letter. Hand it to the MQTT side,
+	   which maps it to a command and sends it back (VC_CMD_TURN_*). */
 	while (buddy3_pop_navigation(&ev)) {
-		vc.last_nav    = ev.command;
 		vc.last_symbol = ev.barcode.symbol;
 		vc.last_seq    = ev.sequence;
-		tm_printf((UB*)"[VC] barcode '%c' -> command %d%s\n",
-			  ev.barcode.symbol, ev.command,
-			  ev.navigation_allowed ? "" : " (not allowed)");
-		if (!ev.navigation_allowed || (vc.state != VC_STATE_LINE_FOLLOW)) {
-			continue;
-		}
-		switch (ev.command) {
-		case B3_NAV_LEFT:
-			stop_motors();
-			(void)motion_turn_left(VC_TURN_ANGLE_DEG);
-			enter(VC_STATE_TURNING);
-			break;
-		case B3_NAV_RIGHT:
-			stop_motors();
-			(void)motion_turn_right(VC_TURN_ANGLE_DEG);
-			enter(VC_STATE_TURNING);
-			break;
-		case B3_NAV_UTURN:
-			stop_motors();
-			(void)motion_u_turn();
-			enter(VC_STATE_TURNING);
-			break;
-		case B3_NAV_STRAIGHT:		/* keep following */
-		default:
-			break;
+		tm_printf((UB*)"[VC] barcode '%c' (#%u)\n",
+			  ev.barcode.symbol, (unsigned)ev.sequence);
+		on_barcode(ev.barcode.symbol, ev.sequence);
+	}
+
+	/* Junction: Buddy 3 counts each one, so a new count = just reached */
+	if (vc.line.junction_sequence != vc.junctions) {
+		vc.junctions = vc.line.junction_sequence;
+		tm_printf((UB*)"[VC] junction #%u reached, turn %d\n",
+			  (unsigned)vc.junctions, vc.pending_turn);
+		on_junction(vc.junctions);
+		if (vc.state == VC_STATE_LINE_FOLLOW) {
+			take_junction();
 		}
 	}
 }
@@ -354,8 +398,9 @@ LOCAL void vc_task(INT stacd, void *exinf)
 		act();
 
 		/* 6. one aligned store: readers see all or nothing */
-		g_status_word = vc_status_pack(vc.state, vc.faults, vc.last_nav,
-					       vc.last_symbol, vc.last_seq);
+		g_status_word = vc_status_pack(vc.state, vc.faults,
+					       vc.pending_turn, vc.last_symbol,
+					       vc.last_seq, vc.junctions);
 
 		vc.state_ms += VC_PERIOD_MS;
 		vc.since_send_ms += VC_PERIOD_MS;
@@ -375,7 +420,7 @@ EXPORT ER vc_init(void)
 	}
 	vc = (vc_t){0};
 	vc.state = VC_STATE_IDLE;
-	g_status_word = vc_status_pack(VC_STATE_IDLE, 0U, B3_NAV_NONE, 0, 0U);
+	g_status_word = vc_status_pack(VC_STATE_IDLE, 0U, B3_NAV_NONE, 0, 0U, 0U);
 
 	/* IF-S5-5: Buddy 5 sets its own cause bit on a sensor fault */
 	obstacle_register_estop(flg_vc, VC_FAULT_NO_ECHO);

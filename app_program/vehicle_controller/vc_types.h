@@ -9,12 +9,13 @@
  *	Field         Valid range                 Bits  Used by
  *	------------  --------------------------  ----  -------------------------
  *	state         vc_state_t, 0..5            3     B1 telemetry controller_state
- *	command       vc_cmd_t, 0..3              3     B1 command byte (IDs 0..7)
+ *	command       vc_cmd_t, 0..7              3     B1 command byte (IDs 0..7)
  *	fault causes  one bit per source          8     flg_vc bits 0..7,
  *	                                                B1 telemetry fault_flags
- *	nav command   b3_nav_command_t, 0..4      3     Buddy 3 navigation event
+ *	pending turn  b3_nav_command_t, 0..4      3     turn waiting for the next junction
  *	symbol        Code 39 character, ASCII    7     Buddy 3 navigation event
  *	nav sequence  wraps at 256                8     detects a missed barcode
+ *	junctions     wraps at 8                  3     detects a new junction
  *
  *	All of it travels between tasks as ONE 32-bit status word (layout at
  *	VC_SW_*), built in a local and published with one aligned store, so
@@ -44,14 +45,21 @@ typedef enum {
 #define VC_STATE_BITS		3U
 
 /* ---------------------------------------------------------------------
- *  Remote commands (3 bits), e.g. from Buddy 1's MQTT handler after
- *  b1_command_unpack().  IDs 4..7 are free for the team.
+ *  Remote commands (3 bits), from Buddy 1's MQTT handler after
+ *  b1_command_unpack().  Buddy 3 only reports the barcode LETTER; the
+ *  MQTT side maps the letter to one of the turn commands below and sends
+ *  it back.  The VehicleController keeps it until the next junction.
+ *  All 8 IDs are used: a new command needs a 4th bit.
  * --------------------------------------------------------------------- */
 typedef enum {
 	VC_CMD_NONE = 0,
 	VC_CMD_START,
 	VC_CMD_STOP,
 	VC_CMD_RESET,		/* clear latched faults, back to IDLE */
+	VC_CMD_TURN_LEFT,	/* at the next junction */
+	VC_CMD_TURN_RIGHT,
+	VC_CMD_GO_STRAIGHT,
+	VC_CMD_U_TURN,
 	VC_CMD_COUNT
 } vc_cmd_t;
 #define VC_CMD_BITS		3U
@@ -76,35 +84,38 @@ typedef enum {
 #define VC_NAV_BITS		3U
 #define VC_SYMBOL_BITS		7U
 #define VC_SEQ_BITS		8U
+#define VC_JUNCTION_BITS	3U
 
 /* ---------------------------------------------------------------------
  *  Status word, least-significant bit first
  *	bits  0..2   state
  *	bits  3..10  fault causes
- *	bits 11..13  last navigation command
+ *	bits 11..13  pending turn (b3_nav_command_t)
  *	bits 14..20  last barcode symbol (ASCII, 0 = none yet)
  *	bits 21..28  last barcode sequence (wraps)
- *	bits 29..31  reserved, zero
+ *	bits 29..31  junctions reached (wraps)
  * --------------------------------------------------------------------- */
 #define VC_SW_STATE_SHIFT	0U
 #define VC_SW_FAULT_SHIFT	(VC_SW_STATE_SHIFT + VC_STATE_BITS)
 #define VC_SW_NAV_SHIFT		(VC_SW_FAULT_SHIFT + VC_FAULT_BITS)
 #define VC_SW_SYMBOL_SHIFT	(VC_SW_NAV_SHIFT + VC_NAV_BITS)
 #define VC_SW_SEQ_SHIFT		(VC_SW_SYMBOL_SHIFT + VC_SYMBOL_BITS)
-#define VC_SW_USED_BITS		(VC_SW_SEQ_SHIFT + VC_SEQ_BITS)
+#define VC_SW_JUNCTION_SHIFT	(VC_SW_SEQ_SHIFT + VC_SEQ_BITS)
+#define VC_SW_USED_BITS		(VC_SW_JUNCTION_SHIFT + VC_JUNCTION_BITS)
 
 #define VC_FIELD(word, shift, bits) \
 	(((word) >> (shift)) & ((1UL << (bits)) - 1UL))
 
 static inline uint32_t vc_status_pack(vc_state_t state, uint32_t faults,
 				      b3_nav_command_t nav, char symbol,
-				      uint32_t sequence)
+				      uint32_t sequence, uint32_t junctions)
 {
 	return ((uint32_t)state << VC_SW_STATE_SHIFT) |
 	       ((faults & VC_FAULT_MASK) << VC_SW_FAULT_SHIFT) |
 	       ((uint32_t)nav << VC_SW_NAV_SHIFT) |
 	       (((uint32_t)(uint8_t)symbol & 0x7FU) << VC_SW_SYMBOL_SHIFT) |
-	       ((sequence & ((1U << VC_SEQ_BITS) - 1U)) << VC_SW_SEQ_SHIFT);
+	       ((sequence & ((1U << VC_SEQ_BITS) - 1U)) << VC_SW_SEQ_SHIFT) |
+	       ((junctions & ((1U << VC_JUNCTION_BITS) - 1U)) << VC_SW_JUNCTION_SHIFT);
 }
 
 #define VC_SW_STATE(w)	((vc_state_t)VC_FIELD((w), VC_SW_STATE_SHIFT, VC_STATE_BITS))
@@ -112,6 +123,7 @@ static inline uint32_t vc_status_pack(vc_state_t state, uint32_t faults,
 #define VC_SW_NAV(w)	((b3_nav_command_t)VC_FIELD((w), VC_SW_NAV_SHIFT, VC_NAV_BITS))
 #define VC_SW_SYMBOL(w)	((char)VC_FIELD((w), VC_SW_SYMBOL_SHIFT, VC_SYMBOL_BITS))
 #define VC_SW_SEQ(w)	((uint8_t)VC_FIELD((w), VC_SW_SEQ_SHIFT, VC_SEQ_BITS))
+#define VC_SW_JUNCTIONS(w) ((uint8_t)VC_FIELD((w), VC_SW_JUNCTION_SHIFT, VC_JUNCTION_BITS))
 
 /* ---------------------------------------------------------------------
  *  CR1 checks: adding a state, command or cause that no longer fits its
