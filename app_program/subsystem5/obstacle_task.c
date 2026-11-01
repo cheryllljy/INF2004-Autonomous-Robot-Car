@@ -115,8 +115,9 @@ static uint32_t g_last_close_ms = 0U;   /* blind-zone window        */
 static uint32_t g_phase_ms      = 0U;   /* WAIT_STOP / ASSIST entry */
 static uint32_t g_stopped_ms    = 0U;   /* speed first read as 0    */
 
-/** Coarse sweep bearings, right to left. */
-static const int8_t g_coarse_deg[S5_COARSE_POINTS] = { -60, -30, 0, 30, 60 };
+/** Coarse sweep bearings, right to left. v2.2: inside +/-30 deg, the
+ *  widest the sensor bracket can turn without hitting the Pico board. */
+static const int8_t g_coarse_deg[S5_COARSE_POINTS] = { -30, -20, 0, 20, 30 };
 
 /*=====================================================================*/
 /* Small helpers                                                       */

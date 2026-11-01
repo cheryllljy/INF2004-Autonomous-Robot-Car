@@ -104,7 +104,7 @@ bool drv_ultrasonic_init(void);
 
 /**
  * @brief   One ping. Blocks the calling task (in the kernel, not
- *          spinning) for the quiet-time remainder plus ~20-30 ms.
+ *          spinning) for the quiet-time remainder plus ~30-40 ms.
  */
 ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result);
 

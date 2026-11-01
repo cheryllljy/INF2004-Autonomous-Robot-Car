@@ -16,10 +16,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/** Kept inside the end stops: a stalled SG90 draws ~700 mA and can
- *  brown out the 5 V servo rail the sonar shares. */
-#define DRV_SERVO_MIN_DEG           (15)
-#define DRV_SERVO_MAX_DEG           (165)
+/** Hard limits: every command is clamped here, so no code path can
+ *  drive the bracket into the Pico board (v2.2: 60..120 = +/-30 deg,
+ *  bench 2026-11-01). A stalled SG90 also draws ~700 mA and can brown
+ *  out the 5 V servo rail the sonar shares. */
+#define DRV_SERVO_MIN_DEG           (60)
+#define DRV_SERVO_MAX_DEG           (120)
 #define DRV_SERVO_CENTRE_DEG        (90)
 
 /** Configure PWM slice 7 for 50 Hz, 1 us per count, centre the horn.

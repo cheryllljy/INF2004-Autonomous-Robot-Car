@@ -22,9 +22,15 @@
  *   - CPU per ping: a few register accesses plus one kernel delay
  *
  * Cost: the echo is read after a fixed window instead of at the falling
- * edge. With the 10 ms kernel tick the window ends 20-30 ms after the
- * trigger, so a guard ping now takes ~25 ms of wall time (the task is
- * blocked, not running). The guard period stays 60 ms.
+ * edge. The window is 30 ms of kernel time (10 ms tick, so 20-30 ms
+ * real), so a guard ping takes ~30-40 ms of wall time with the task
+ * blocked, not running. The guard period stays 60 ms.
+ *
+ * v2.1: every wait uses kernel time (tk_get_otm), not TIMER_TIMERAWL.
+ * On the bench the v2.0 waits ran ~10x too long (one ping every ~3 s
+ * instead of 4 per second), so the TIMER block cannot be trusted as a
+ * 1 MHz clock in this port. Only the 12 us trigger pulse still uses it;
+ * if TIMER runs slow the pulse is longer, which the HC-SR04 accepts.
  *
  * Failure modes
  * -------------
@@ -50,20 +56,17 @@
 #define DRV_US_TRIG_US              (12U)
 
 /**
- * Read the counter no earlier than this after the trigger. 20 ms of
- * flight is 3.4 m, past the 2.5 m valid limit, so every valid echo has
- * finished by then.
+ * Read the counter this long (kernel time) after the trigger. With the
+ * 10 ms tick that is at least 20 ms real: 3.4 m of flight, past the
+ * 2.5 m valid limit, so every valid echo has finished.
  */
-#define DRV_US_READ_WINDOW_US       (20000U)
+#define DRV_US_READ_WINDOW_MS       (30U)   /* kernel ms; >= 20 ms real */
 
 /**
- * Minimum trigger-to-trigger spacing (datasheet 60 ms). Firing sooner
- * makes the old echo look like a near object. Up to 1 ms early is
- * accepted so tick jitter on the 60 ms guard period does not push
- * every ping a whole 10 ms tick late.
+ * Minimum trigger-to-trigger spacing (datasheet 60 ms), kernel time.
+ * Firing sooner makes the old echo look like a near object.
  */
-#define DRV_US_QUIET_US             (60000U)
-#define DRV_US_QUIET_SLACK_US       (1000U)
+#define DRV_US_QUIET_MS             (60U)
 
 /** mm = us * 343 / 2000 (speed of sound ~343 m/s at 20 degC). */
 #define DRV_US_SPEED_MM_PER_MS      (343U)
@@ -79,7 +82,7 @@ S5_STATIC_ASSERT(S5_PWM_IS_CHAN_B(S5_ECHO_GPIO), echo_on_channel_b);
 /* Module state (owned by the obstacle task only)                      */
 /*=====================================================================*/
 
-static uint32_t           g_last_trig_us = 0U;
+static uint32_t           g_last_trig_ms = 0U;
 static bool               g_fired_once   = false;
 static bool               g_ready        = false;
 static ultrasonic_stats_t g_stats        = { 0U, 0U, 0U, 0U };
@@ -113,18 +116,25 @@ static bool drv_us_echo_high(void)
     return (gpio_get_val((UINT)S5_ECHO_GPIO) != 0U);
 }
 
-/** Sleep (in the kernel) until at least `target_us` after `since_us`. */
-static void drv_us_sleep_until(uint32_t since_us, uint32_t target_us)
+/** Kernel time in ms (10 ms tick). Used for every wait, so the waits
+ *  do not depend on the TIMER block's tick rate. */
+static uint32_t drv_us_now_ms(void)
 {
-    uint32_t elapsed = (uint32_t)s5_time_us() - since_us;
+    SYSTIM t;
 
-    while (elapsed < target_us)
+    (void)tk_get_otm(&t);
+
+    return (uint32_t)t.lo;
+}
+
+/** Sleep (in the kernel) until `wait_ms` of kernel time has passed
+ *  since `since_ms`. With a 10 ms tick the real wait is at least
+ *  wait_ms - 10 ms. */
+static void drv_us_sleep_since(uint32_t since_ms, uint32_t wait_ms)
+{
+    while ((drv_us_now_ms() - since_ms) < wait_ms)
     {
-        const uint32_t remain_ms = ((target_us - elapsed) + 999U) / 1000U;
-
-        (void)tk_dly_tsk((RELTIM)((remain_ms < DRV_US_TICK_MS) ?
-                                  DRV_US_TICK_MS : remain_ms));
-        elapsed = (uint32_t)s5_time_us() - since_us;
+        (void)tk_dly_tsk((RELTIM)DRV_US_TICK_MS);
     }
 }
 
@@ -239,8 +249,7 @@ ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result)
         {
             if (g_fired_once)
             {
-                drv_us_sleep_until(g_last_trig_us,
-                                   DRV_US_QUIET_US - DRV_US_QUIET_SLACK_US);
+                drv_us_sleep_since(g_last_trig_ms, DRV_US_QUIET_MS);
             }
 
             if (drv_us_echo_high())
@@ -255,11 +264,11 @@ ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result)
                 bool still_high;
 
                 drv_us_arm_counter();
-                g_last_trig_us = (uint32_t)s5_time_us();
+                g_last_trig_ms = drv_us_now_ms();
                 g_fired_once   = true;
                 drv_us_fire();
 
-                drv_us_sleep_until(g_last_trig_us, DRV_US_READ_WINDOW_US);
+                drv_us_sleep_since(g_last_trig_ms, DRV_US_READ_WINDOW_MS);
 
                 still_high = drv_us_echo_high();
                 echo       = drv_us_read_counter();

@@ -162,7 +162,7 @@ EXPORT void subsystem5_test(void)
 		tm_printf((UB*)"[INFO] S5 profile build %d us (7 samples)\n",
 			  (INT)dt);
 		TEST_CHECK("S5-U08", dt < 1000U,
-			   "profile build under 1 ms (0.07 % of a 1.4 s scan)");
+			   "profile build under 1 ms (under 0.1 % of a scan)");
 	}
 
 	/* ---- the running task ---------------------------------------- */
@@ -183,8 +183,11 @@ EXPORT void subsystem5_test(void)
 		TEST_CHECK("S5-U09", (h.state != OBSTACLE_ST_INIT) &&
 			   (st.pings >= 10U),
 			   "obstacle task running, >= 10 pings in 1.5 s");
-		TEST_CHECK("S5-U10", h.fault == OBSTACLE_FAULT_NONE,
-			   "sensor answering (no fault; needs sonar wired)");
+		/* Only a SENSOR fault means the sonar is broken. On the bench
+		   there is no VehicleController to call obstacle_resume(), so
+		   an object in front ends in ASSIST_TIMEOUT by design. */
+		TEST_CHECK("S5-U10", h.fault != OBSTACLE_FAULT_SENSOR,
+			   "sensor answering (no SENSOR fault; needs sonar wired)");
 		TEST_CHECK("S5-U11", h.deadline_overruns == 0U,
 			   "no missed 60 ms guard ticks");
 	}

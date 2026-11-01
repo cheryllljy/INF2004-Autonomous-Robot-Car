@@ -165,10 +165,11 @@ static inline uint32_t s5_age_ms(uint32_t stamp, uint32_t now_ms)
 /*=====================================================================*/
 
 /*
- * Every bearing the scan visits is a multiple of 10 deg inside
- * +/-70 deg (coarse -60..60 step 30, fine +/-30 step 10 around it,
- * clipped to the +/-75 deg servo limit). That is 15 values, so the
- * bearing is stored as a 4-bit index: idx = bearing / 10 + 7.
+ * Every bearing the scan visits is a multiple of 10 deg. The format
+ * holds +/-70 deg (15 values, a 4-bit index: idx = bearing / 10 + 7).
+ * v2.2 scans only +/-30 deg (7 values, which would fit 3 bits); 4 bits
+ * are kept on purpose so a remounted bracket can scan wider without
+ * changing the stored or sent format.
  *
  *   bit 15..12  bearing index 0..14     (4 bits)
  *   bit 11..0   range, 12-bit code      (12 bits)

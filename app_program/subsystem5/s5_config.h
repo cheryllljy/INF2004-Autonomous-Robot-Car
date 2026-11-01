@@ -86,8 +86,9 @@
 #define S5_COARSE_POINTS            (5U)
 #define S5_FINE_POINTS              (7U)
 #define S5_FINE_STEP_DEG            (10)
-#define S5_SWEEP_LIMIT_DEG          (70)    /* last 10 deg grid point
-                                               inside the +/-75 servo
-                                               travel limit */
+/* v2.2: +/-30 deg. On the robot the bracket hits the Pico board
+ * beyond that (bench, 2026-11-01). Remount the bracket to widen it, then
+ * raise this, the coarse bearings and DRV_SERVO_MIN/MAX_DEG together. */
+#define S5_SWEEP_LIMIT_DEG          (30)
 
 #endif /* S5_CONFIG_H */

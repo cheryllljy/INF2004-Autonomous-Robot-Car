@@ -4,6 +4,45 @@ Buddy 5, student ID 2502410. Newest first. v1 stays in
 `app_program/old_src/` (not built) and in git history; nothing is
 overwritten.
 
+## v2.2 (2026-11-01): scan limited to +/-30 deg
+
+- Bench: the bracket hits the Pico board beyond +/-30 deg; the bench
+  sweep at +/-30 deg clears it.
+- `drv_servo.h`: hard limits 15..165 -> 60..120 deg, so no command can
+  reach the board. `s5_config.h`: `S5_SWEEP_LIMIT_DEG` 70 -> 30.
+  `obstacle_task.c`: coarse bearings {-60,-30,0,30,60} ->
+  {-30,-20,0,20,30}; the fine pass fills -10/+10 and is clipped to
+  +/-30.
+- Trade-off: at 300 mm the sensor sees about +/-150 mm to each side
+  (the driving band is +/-135 mm). A wall further out is not seen, so a
+  side gap can read as open when it is not. Remounting the bracket and
+  restoring +/-70 deg is the proper fix.
+- Bearing field kept at 4 bits (7 values would fit 3) so a wider sweep
+  needs no format change. Stated in the CR1 table.
+- `subsystem5_test.c` S5-U10 now fails only on a SENSOR fault. On the
+  bench (no VehicleController) an object in front ends in
+  ASSIST_TIMEOUT by design; that was failing U10 for the wrong reason.
+- Host tests: all pass; simulated scan shorter (see TEST_LOG).
+
+## v2.1 (2026-11-01): sonar waits on kernel time
+
+- Bench (S5 bench image, laptop USB): v2.0 gave one ping every ~3 s
+  instead of 4 per second, with correct distances and 0 no-response.
+  The waits used TIMER_TIMERAWL as a 1 MHz clock; in this port it does
+  not run at 1 MHz, so every wait stretched ~10x.
+- `drv_ultrasonic.c`: quiet period (60 ms) and read window (30 ms) now
+  use `tk_get_otm()`. Bench after the fix: one line every 300 ms
+  (250 ms loop + ping), 72 pings, 0 no-response, 125-1131 mm tracked.
+- Ping wall time 20-30 ms -> 30-40 ms; guard period still 60 ms.
+- Only the 12 us trigger pulse still reads TIMER (a slow TIMER just
+  makes it longer, which the HC-SR04 accepts). The profile build time
+  in health and S5-U08 also reads TIMER, so treat that number as
+  relative until the TIMER rate is confirmed.
+- Note for Buddy 3: `b3_port_time_us()` reads the same TIMER register.
+- Sim updated to the 30 ms window; all host tests re-run. Simulated
+  scan 1 401 -> 1 533 ms (NFR11: 1.8 s). Worst-case first range after
+  an object appears ~100 ms (v2.0 ~92 ms, v1 82 ms).
+
 ## v2.0 (2026-10-20): port to the team build, CR1, tutor feedback
 
 ### Port to the micro T-Kernel make build

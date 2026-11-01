@@ -1,0 +1,199 @@
+=== geometry and policy ===
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -Imock -I../../../app_program/subsystem5 -I. ../../../app_program/subsystem5/obstacle_geometry.c ../../../app_program/subsystem5/s5_pack.c test_geometry.c -o build/test_geometry
+G1 clear track
+G2 narrow post at 250 mm
+G3 wide box at 300 mm
+G4 separate wall close on the left
+G5 object inside the hard stop distance
+G6 defensive checks
+G7 object offset to the left, both sides open
+G8 sensor silent in every direction
+G9 straight ahead silent, sides clear
+G10 object ahead, one direction silent
+G11 bench: every bearing silent
+G12 bench: closer object off to the side
+G13 object ahead, one side silent
+G14 clear path, some bearings silent
+G15 pass distance = nearest + depth + robot length + margin
+G16 in-path band is +/-135 mm
+
+173 checks, 0 failures
+cc -std=c99 -O1 -Iv1_reference -Imock -DOBSTACLE_HOST_TEST -Dobstacle_profile_build=v1_obstacle_profile_build -Dobstacle_plan=v1_obstacle_plan -c v1_reference/obstacle_geometry_v1.c -o build/v1_geometry.o
+cc -std=c99 -O1 -Iv1_reference -Imock -DOBSTACLE_HOST_TEST -Dobstacle_profile_build=v1_obstacle_profile_build -Dobstacle_plan=v1_obstacle_plan -c v1_reference/v1_adapter.c -o build/v1_adapter.o
+
+=== CR1 packing ===
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -Imock -I../../../app_program/subsystem5 -I. -Iv1_reference ../../../app_program/subsystem5/obstacle_geometry.c ../../../app_program/subsystem5/s5_pack.c test_pack.c \
+    build/v1_geometry.o build/v1_adapter.o -o build/test_pack
+P1 12-bit range code
+P2 16-bit sample (4-bit bearing index + 12-bit range)
+P3 32-bit front word (range 12 | status 3 | stamp 17)
+P4 profile: 16 B, 2000 random in-range round trips
+P5 health: 8 B round trip at limits
+P6 ping result: 4 B (range 12 | echo 15 | status 3)
+P7 telemetry: binary packet vs the JSON line it replaces
+  MESSAGE SIZE  text 201 B  ->  binary 29 B  (86 % smaller)
+P8 RAM per data item, v1 vs v2 (this host's ABI; the ARM
+   numbers come from arm-none-eabi-size, see TEST_LOG.md)
+  item                         v1 B   v2 B
+  sample                          4      2
+  sample buffer x16              64     32
+  published profile              32     16
+  health                         16      8
+  ping result                    12      4
+  ultrasonic stats               20      8
+
+31 checks, 0 failures
+
+=== CR1 equivalence: v1 vs v2 geometry ===
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -Imock -I../../../app_program/subsystem5 -I. -Iv1_reference ../../../app_program/subsystem5/obstacle_geometry.c ../../../app_program/subsystem5/s5_pack.c test_equiv.c \
+    build/v1_geometry.o build/v1_adapter.o -o build/test_equiv
+20000 sweeps compared, 0 mismatches
+coverage: invalid 540, CONTINUE 2440, SLOW 307, STOP 540, LEFT 1752, RIGHT 1687, REVERSE 13274
+
+=== simulation scenarios ===
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -Imock -I../../../app_program/subsystem5 -I. ../../../app_program/subsystem5/obstacle_geometry.c ../../../app_program/subsystem5/s5_pack.c ../../../app_program/subsystem5/obstacle_task.c tk_shim.c sim_hal.c test_sim.c -lm -o build/test_sim
+S1 clear track for 1.5 s
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+  24 pings, 0 servo moves, 1500 ms simulated
+  4 checks, 0 failures
+
+S2 150 mm box appears 250 mm ahead at 500 ms
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+     501 ms  GUARD     -> CONFIRM  
+     561 ms  CONFIRM   -> WAIT_STOP
+     921 ms  WAIT_STOP -> COARSE   
+    1566 ms  COARSE    -> FINE     
+    2207 ms  FINE      -> PUBLISH  
+    2322 ms  PUBLISH   -> ASSIST   
+    3182 ms  ASSIST    -> GUARD    
+  profile: nearest 250 mm, bearing +0, width 109 mm, gapL 1413 gapR 1413, swingL 222 swingR 222, conf 100%, pass after 660 mm
+  action : BYPASS_LEFT
+  detect 1 ms after the box, DETECTED->stopped 200 ms, stopped->first servo move 160 ms, scan 1401 ms
+  91 pings, 13 servo moves, 6000 ms simulated
+  9 checks, 0 failures
+
+S3 box on the line, wall close on the left
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+     501 ms  GUARD     -> CONFIRM  
+     561 ms  CONFIRM   -> WAIT_STOP
+     921 ms  WAIT_STOP -> COARSE   
+    1566 ms  COARSE    -> FINE     
+    2207 ms  FINE      -> PUBLISH  
+    2322 ms  PUBLISH   -> ASSIST   
+    3182 ms  ASSIST    -> GUARD    
+  profile: nearest 250 mm, bearing +0, width 109 mm, gapL 173 gapR 1413, swingL 222 swingR 222, conf 100%, pass after 660 mm
+  action : BYPASS_RIGHT
+  91 pings, 13 servo moves, 6000 ms simulated
+  3 checks, 0 failures
+
+S4 ECHO stuck high from the start
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+S5: FAULT cause 1
+     601 ms  GUARD     -> FAULT    
+  0 pings, 0 servo moves, 4000 ms simulated
+  5 checks, 0 failures
+
+S5 narrow post at 260 mm with +/-8 mm noise
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+     501 ms  GUARD     -> CONFIRM  
+     561 ms  CONFIRM   -> WAIT_STOP
+     921 ms  WAIT_STOP -> COARSE   
+    1566 ms  COARSE    -> FINE     
+    2207 ms  FINE      -> PUBLISH  
+    2322 ms  PUBLISH   -> ASSIST   
+    3182 ms  ASSIST    -> GUARD    
+  profile: nearest 258 mm, bearing +0, width 30 mm, gapL 1456 gapR 1454, swingL 179 swingR 181, conf 100%, pass after 668 mm
+  action : BYPASS_LEFT
+  91 pings, 13 servo moves, 6000 ms simulated
+  2 checks, 0 failures
+
+S7 sensor never responds
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+S5: FAULT cause 1
+     621 ms  GUARD     -> FAULT    
+  FAULT after 621 ms
+  16 pings, 0 servo moves, 4000 ms simulated
+  5 checks, 0 failures
+
+S8 car never stops after DETECTED
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+     501 ms  GUARD     -> CONFIRM  
+     561 ms  CONFIRM   -> WAIT_STOP
+S5: FAULT cause 2
+    1581 ms  WAIT_STOP -> FAULT    
+  DETECTED 561 ms, FAULT 1581 ms
+  66 pings, 0 servo moves, 4000 ms simulated
+  5 checks, 0 failures
+
+S9 object at 90 mm that never goes away
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+     321 ms  GUARD     -> WAIT_STOP
+     681 ms  WAIT_STOP -> COARSE   
+    1326 ms  COARSE    -> FINE     
+    1967 ms  FINE      -> PUBLISH  
+    2082 ms  PUBLISH   -> ASSIST   
+    2942 ms  ASSIST    -> GUARD    
+    3002 ms  GUARD     -> WAIT_STOP
+    3362 ms  WAIT_STOP -> COARSE   
+    4007 ms  COARSE    -> FINE     
+    4648 ms  FINE      -> PUBLISH  
+    4763 ms  PUBLISH   -> ASSIST   
+    5623 ms  ASSIST    -> GUARD    
+    5683 ms  GUARD     -> WAIT_STOP
+    6043 ms  WAIT_STOP -> COARSE   
+    6688 ms  COARSE    -> FINE     
+    7329 ms  FINE      -> PUBLISH  
+S5: FAULT cause 3
+    7444 ms  PUBLISH   -> FAULT    
+  2 profiles, 2 resumes, last action REVERSE
+  173 pings, 39 servo moves, 12000 ms simulated
+  3 checks, 0 failures
+
+S10 controller never calls obstacle_resume()
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+     501 ms  GUARD     -> CONFIRM  
+     561 ms  CONFIRM   -> WAIT_STOP
+     921 ms  WAIT_STOP -> COARSE   
+    1566 ms  COARSE    -> FINE     
+    2207 ms  FINE      -> PUBLISH  
+    2322 ms  PUBLISH   -> ASSIST   
+S5: FAULT cause 4
+    7322 ms  ASSIST    -> FAULT    
+  PROFILED 2322 ms, FAULT 7322 ms
+  157 pings, 13 servo moves, 10000 ms simulated
+  2 checks, 0 failures
+
+S11 no odometry registered (bench)
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+     501 ms  GUARD     -> CONFIRM  
+     561 ms  CONFIRM   -> WAIT_STOP
+    1101 ms  WAIT_STOP -> COARSE   
+    1746 ms  COARSE    -> FINE     
+    2387 ms  FINE      -> PUBLISH  
+    2502 ms  PUBLISH   -> ASSIST   
+    3362 ms  ASSIST    -> GUARD    
+  91 pings, 13 servo moves, 6000 ms simulated
+  2 checks, 0 failures
+
+S12 sensor silent until 1.5 s, then healthy
+S5: ObstacleScan up (servo GP15, sonar GP16/17)
+       1 ms  INIT      -> GUARD    
+S5: FAULT cause 1
+     621 ms  GUARD     -> FAULT    
+    2701 ms  FAULT     -> GUARD    
+  FAULT 621 ms, back in GUARD 2701 ms
+  52 pings, 0 servo moves, 5000 ms simulated
+  6 checks, 0 failures
+
+
+All subsystem 5 host tests passed.
