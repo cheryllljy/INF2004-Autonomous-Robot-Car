@@ -412,12 +412,33 @@ static void test_task_boundary(void)
     one_task_pass();
     buddy3_get_snapshot(&snapshot);
     CHECK(snapshot.junction_candidate);
+    CHECK(1U == snapshot.junction_sequence);
     emit(false);
     context.time_us = g_now;
     buddy3_set_context(&context);
     one_task_pass();
     buddy3_get_snapshot(&snapshot);
+#if B3_JUNCTION_NEEDS_IR_B
     CHECK(!snapshot.junction_candidate);
+#else
+    /* Straddle layout: IR_L and IR_R alone decide; IR_B leaving the tape
+       first (it is not level with them) does not end the junction. */
+    CHECK(snapshot.junction_candidate);
+    CHECK(1U == snapshot.junction_sequence);
+    g_pins = (B3_IR_L_BLACK_LEVEL != 0U) ? (g_pins & ~(1U << B3_IR_L_GPIO))
+                                         : (g_pins | (1U << B3_IR_L_GPIO));
+    for (unsigned int pass = 0U; pass < 5U; ++pass) /* line sensors are debounced */
+    {
+        g_now += 5000U;
+        context.time_us = g_now;
+        buddy3_set_context(&context);
+        one_task_pass();
+    }
+    buddy3_get_snapshot(&snapshot);
+    CHECK(!snapshot.junction_candidate);
+    g_pins = (B3_IR_L_BLACK_LEVEL != 0U) ? (g_pins | (1U << B3_IR_L_GPIO))
+                                         : (g_pins & ~(1U << B3_IR_L_GPIO));
+#endif
 
     context.stop_requested = true;
     buddy3_set_context(&context);

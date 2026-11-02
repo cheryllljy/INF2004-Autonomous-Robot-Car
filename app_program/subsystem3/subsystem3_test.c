@@ -47,7 +47,7 @@
    2 = barcode only: H04..H06
    3 = combined drive only: H09 (follow the line AND decode a barcode) */
 #ifndef B3_TEST_SELECT
-#define B3_TEST_SELECT		3
+#define B3_TEST_SELECT		2
 #endif
 #define B3_RUN_LINE_TESTS	((B3_TEST_SELECT == 0) || (B3_TEST_SELECT == 1))
 #define B3_RUN_BARCODE_TESTS	((B3_TEST_SELECT == 0) || (B3_TEST_SELECT == 2))
@@ -57,7 +57,7 @@
 #define B3_TEST_FOLLOW_OFF_MS	1000	/* B3-H08: fail if one sensor stays on the line longer */
 /* 1 = the live readout prints IR_B (barcode) only */
 #ifndef B3_LIVE_IR_B_ONLY
-#define B3_LIVE_IR_B_ONLY	0
+#define B3_LIVE_IR_B_ONLY	1
 #endif
 #define B3_LIVE_FIRST		(B3_LIVE_IR_B_ONLY ? 2 : 0)
 #define B3_LIVE_WINDOW		20	/* samples per printed line, 10 ms apart */

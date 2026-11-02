@@ -625,7 +625,7 @@ static void service_once(void)
      * Junction candidate handling: IR_L, IR_R and IR_B
      * all black for long enough means a wide crossing patch.
      */
-    if (sample.barcode.black &&
+    if ((sample.barcode.black || !B3_JUNCTION_NEEDS_IR_B) &&
         output.line.left_black &&
         output.line.right_black &&
         !g_side_black)
@@ -642,7 +642,7 @@ static void service_once(void)
 
 
     g_side_black =
-        sample.barcode.black &&
+        (sample.barcode.black || !B3_JUNCTION_NEEDS_IR_B) &&
         output.line.left_black &&
         output.line.right_black;
 
@@ -696,7 +696,7 @@ static void service_once(void)
             (!output.scan_active) ||
             (
                 g_scan.collecting &&
-                (0U == g_scan.count)
+                (g_scan.count <= B3_JUNCTION_MAX_SCAN_RUNS)
             )
         ) &&
         (
