@@ -35,37 +35,52 @@ LOCAL const char *state_name(UINT tskstat)
 	case TTS_SUS:	return "SUSPEND";
 	case TTS_WAS:	return "WAIT+SUSPEND";
 	case TTS_DMT:	return "DORMANT";
-	default:	return "?";
+	default:		return "?";
 	}
 }
 
 EXPORT void monitor_task(INT stacd, void *exinf)
 {
-	UINT		flgptn;
-	UB		text[S4_SUMMARY_MAX + 1];
-	INT		len;
-	APP_STATS	snap;
-	T_RSEM		rsem;
-	T_RMPF		rmpf;
-	T_RTSK		rtsk;
-	SYSTIM		now;
+	UINT			flgptn;
+	UB				text[S4_SUMMARY_MAX + 1];
+	INT				len;
+	APP_STATS		snap;
+	T_RSEM			rsem;
+	T_RMPF			rmpf;
+	T_RTSK			rtsk;
+	SYSTIM			now;
 	imu_vector_t	accel;
 	imu_vector_t	mag;
-	imu_status_set_t imu_status = {0};
-	UW		reports = 0;
-	BOOL		led_paused = FALSE;
-	ER		er;
+	imu_status_t	init_status;
+	imu_status_t	accel_status;
+	imu_status_t	mag_status;
+	UW				reports = 0;
+	BOOL			led_paused = FALSE;
+	ER				er;
+	int 			consecutive_fails = 0;
 
 	(void)stacd; (void)exinf;
 
 	tm_printf((UB*)"monitor: I am task %d\n", tk_get_tid());
-	imu_status.init = imu_init();
-	if (imu_status.init == IMU_OK) {
-		tm_printf((UB*)"monitor: IMU ready at 0x%02X\n",
-			  (UINT)imu_accel_address());
-	} else {
-		tm_printf((UB*)"monitor: IMU init failed, status=%d\n",
-			  (INT)imu_status.init);
+
+	init_status = imu_init();
+	if (init_status == IMU_OK) 
+	{
+		tm_printf((UB*)"monitor: IMU ready at 0x%02X\n", (UINT)imu_accel_address());
+	} 
+	
+	else 
+	{
+		tm_printf((UB*)"monitor: IMU init failed, status=%d\n", (INT)init_status);
+	}
+
+	/* Wait for ALL the startup tests to finish.
+	 * The B3-H04 and B3-H05 barcode tests each take 15s and hammer I2C. */
+	tk_dly_tsk(30000);
+	
+	if (init_status == IMU_OK) 
+	{
+		imu_calibrate();
 	}
 
 	while (1) {
@@ -73,22 +88,24 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 		      TWF_ORW = wake on any of the bits, TWF_CLR = clear them
 		      on wake-up.  The extra timeout is just a safety net. */
 		tk_sta_alm(alm_monitor, S4_ALARM_MS);
-		er = tk_wai_flg(flg_events, FLG_ALARM | FLG_BATCH,
-				TWF_ORW | TWF_CLR, &flgptn, S4_ALARM_MS * 2);
+		er = tk_wai_flg(flg_events, FLG_ALARM | FLG_BATCH, TWF_ORW | TWF_CLR, &flgptn, S4_ALARM_MS * 2);
 		tk_stp_alm(alm_monitor);	/* cancel it if a batch came first */
 
-		if (er == E_TMOUT) {
+		if (er == E_TMOUT) 
+		{
 			tm_printf((UB*)"monitor: nothing at all happened?\n");
 			continue;
 		}
-		if (flgptn & FLG_ALARM) {
-			tm_printf((UB*)"monitor: alarm -- no batch for %d ms\n",
-				  S4_ALARM_MS);
+		
+		if (flgptn & FLG_ALARM) 
+		{
+			tm_printf((UB*)"monitor: alarm -- no batch for %d ms\n", S4_ALARM_MS);
 		}
 
 		/* 2. Drain the message buffer without waiting (TMO_POL).
 		      tk_rcv_mbf returns the message length, or an error. */
-		while ((len = tk_rcv_mbf(mbf_summary, text, TMO_POL)) > 0) {
+		while ((len = tk_rcv_mbf(mbf_summary, text, TMO_POL)) > 0) 
+		{ 
 			text[len] = '\0';
 			s4_lines_received++;
 			tm_printf((UB*)"monitor: batch  %s\n", text);
@@ -110,43 +127,38 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 			  rsem.semcnt, (INT)rmpf.frbcnt);
 
 		/* The monitor task is the sole owner of I2C0 and the IMU. */
-		if (imu_status.init != IMU_OK) {
-			imu_status.init = imu_init();
+		/* ---- IMU recovery path ---- */
+		if (init_status != IMU_OK) {
+			init_status = imu_reset();
+			if (init_status == IMU_OK) {
+				tm_printf((UB*)"monitor: IMU recovered at 0x%02X\n",
+					  (UINT)imu_accel_address());
+				tk_dly_tsk(500);
+				imu_calibrate();
+			} else {
+				tm_printf((UB*)"monitor: IMU reset failed, status=%d\n",
+					  (INT)init_status);
+			}
 		}
-		if (imu_status.init == IMU_OK) {
-			imu_status.accel = imu_read_accel(&accel);
-			imu_status.mag = imu_read_mag(&mag);
-			if (imu_status.accel == IMU_OK &&
-			    imu_status.mag == IMU_OK) {
+
+		if (init_status == IMU_OK) {
+			accel_status = imu_read_accel(&accel);
+			mag_status   = imu_read_mag(&mag);
+
+			if (accel_status == IMU_OK && mag_status == IMU_OK) {
+				consecutive_fails = 0;
 				tm_printf((UB*)"monitor: IMU accel=(%d,%d,%d) "
 					  "mag=(%d,%d,%d)\n",
 					  (INT)accel.x, (INT)accel.y, (INT)accel.z,
 					  (INT)mag.x, (INT)mag.y, (INT)mag.z);
 			} else {
-				tm_printf((UB*)"monitor: IMU read failed, "
-					  "accel=%d mag=%d\n",
-					  (INT)imu_status.accel,
-					  (INT)imu_status.mag);
+				consecutive_fails++;
+				if (consecutive_fails >= 10) {
+					tm_printf((UB*)"monitor: IMU DEAD, resetting\n");
+					init_status = IMU_I2C_ERROR;
+					consecutive_fails = 0;
+				}
 			}
-		}
-
-		/* Every few reports, pause or resume subsystem 1's LED task
-		      (IF-05) and look at it with tk_ref_tsk. */
-		if (++reports % S4_LED_TOGGLE_REPORTS == 0) {
-			if (led_paused) {
-				tk_rsm_tsk(tid_led);
-				tk_chg_pri(tid_led, S1_PRI_LED);	/* back to normal */
-			} else {
-				tk_sus_tsk(tid_led);
-				/* Changing the priority of a task: */
-				tk_chg_pri(tid_led, S1_PRI_LED + 1);
-			}
-			led_paused = !led_paused;
-
-			tk_ref_tsk(tid_led, &rtsk);
-			tm_printf((UB*)"monitor: LED task %s, state=%s, pri=%d\n",
-				  led_paused ? "paused" : "resumed",
-				  state_name(rtsk.tskstat), rtsk.tskpri);
 		}
 	}
 }

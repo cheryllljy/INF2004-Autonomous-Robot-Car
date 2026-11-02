@@ -57,4 +57,6 @@ imu_status_t imu_read_mag(imu_vector_t *p_sample);
 /** Return the detected accelerometer address, or 0 if not initialized. */
 uint8_t imu_accel_address(void);
 
+imu_status_t imu_reset(void);
+
 #endif /* IMU_H */

@@ -67,8 +67,8 @@
 EXPORT ID app_start_task(FP entry, PRI pri, UW prc, const char *name)
 {
 	T_CTSK	ctsk = {0};
-	ID	tid;
-	ER	er;
+	ID		tid;
+	ER		er;
 
 	ctsk.task    = entry;		/* function the task runs */
 	ctsk.itskpri = pri;		/* initial priority (1 = highest) */
@@ -116,7 +116,7 @@ EXPORT INT usermain(void)
 	// CHECK(subsystem1_init(), "subsystem1_init");
 	CHECK(subsystem2_init(), "subsystem2_init");
 	CHECK(subsystem3_init(), "subsystem3_init");
-	// CHECK(subsystem4_init(), "subsystem4_init");
+	CHECK(subsystem4_init(), "subsystem4_init");
 	// CHECK(subsystem5_init(), "subsystem5_init");
 #if VC_ENABLE
 	CHECK(vc_init(), "vc_init");	/* after the subsystems it reads */
@@ -126,7 +126,7 @@ EXPORT INT usermain(void)
 	//CHECK(subsystem1_start(), "subsystem1_start");
 	CHECK(subsystem2_start(), "subsystem2_start");
 	CHECK(subsystem3_start(), "subsystem3_start");
-	//CHECK(subsystem4_start(), "subsystem4_start");
+	CHECK(subsystem4_start(), "subsystem4_start");
 	// CHECK(subsystem5_start(), "subsystem5_start");
 #if VC_ENABLE
 	CHECK(vc_start(), "vc_start");

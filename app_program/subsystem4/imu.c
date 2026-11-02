@@ -34,6 +34,9 @@ static ID g_i2c_device;
 static uint8_t g_accel_address;
 static bool g_ready;
 
+/* ------------------------------------------------------------------ */
+/* Low-level I2C via RTOS device driver                               */
+/* ------------------------------------------------------------------ */
 static bool imu_read_regs(uint8_t address, uint8_t reg, UB *p_data,
                           SZ length, bool auto_increment)
 {
@@ -47,20 +50,21 @@ static bool imu_read_regs(uint8_t address, uint8_t reg, UB *p_data,
         register_address |= 0x80U;
     }
 
+    /* Give the bus plenty of time, especially when motor noise is present. */
     for (int retry = 0; retry < 3; retry++)
     {
-        transfer.sadr = address;
-        transfer.snd_size = 1;
-        transfer.snd_data = &register_address;
-        transfer.rcv_size = length;
-        transfer.rcv_data = p_data;
+        transfer.sadr       = address;
+        transfer.snd_size   = 1;
+        transfer.snd_data   = &register_address;
+        transfer.rcv_size   = length;
+        transfer.rcv_data   = p_data;
         status = tk_swri_dev(g_i2c_device, TDN_I2C_EXEC, &transfer,
                              sizeof(transfer), &actual_size);
         if (status >= E_OK && actual_size == (SZ)sizeof(transfer))
         {
             return true;
         }
-        tk_dly_tsk(1);
+        tk_dly_tsk(10);
     }
     return false;
 }
@@ -76,6 +80,9 @@ static bool imu_write_reg(uint8_t address, uint8_t reg, uint8_t value)
     return status >= E_OK && actual_size == (SZ)sizeof(bytes);
 }
 
+/* ------------------------------------------------------------------ */
+/* Public API                                                         */
+/* ------------------------------------------------------------------ */
 void imu_scan_bus(void)
 {
     UB id;
@@ -148,45 +155,51 @@ imu_status_t imu_init(void)
     return IMU_OK;
 }
 
+/* Close and reopen the I2C device. Call this if imu_init fails. */
+imu_status_t imu_reset(void)
+{
+    if (g_i2c_device > 0) 
+    {
+        tk_cls_dev(g_i2c_device, 0);
+        g_i2c_device = 0;
+    }
+    g_ready = false;
+    g_accel_address = 0U;
+    tk_dly_tsk(50);
+    return imu_init();
+}
+
 void imu_calibrate(void)
 {
     imu_vector_t sample;
     int32_t sum_x = 0, sum_y = 0, sum_z = 0;
-    int valid_samples = 0;
-    const int num_samples = 100;
+    int valid = 0;
 
-    g_offset_x = 0;
-    g_offset_y = 0;
-    g_offset_z = 0;
+    g_offset_x = g_offset_y = g_offset_z = 0;
     tm_printf((UB*)"Calibrating IMU... Keep the sensor still and flat.\n");
     tk_dly_tsk(100);
 
-    for (int i = 0; i < num_samples; i++)
-    {
-        if (imu_read_accel(&sample) == IMU_OK)
-        {
+    for (int i = 0; i < 100; i++) {
+        if (imu_read_accel(&sample) == IMU_OK) {
             sum_x += sample.x;
             sum_y += sample.y;
             sum_z += sample.z;
-            valid_samples++;
+            valid++;
         }
         tk_dly_tsk(2);
     }
 
-    if (valid_samples == 0)
-    {
+    if (valid == 0) {
         tm_printf((UB*)"Calibration failed: no valid samples.\n");
         return;
     }
 
-    g_offset_x = sum_x / valid_samples;
-    g_offset_y = sum_y / valid_samples;
-    g_offset_z = (sum_z / valid_samples) + 16384;
+    g_offset_x = sum_x / valid;
+    g_offset_y = sum_y / valid;
+    g_offset_z = (sum_z / valid) + 16384;
 
-    tm_printf((UB*)"Calibration complete: %d/%d samples. "
-              "Offsets: X=%d Y=%d Z=%d\n",
-              valid_samples, num_samples,
-              (INT)g_offset_x, (INT)g_offset_y, (INT)g_offset_z);
+    tm_printf((UB*)"Calibration complete: %d/100. Offsets X=%d Y=%d Z=%d\n",
+        valid, (INT)g_offset_x, (INT)g_offset_y, (INT)g_offset_z);
 }
 
 imu_status_t imu_read_accel(imu_vector_t *p_sample)
