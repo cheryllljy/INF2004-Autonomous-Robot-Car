@@ -96,6 +96,14 @@
  */
 #define B3_JUNCTION_MIN_PATCH_UM      14000U 
 #define B3_JUNCTION_MIN_SPEED_MM_S    80
+/* Straddle layout (2026-10-31): IR_L and IR_R both black is the crossing.
+ * Requiring IR_B black at the same moment missed every junction on the car
+ * because IR_B is not level with IR_L/IR_R, so it crosses the tape at a
+ * different time. 1 = old rule (all three black together). */
+#define B3_JUNCTION_NEEDS_IR_B        0U
+/* IR_B may already have crossed the junction tape and started a barcode
+ * scan with one element; more elements than this means a real barcode. */
+#define B3_JUNCTION_MAX_SCAN_RUNS     (B3_JUNCTION_NEEDS_IR_B ? 0U : 1U)
 
 /* Barcode -> command map in buddy3_map_symbol() (buddy3.c). Off: from
  * 2026-10-31 Buddy 3 only reports the letter (nav event .barcode.symbol)

@@ -42,6 +42,7 @@ typedef struct {
 	char		last_symbol;
 	uint32_t	last_seq;
 	uint32_t	junctions;	/* Buddy 3 junction_sequence seen */
+	uint32_t	rejected;	/* Buddy 3 rejected_scans seen */
 	INT		state_ms;	/* time in the current state */
 	INT		since_send_ms;
 	int16_t		sent_l;
@@ -152,6 +153,7 @@ LOCAL void handle_flags(void)
 	if (vc.faults != 0U) {
 		if (vc.state != VC_STATE_ESTOP) {
 			stop_motors();
+			tm_printf((UB*)"[VC] E-stop, fault bits 0x%02x\n", vc.faults);
 			enter(VC_STATE_ESTOP);
 		}
 		return;
@@ -266,7 +268,19 @@ LOCAL void read_obstacle(void)
    maps it to a command and calls vc_post_command(VC_CMD_TURN_*). */
 LOCAL void on_barcode(char symbol, uint32_t sequence)
 {
-	(void)symbol; (void)sequence;		/* TODO Buddy 1 */
+	(void)sequence;
+#if VC_BENCH
+	/* Stand-in for the MQTT side until Buddy 1's part is in */
+	switch (symbol) {
+	case 'Z': vc_post_command(VC_CMD_TURN_LEFT);	break;	/* was 'A'; nyx's test barcode is Z */
+	case 'B': vc_post_command(VC_CMD_TURN_RIGHT);	break;
+	case 'C': vc_post_command(VC_CMD_GO_STRAIGHT);	break;
+	case 'D': vc_post_command(VC_CMD_U_TURN);	break;
+	default:					break;
+	}
+#else
+	(void)symbol;				/* TODO Buddy 1 */
+#endif
 }
 
 /* OWNER: Buddy 1 -- publish "junction reached" if the dashboard wants it */
@@ -337,6 +351,13 @@ LOCAL void exchange_line(void)
 		on_barcode(ev.barcode.symbol, ev.sequence);
 	}
 
+	/* Diagnostic: a barcode was seen but failed to decode */
+	if (vc.line.rejected_scans != vc.rejected) {
+		vc.rejected = vc.line.rejected_scans;
+		tm_printf((UB*)"[VC] barcode seen but rejected (total %u)\n",
+			  (unsigned)vc.rejected);
+	}
+
 	/* Junction: Buddy 3 counts each one, so a new count = just reached */
 	if (vc.line.junction_sequence != vc.junctions) {
 		vc.junctions = vc.line.junction_sequence;
@@ -389,6 +410,19 @@ LOCAL void act(void)
 LOCAL void vc_task(INT stacd, void *exinf)
 {
 	(void)stacd; (void)exinf;
+
+#if VC_BENCH
+	{
+		/* repeat, so a serial monitor opened after boot still sees it */
+		INT n;
+
+		for (n = VC_BENCH_START_S; n > 0; n--) {
+			tm_printf((UB*)"[VC] bench mode: START in %d s\n", n);
+			tk_dly_tsk(1000);
+		}
+	}
+	vc_post_command(VC_CMD_START);
+#endif
 
 	for (;;) {
 		handle_flags();

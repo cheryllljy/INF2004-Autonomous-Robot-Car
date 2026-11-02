@@ -32,6 +32,15 @@
 #define VC_ENABLE		0
 #endif
 
+/* 1 = bench test without Buddy 1: START by itself VC_BENCH_START_S after
+   boot, and on_barcode() maps the letter with the brief's example table
+   (Z left, B right, C straight, D U-turn) in place of MQTT.  0 for the
+   real robot. */
+#ifndef VC_BENCH
+#define VC_BENCH		1
+#endif
+#define VC_BENCH_START_S	10
+
 #define VC_PRI			22	/* band 22-23: below LineSense (17) and
 					   ObstacleScan (20), per Week 6 */
 #define VC_PERIOD_MS		10	/* matches Buddy 3's service period */
