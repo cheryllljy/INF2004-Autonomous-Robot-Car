@@ -1,30 +1,49 @@
 
-#include "buddy1_cr1.h"
-
 /*
- * Binary telemetry layout, least-significant bit first:
+ * buddy1_cr1.c
  *
- * Bits  0..2  Controller state (3 bits)
- * Bit      3  Wi-Fi connected (1 bit)
- * Bit      4  MQTT connected (1 bit)
- * Bits  5..12 Fault bitmask (8 bits)
- * Bits 13..19 Example measurement 0..100 (7 bits)
- * Bits 20..23 Reserved (zero)
+ * Buddy 1 - CR1 compact binary encoding.
  *
- * Total: 20 used bits in 3 bytes.
+ * Handles:
+ * - Three-byte telemetry packing
+ * - Three-byte telemetry decoding
+ * - Compact command encoding
+ * - MQTT telemetry payload preparation
+ *
+ * Does not connect to Wi-Fi or MQTT.
  */
 
-/* Encode application values as compact binary data. */
+#include "buddy1_cr1.h"
+#include "buddy1_mqtt.h"
+
+/*
+ * Telemetry wire format, least-significant bit first:
+ *
+ * Bits  0..2  Controller state
+ * Bit      3  Wi-Fi connected
+ * Bit      4  MQTT connected
+ * Bits  5..12 Fault bitmask
+ * Bits 13..19 Normalized measurement (0..100)
+ * Bits 20..23 Reserved, must be zero
+ *
+ * Total wire size: 3 bytes.
+ *
+ * These field definitions are provisional until
+ * the team's final telemetry specification is agreed.
+ */
+
 int b1_telemetry_pack(
     const B1_Telemetry *input,
-    uint8_t output[B1_TELEMETRY_BYTES])
+    uint8_t output[B1_TELEMETRY_BYTES]
+)
 {
     uint32_t packed;
 
     if (input == 0 || output == 0)
+    {
         return -1;
+    }
 
-    /* Reject values outside their defined ranges. */
     if (input->controller_state > 7u ||
         input->wifi_connected > 1u ||
         input->mqtt_connected > 1u ||
@@ -47,24 +66,27 @@ int b1_telemetry_pack(
     return 0;
 }
 
-/* Decode binary data back into application values. */
 int b1_telemetry_unpack(
     const uint8_t input[B1_TELEMETRY_BYTES],
-    B1_Telemetry *output)
+    B1_Telemetry *output
+)
 {
     uint32_t packed;
 
     if (input == 0 || output == 0)
+    {
         return -1;
+    }
 
     packed =
         ((uint32_t)input[0]) |
         ((uint32_t)input[1] << 8) |
         ((uint32_t)input[2] << 16);
 
-    /* Reject unexpected reserved bits. */
     if ((packed & 0xF00000u) != 0u)
+    {
         return -1;
+    }
 
     output->controller_state =
         (uint8_t)(packed & 0x07u);
@@ -82,31 +104,68 @@ int b1_telemetry_unpack(
         (uint8_t)((packed >> 13) & 0x7Fu);
 
     if (output->metric_0_100 > 100u)
+    {
         return -1;
+    }
 
     return 0;
 }
 
 /*
- * Commands currently use IDs from 0 to 7.
- * Final meanings must match the agreed command table.
+ * Legacy compact command helper.
+ *
+ * FR2 network commands use their separate
+ * versioned three-byte format.
  */
-int b1_command_pack(uint8_t command, uint8_t *output)
+int b1_command_pack(
+    uint8_t command,
+    uint8_t *output
+)
 {
     if (output == 0 || command > 7u)
+    {
         return -1;
+    }
 
     *output = (uint8_t)(command & 0x07u);
 
     return 0;
 }
 
-int b1_command_unpack(uint8_t input, uint8_t *command)
+int b1_command_unpack(
+    uint8_t input,
+    uint8_t *command
+)
 {
-    if (command == 0 || (input & 0xF8u) != 0u)
+    if (command == 0 ||
+        (input & 0xF8u) != 0u)
+    {
         return -1;
+    }
 
     *command = (uint8_t)(input & 0x07u);
 
     return 0;
+}
+
+/*
+ * Moved from buddy1_mqtt.c.
+ *
+ * Prepare a three-byte CR1 payload for MQTT.
+ * The MQTT network task performs the publish.
+ */
+int buddy1_mqtt_prepare_telemetry(
+    const B1_Telemetry *telemetry,
+    uint8_t payload[B1_TELEMETRY_BYTES]
+)
+{
+    if (telemetry == 0 || payload == 0)
+    {
+        return -1;
+    }
+
+    return b1_telemetry_pack(
+        telemetry,
+        payload
+    );
 }
