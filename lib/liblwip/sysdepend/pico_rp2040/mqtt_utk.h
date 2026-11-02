@@ -1,18 +1,76 @@
+
 /*
- *	mqtt_utk.h
- *	MQTT client wiring for micro T-Kernel (RP2040, NO_SYS=1)
+ * INF2004 - Buddy 1 public communication API.
+ *
+ * Networking runs in cyw43_utk_task.
+ * Controller must not call lwIP directly.
  */
 
 #ifndef MQTT_UTK_H
 #define MQTT_UTK_H
 
-/*
- * Call once, from cyw43_utk_task() the first time the link reaches
- * CYW43_LINK_UP (see cyw43_utk.c). Starts the MQTT connection to
- * MQTT_BROKER_IP:MQTT_BROKER_PORT (config/wifi_secrets.h) and, once
- * connected, a periodic heartbeat publish on MQTT_TOPIC. Safe to call more
- * than once -- a second call while already connecting/connected is a no-op.
- */
+#include <stdint.h>
+
+#include "../../../../app_program/subsystem1/buddy1_cr1.h"
+
 void mqtt_utk_start(void);
 
-#endif /* MQTT_UTK_H */
+/*
+ * Controller provides REAL robot values.
+ *
+ * No test samples are automatically published.
+ *
+ * Returns 0 if accepted, -1 if invalid.
+ */
+int b1_mqtt_set_robot_status(
+    uint8_t controller_state,
+    uint8_t fault_flags,
+    uint8_t metric_0_100
+);
+
+/*
+ * Returns -1 until controller data exists.
+ */
+int b1_mqtt_get_robot_status(
+    B1_Telemetry *output
+);
+
+typedef struct {
+    uint8_t wifi_up;
+    uint8_t mqtt_up;
+    uint8_t healthy;
+    uint8_t link_lost_latched;
+    uint8_t safety_stop_required;
+    uint8_t loss_reason;
+} B1_FR3_Status;
+
+#define B1_FR3_REASON_NONE 0u
+#define B1_FR3_REASON_WIFI 1u
+#define B1_FR3_REASON_MQTT 2u
+
+/*
+ * Safe status snapshot for VehicleController.
+ */
+int b1_fr3_get_status(
+    B1_FR3_Status *output
+);
+
+/*
+ * Request an authorized safety-latch reset.
+ *
+ * Returns:
+ *  0 = request accepted for network-task processing
+ * -1 = communication currently unhealthy
+ *
+ * Return 0 does NOT mean the latch has
+ * already cleared. Call get_status() afterward.
+ *
+ * VehicleController must ensure:
+ * - Motors physically stopped
+ * - Fault cause has been addressed
+ * - Valid RESET command received
+ * - A later START is required to resume
+ */
+int b1_fr3_controller_reset(void);
+
+#endif

@@ -130,7 +130,7 @@ EXPORT void monitor_task(INT stacd, void *exinf)
 			}
 		}
 
-		/* Every few reports, pause or resume subsystem 1's LED task
+		 Every few reports, pause or resume subsystem 1's LED task
 		      (IF-05) and look at it with tk_ref_tsk. */
 		if (++reports % S4_LED_TOGGLE_REPORTS == 0) {
 			if (led_paused) {
