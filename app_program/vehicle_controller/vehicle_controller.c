@@ -17,6 +17,9 @@
 #include "../subsystem2/motion_control.h"
 #include "../subsystem3/b3_port.h"
 #include "../subsystem5/subsystem5.h"
+#include "../subsystem1/buddy1_fr2.h"
+#include "../subsystem1/buddy1_mapping.h"
+#include "../../lib/liblwip/sysdepend/pico_rp2040/mqtt_utk.h"
 
 EXPORT ID	flg_vc = 0;
 
@@ -50,6 +53,7 @@ typedef struct {
 } vc_t;
 
 LOCAL vc_t	vc;
+LOCAL bool b1_reset_pending = false;
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                        */
@@ -107,6 +111,148 @@ LOCAL void stop_motors(void)
 	vc.sent_r = 0;
 }
 
+/*
+ * Buddy 1 integration.
+ *
+ * Only VehicleController consumes FR2 commands.
+ * MQTT callbacks never call Buddy 2 motors directly.
+ */
+LOCAL void poll_buddy1(void)
+{
+    B1_FR3_Status link = {0};
+    B1_FR2_Command command;
+    bool status_valid;
+
+    status_valid = (b1_fr3_get_status(&link) == 0);
+
+    /*
+     * Communication safety:
+     * Never continue driving without healthy MQTT and Wi-Fi.
+     */
+    if (!status_valid || link.safety_stop_required) {
+
+        if (vc.state == VC_STATE_LINE_FOLLOW ||
+            vc.state == VC_STATE_TURNING ||
+            vc.state == VC_STATE_OBSTACLE) {
+
+            motion_estop_request(MOTION_ESTOP_VEHICLE);
+            stop_motors();
+            vc_raise_fault(VC_FAULT_WIFI_LOSS);
+        }
+
+        /*
+         * FR3 latch persists even after communication
+         * recovers, until an authorized RESET.
+         */
+        if (status_valid && link.link_lost_latched) {
+            vc_raise_fault(VC_FAULT_WIFI_LOSS);
+        }
+    }
+
+    /*
+     * Complete a previously requested FR3 reset only
+     * after the network task has cleared its latch.
+     */
+    if (b1_reset_pending &&
+        status_valid &&
+        link.healthy &&
+        !link.link_lost_latched) {
+
+        b1_reset_pending = false;
+        vc_post_command(VC_CMD_RESET);
+
+        tm_printf((UB*)
+            "[VC] Communication reset complete\n");
+    }
+
+    /*
+     * Consume one command per 10 ms loop.
+     * Buddy 1's priority STOP is returned first.
+     */
+    if (b1_fr2_pop(&command) != 0) {
+        return;
+    }
+
+    switch (command.command) {
+
+    case B1_FR2_START:
+
+        if (status_valid &&
+            link.healthy &&
+            !link.link_lost_latched &&
+            !b1_reset_pending) {
+
+            vc_post_command(VC_CMD_START);
+
+            tm_printf((UB*)
+                "[VC] MQTT START received seq=%u\n",
+                (unsigned)command.sequence);
+        } else {
+            tm_printf((UB*)
+                "[VC] MQTT START rejected: "
+                "communication not ready\n");
+        }
+
+        break;
+
+    case B1_FR2_STOP:
+
+        /*
+         * Stop immediately; do not wait for the
+         * normal command event to be processed.
+         */
+        stop_motors();
+        vc_post_command(VC_CMD_STOP);
+
+        tm_printf((UB*)
+            "[VC] MQTT STOP received seq=%u\n",
+            (unsigned)command.sequence);
+
+        break;
+
+    case B1_FR2_RESET:
+
+        if (!status_valid || !link.healthy) {
+
+            tm_printf((UB*)
+                "[VC] MQTT RESET rejected: "
+                "communication unhealthy\n");
+
+            break;
+        }
+
+        if (link.link_lost_latched) {
+
+            if (b1_fr3_controller_reset() == 0) {
+
+                b1_reset_pending = true;
+
+                tm_printf((UB*)
+                    "[VC] MQTT RESET requested "
+                    "for FR3 safety latch\n");
+            }
+
+        } else {
+
+            vc_post_command(VC_CMD_RESET);
+
+            tm_printf((UB*)
+                "[VC] MQTT RESET received seq=%u\n",
+                (unsigned)command.sequence);
+        }
+
+        break;
+
+    default:
+
+        tm_printf((UB*)
+            "[VC] Unknown MQTT command=%u\n",
+            (unsigned)command.command);
+
+        break;
+    }
+}
+
 /* Send Buddy 3's wheel speeds on change, and refresh them periodically */
 LOCAL void drive(int16_t left, int16_t right)
 {
@@ -143,7 +289,9 @@ LOCAL void handle_flags(void)
 		   that is still faulty sets its bit again next pass. */
 		(void)tk_clr_flg(flg_vc, ~(UINT)VC_FAULT_MASK);
 		vc.faults = 0U;
+		motion_estop_clear(MOTION_ESTOP_VEHICLE);
 		(void)motion_reset();
+		vc.pending_turn = B3_NAV_NONE;
 		if (flg_obstacle > 0) {
 			obstacle_reset_fault();
 		}
@@ -160,6 +308,7 @@ LOCAL void handle_flags(void)
 	}
 	if (cmds & VC_FLG_CMD(VC_CMD_STOP)) {
 		stop_motors();
+		 vc.pending_turn = B3_NAV_NONE;
 		enter(VC_STATE_STOPPED);
 	} else if ((cmds & VC_FLG_CMD(VC_CMD_START)) &&
 		   ((vc.state == VC_STATE_IDLE) ||
@@ -268,19 +417,42 @@ LOCAL void read_obstacle(void)
    maps it to a command and calls vc_post_command(VC_CMD_TURN_*). */
 LOCAL void on_barcode(char symbol, uint32_t sequence)
 {
-	(void)sequence;
-#if VC_BENCH
-	/* Stand-in for the MQTT side until Buddy 1's part is in */
-	switch (symbol) {
-	case 'Z': vc_post_command(VC_CMD_TURN_LEFT);	break;	/* was 'A'; nyx's test barcode is Z */
-	case 'B': vc_post_command(VC_CMD_TURN_RIGHT);	break;
-	case 'C': vc_post_command(VC_CMD_GO_STRAIGHT);	break;
-	case 'D': vc_post_command(VC_CMD_U_TURN);	break;
-	default:					break;
-	}
-#else
-	(void)symbol;				/* TODO Buddy 1 */
-#endif
+    B1_Movement movement;
+
+    if (b1_mapping_get_movement(symbol, &movement) != 0) {
+        tm_printf((UB*)
+            "[VC] Barcode '%c' has no MQTT mapping\n",
+            symbol);
+        return;
+    }
+
+    switch (movement) {
+
+    case B1_MOVE_FORWARD:
+        vc_post_command(VC_CMD_GO_STRAIGHT);
+        break;
+
+    case B1_MOVE_LEFT:
+        vc_post_command(VC_CMD_TURN_LEFT);
+        break;
+
+    case B1_MOVE_RIGHT:
+        vc_post_command(VC_CMD_TURN_RIGHT);
+        break;
+
+    case B1_MOVE_UTURN:
+        vc_post_command(VC_CMD_U_TURN);
+        break;
+
+    default:
+        return;
+    }
+
+    tm_printf((UB*)
+        "[VC] Barcode '%c' mapped to movement=%u seq=%u\n",
+        symbol,
+        (unsigned)movement,
+        (unsigned)sequence);
 }
 
 /* OWNER: Buddy 1 -- publish "junction reached" if the dashboard wants it */
@@ -425,6 +597,7 @@ LOCAL void vc_task(INT stacd, void *exinf)
 #endif
 
 	for (;;) {
+		poll_buddy1();
 		handle_flags();
 		read_motion();
 		read_obstacle();
