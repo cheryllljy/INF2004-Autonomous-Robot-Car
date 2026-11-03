@@ -113,20 +113,20 @@ EXPORT INT usermain(void)
 #endif
 
 	// /* Phase 1: every subsystem creates its kernel objects */
-	// CHECK(subsystem1_init(), "subsystem1_init");
+	CHECK(subsystem1_init(), "subsystem1_init");
 	CHECK(subsystem2_init(), "subsystem2_init");
 	CHECK(subsystem3_init(), "subsystem3_init");
-	CHECK(subsystem4_init(), "subsystem4_init");
+	//CHECK(subsystem4_init(), "subsystem4_init");
 	// CHECK(subsystem5_init(), "subsystem5_init");
 #if VC_ENABLE
 	CHECK(vc_init(), "vc_init");	/* after the subsystems it reads */
 #endif
 
 	/* Phase 2: every subsystem starts its tasks */
-	//CHECK(subsystem1_start(), "subsystem1_start");
+	CHECK(subsystem1_start(), "subsystem1_start");
 	CHECK(subsystem2_start(), "subsystem2_start");
 	CHECK(subsystem3_start(), "subsystem3_start");
-	CHECK(subsystem4_start(), "subsystem4_start");
+	//CHECK(subsystem4_start(), "subsystem4_start");
 	// CHECK(subsystem5_start(), "subsystem5_start");
 #if VC_ENABLE
 	CHECK(vc_start(), "vc_start");
