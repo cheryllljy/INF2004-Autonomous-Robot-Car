@@ -74,8 +74,8 @@ typedef enum
 
 #define S5_ACTION_BITS              (3U)
 
-/** ObstacleScan state. 9 values -> 4 bits (8 would fit in 3; adding
- *  WaitStopped after Tribunal 1 made it 9). */
+/** ObstacleScan state. 10 values -> 4 bits (8 would fit in 3; adding
+ *  WaitStopped after Tribunal 1 made it 9, WATCH in v3.0 made it 10). */
 typedef enum
 {
     OBSTACLE_ST_INIT = 0,
@@ -87,6 +87,7 @@ typedef enum
     OBSTACLE_ST_PUBLISH,        /* build, plan, publish                */
     OBSTACLE_ST_ASSIST,         /* controller is manoeuvring           */
     OBSTACLE_ST_FAULT,
+    OBSTACLE_ST_WATCH,          /* v3.0: pass leg, front + side looks  */
     OBSTACLE_ST_COUNT
 } obstacle_state_t;
 
@@ -100,7 +101,7 @@ typedef enum
                                        E-stop cause bit                 */
     OBSTACLE_FAULT_STOP_TIMEOUT,    /* car not stopped within 1 s       */
     OBSTACLE_FAULT_REVERSE_LIMIT,   /* third REVERSE in a row           */
-    OBSTACLE_FAULT_ASSIST_TIMEOUT,  /* no resume within 5 s             */
+    OBSTACLE_FAULT_ASSIST_TIMEOUT,  /* no word from VC for 5 s          */
     OBSTACLE_FAULT_COUNT
 } obstacle_fault_t;
 
@@ -169,6 +170,7 @@ typedef struct
     bool             estop_requested; /* S5 set its E-stop cause bit   */
     bool             has_profile;
     bool             odometry_ok;     /* last WaitStopped used odometry*/
+    bool             calibrated;      /* v3.0: s5_calib.h S5_CAL_DONE  */
     uint8_t          reverses;        /* 0..2 in a row                 */
     uint8_t          last_status;     /* ultrasonic_status_t, 3 bits   */
     uint8_t          deadline_overruns; /* saturates at 255            */
@@ -184,7 +186,7 @@ typedef struct
  *   w[0]  31..24 sensor faults (8)  23..16 overruns (8)
  *         15..13 last status (3)    12..11 reverses (2)
  *         10 odometry ok  9 has profile  8 estop requested
- *          7 spare        6..4 fault (3)  3..0 state (4)
+ *          7 calibrated   6..4 fault (3)  3..0 state (4)
  *   w[1]  31..16 build us max (16)  15..0 scans (16)
  */
 typedef struct
@@ -199,19 +201,23 @@ S5_STATIC_ASSERT(sizeof(obstacle_health_packed_t) == 8U, health_8_bytes);
 /*=====================================================================*/
 
 /*
- * Binary, little-endian, 29 bytes. Replaces a ~150-byte JSON line.
+ * Binary, little-endian, 33 bytes (v3.0; v2 was 29). Replaces a
+ * ~200-byte JSON line.
  *
  *   byte 0        version (high nibble) | message type (low nibble)
  *   bytes 1..4    front word   (see s5_pack.h)
  *   bytes 5..12   health w[0], w[1]
  *   bytes 13..28  profile w[0..3]
+ *   bytes 29..32  watch word   (v3.0, see s5_pack.h)
  *
  * Decode on the dashboard with the same shifts as obstacle_model.h.
  * A different version nibble means "layout changed, do not guess".
+ * Nobody decoded version 1 yet (checked on main, 3 Nov), so the bump
+ * breaks no one.
  */
-#define S5_TLM_VERSION              (1U)
+#define S5_TLM_VERSION              (2U)
 #define S5_TLM_TYPE_OBSTACLE        (5U)
-#define S5_TLM_LEN                  (29U)
+#define S5_TLM_LEN                  (33U)
 
 /*=====================================================================*/
 /* Pure functions (obstacle_geometry.c)                                */
@@ -230,6 +236,10 @@ void obstacle_profile_build(const s5_sample_t *p_samples,
 /** @brief Choose an action from a profile. Policy lives only here. */
 obstacle_action_t obstacle_plan(const obstacle_profile_t *p_profile);
 
+/** v3.0: the same policy with a different "in the way" distance. */
+obstacle_action_t obstacle_plan_within(const obstacle_profile_t *p_profile,
+                                       uint16_t trigger_mm);
+
 /** @brief True if a return lies inside the band the car drives through. */
 bool obstacle_in_path(int16_t bearing_deg, uint16_t range_mm);
 
@@ -238,6 +248,104 @@ bool obstacle_in_path(int16_t bearing_deg, uint16_t range_mm);
  *          is past the obstacle. 0 if the profile has no obstacle.
  */
 uint16_t obstacle_pass_distance_mm(const obstacle_profile_t *p_profile);
+
+/*---------------------------------------------------------------------*/
+/* v3.0 calibrated geometry                                            */
+/*---------------------------------------------------------------------*/
+
+/** What the refinement needs to know about the sensor and the sweep. */
+typedef struct
+{
+    int16_t beam_half_ddeg;   /* measured beam half-angle, 0.1 deg   */
+    int16_t step_deg;         /* bearing spacing of the sweep        */
+    int16_t sweep_limit_deg;  /* outermost bearing the servo reaches */
+    uint16_t trigger_mm;      /* an object nearer than this is "in the
+                                 way" (OBSTACLE_TRIGGER_MM; S5 raises it
+                                 for the rescan after a REVERSE, or the
+                                 car backs off, sees the object beyond
+                                 300 mm and drives back into it) */
+} s5_geom_cal_t;
+
+/**
+ * v3.0 edge probe: where one edge of the object really is, as the last
+ * bearing that still heard it and the first that did not (0.1 deg).
+ * Without probes the sweep itself gives an interval one step wide;
+ * S5 narrows it to a quarter step with two extra pings per edge.
+ */
+typedef struct
+{
+    bool    valid;
+    int16_t hit_ddeg;
+    int16_t miss_ddeg;
+} s5_edge_probe_t;
+
+typedef struct
+{
+    s5_edge_probe_t left;
+    s5_edge_probe_t right;
+} s5_edge_probes_t;
+
+/**
+ * @brief   Correct a built profile for the beam width and for edges the
+ *          sweep never saw, then plan again.
+ *
+ * obstacle_profile_build() is the v2 algorithm, unchanged (the CR1
+ * equivalence test S5-H03 still compares it with v1). This runs after
+ * it:
+ *  - A SEEN edge lies between the last bearing that heard the object and
+ *    the first that did not, each moved in by the beam half-angle (the
+ *    beam hears an edge h before its axis reaches it). Best estimate:
+ *    the middle, (hit + miss) / 2 - h. The sweep gives a 10 deg
+ *    interval; p_probes (optional) narrows it to 2.5 deg.
+ *  - The centre is the middle of the corrected edges (v2: the average
+ *    bearing of the hits, which leans towards whichever side had more
+ *    samples). This is the "centre point" fix.
+ *  - An edge at the sweep limit was never seen: that side's gap is
+ *    unknown (0), never "open". Both unknown -> REVERSE, so the car
+ *    backs up until the obstacle fits in the view.
+ */
+void obstacle_profile_refine(obstacle_profile_t *p_profile,
+                             const s5_geom_cal_t *p_cal,
+                             const s5_edge_probes_t *p_probes);
+
+/**
+ * @brief   How far to back up for a REVERSE profile, mm (0 if the
+ *          action is not REVERSE).
+ *
+ * Inside the hard stop: back to S5_REMEASURE_NEAR_MM. Otherwise (an edge
+ * outside the view, or boxed in): back to S5_REMEASURE_FAR_MM. Always
+ * S5_REVERSE_MIN_MM..S5_REVERSE_MAX_MM.
+ */
+uint16_t obstacle_reverse_mm(const obstacle_profile_t *p_profile);
+
+/**
+ * @brief   Travel still needed once the side look has gone clear.
+ *
+ * The side ray at angle w from the heading meets a face L to the side
+ * L * cot(w) ahead of the sensor. The beam spans w - h .. w + h; the
+ * OUTER edge (w + h) meets the face closest ahead, so it is the last
+ * part of the beam still on the face: the look goes clear when the
+ * obstacle's far end is L * cot(w + h) ahead. The rear of the car must
+ * then travel that far, plus the sensor-to-rear length, plus a margin.
+ * (Simulation S5-H07 C1/C4: the rear clears the far end by about the
+ * margin.)
+ *
+ * @param   lateral_mm      smallest sideways distance seen, sensor axis
+ *                          to the obstacle face
+ * @param   watch_deg       side look angle (1..90)
+ * @param   beam_half_ddeg  calibrated beam half-angle
+ */
+uint16_t obstacle_watch_remaining_mm(uint16_t lateral_mm, int16_t watch_deg,
+                                     int16_t beam_half_ddeg);
+
+/** Sideways distance of a side return: r * sin(w + h) (the shortest
+ *  return comes from the OUTER edge of the beam). */
+uint16_t obstacle_watch_lateral_mm(uint16_t range_mm, int16_t watch_deg,
+                                   int16_t beam_half_ddeg);
+
+/** sin() in Q15 for an angle in 0.1 deg. Shared with VehicleController's
+ *  dead reckoning so the robot has one trig table. */
+int32_t obstacle_sin_q15_ddeg(int32_t ddeg);
 
 /*=====================================================================*/
 /* Packing (s5_pack.c)                                                 */
@@ -260,12 +368,14 @@ void obstacle_health_unpack(const obstacle_health_packed_t *p_in,
 uint32_t s5_tlm_encode(uint8_t *p_buf, uint32_t len,
                      s5_front_t front,
                      const obstacle_health_packed_t *p_health,
-                     const obstacle_profile_packed_t *p_profile);
+                     const obstacle_profile_packed_t *p_profile,
+                     s5_watch_t watch);
 
 /** @brief Reference decoder (dashboard side and tests). */
 bool s5_tlm_decode(const uint8_t *p_buf, uint32_t len,
                    s5_front_t *p_front,
                    obstacle_health_packed_t *p_health,
-                   obstacle_profile_packed_t *p_profile);
+                   obstacle_profile_packed_t *p_profile,
+                   s5_watch_t *p_watch);
 
 #endif /* OBSTACLE_MODEL_H */

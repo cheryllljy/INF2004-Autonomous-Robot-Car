@@ -54,6 +54,7 @@ S5_STATIC_ASSERT(OBSTACLE_MAX_SAMPLES <= 31U, count_fits_5_bits);
 
 #define HF_STATE_SHIFT      (0U)
 #define HF_FAULT_SHIFT      (4U)
+#define HF_CAL_SHIFT        (7U)    /* v3.0, was spare */
 #define HF_ESTOP_SHIFT      (8U)
 #define HF_HASPROF_SHIFT    (9U)
 #define HF_ODO_SHIFT        (10U)
@@ -199,6 +200,7 @@ void obstacle_health_pack(const obstacle_health_t *p_in,
         const uint32_t w0 =
             S5_PUT((uint32_t)p_in->state, HF_STATE_SHIFT, S5_STATE_BITS) |
             S5_PUT((uint32_t)p_in->fault, HF_FAULT_SHIFT, S5_FAULT_BITS) |
+            S5_PUT(pk_bool(p_in->calibrated), HF_CAL_SHIFT, 1U) |
             S5_PUT(pk_bool(p_in->estop_requested), HF_ESTOP_SHIFT, 1U) |
             S5_PUT(pk_bool(p_in->has_profile), HF_HASPROF_SHIFT, 1U) |
             S5_PUT(pk_bool(p_in->odometry_ok), HF_ODO_SHIFT, 1U) |
@@ -234,6 +236,7 @@ void obstacle_health_unpack(const obstacle_health_packed_t *p_in,
         p_out->estop_requested   = (S5_GET(w0, HF_ESTOP_SHIFT, 1U) != 0U);
         p_out->has_profile       = (S5_GET(w0, HF_HASPROF_SHIFT, 1U) != 0U);
         p_out->odometry_ok       = (S5_GET(w0, HF_ODO_SHIFT, 1U) != 0U);
+        p_out->calibrated        = (S5_GET(w0, HF_CAL_SHIFT, 1U) != 0U);
         p_out->reverses          = (uint8_t)S5_GET(w0, HF_REV_SHIFT,
                                                    HF_REV_BITS);
         p_out->last_status       = (uint8_t)S5_GET(w0, HF_STATUS_SHIFT,
@@ -272,7 +275,8 @@ static uint32_t get_le32(const uint8_t *p)
 uint32_t s5_tlm_encode(uint8_t *p_buf, uint32_t len,
                      s5_front_t front,
                      const obstacle_health_packed_t *p_health,
-                     const obstacle_profile_packed_t *p_profile)
+                     const obstacle_profile_packed_t *p_profile,
+                     s5_watch_t watch)
 {
     uint32_t written = 0U;
 
@@ -293,6 +297,8 @@ uint32_t s5_tlm_encode(uint8_t *p_buf, uint32_t len,
             put_le32(&p_buf[13U + (4U * i)], p_profile->w[i]);
         }
 
+        put_le32(&p_buf[29], watch);
+
         written = S5_TLM_LEN;
     }
 
@@ -302,12 +308,14 @@ uint32_t s5_tlm_encode(uint8_t *p_buf, uint32_t len,
 bool s5_tlm_decode(const uint8_t *p_buf, uint32_t len,
                    s5_front_t *p_front,
                    obstacle_health_packed_t *p_health,
-                   obstacle_profile_packed_t *p_profile)
+                   obstacle_profile_packed_t *p_profile,
+                   s5_watch_t *p_watch)
 {
     bool ok = false;
 
     if ((p_buf != NULL) && (len >= S5_TLM_LEN) &&
         (p_front != NULL) && (p_health != NULL) && (p_profile != NULL) &&
+        (p_watch != NULL) &&
         (p_buf[0] == (uint8_t)((S5_TLM_VERSION << 4) |
                                S5_TLM_TYPE_OBSTACLE)))
     {
@@ -321,6 +329,8 @@ bool s5_tlm_decode(const uint8_t *p_buf, uint32_t len,
         {
             p_profile->w[i] = get_le32(&p_buf[13U + (4U * i)]);
         }
+
+        *p_watch = get_le32(&p_buf[29]);
 
         ok = true;
     }

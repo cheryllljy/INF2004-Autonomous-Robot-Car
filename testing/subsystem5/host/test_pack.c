@@ -242,6 +242,8 @@ static void p7_telemetry(void)
     obstacle_health_packed_t  hk2;
     s5_front_t                f;
     s5_front_t                f2;
+    s5_watch_t                w;
+    s5_watch_t                w2;
     uint8_t                   buf[64];
     char                      text[256];
     uint32_t                  n;
@@ -263,17 +265,19 @@ static void p7_telemetry(void)
     obstacle_profile_pack(&p, &pk);
     obstacle_health_pack(&h, &hk);
     f = s5_front_pack(248U, (uint32_t)ULTRASONIC_OK, 51234U);
+    w = s5_watch_pack(true, S5_WATCH_SEEN, 152U, 131U, 262U);
 
-    n = s5_tlm_encode(buf, (uint32_t)sizeof(buf), f, &hk, &pk);
-    check(n == S5_TLM_LEN, "packet is 29 bytes");
-    check(s5_tlm_decode(buf, n, &f2, &hk2, &pk2) &&
+    n = s5_tlm_encode(buf, (uint32_t)sizeof(buf), f, &hk, &pk, w);
+    check(n == S5_TLM_LEN, "packet is 33 bytes (v3.0: +4 B watch word)");
+    check(s5_tlm_decode(buf, n, &f2, &hk2, &pk2, &w2) &&
           (f2 == f) && (memcmp(&hk, &hk2, sizeof(hk)) == 0) &&
-          (memcmp(&pk, &pk2, sizeof(pk)) == 0), "decode gives the same words");
-    check(s5_tlm_encode(buf, 28U, f, &hk, &pk) == 0U,
+          (memcmp(&pk, &pk2, sizeof(pk)) == 0) && (w2 == w),
+          "decode gives the same words");
+    check(s5_tlm_encode(buf, 32U, f, &hk, &pk, w) == 0U,
           "too-small buffer is refused, not overrun");
-    buf[0] = 0x25U;
-    check(!s5_tlm_decode(buf, n, &f2, &hk2, &pk2),
-          "a different version nibble is rejected");
+    buf[0] = 0x15U;
+    check(!s5_tlm_decode(buf, n, &f2, &hk2, &pk2, &w2),
+          "the old version-1 nibble is rejected");
 
     /* The same information as a text line, the way it would be sent
      * without CR1. Field names kept short to be fair to text. */
@@ -281,7 +285,9 @@ static void p7_telemetry(void)
         "{\"front\":%u,\"st\":%u,\"state\":\"ASSIST\",\"fault\":\"NONE\","
         "\"valid\":1,\"near\":%u,\"brg\":%d,\"w\":%u,\"le\":%d,\"re\":%d,"
         "\"gl\":%u,\"gr\":%u,\"sl\":%u,\"sr\":%u,\"conf\":%u,\"n\":%u,"
-        "\"act\":\"BYPASS_RIGHT\",\"scans\":%u,\"t\":%lu}",
+        "\"act\":\"BYPASS_RIGHT\",\"scans\":%u,\"t\":%lu,"
+        "\"side\":\"L\",\"ph\":\"SEEN\",\"lat\":131,\"rev\":152,"
+        "\"sr\":262}",
         248U, 0U, (unsigned)p.nearest_mm, p.bearing_deg,
         (unsigned)p.width_mm, p.left_edge_deg, p.right_edge_deg,
         (unsigned)p.gap_left_mm, (unsigned)p.gap_right_mm,
@@ -292,6 +298,54 @@ static void p7_telemetry(void)
     printf("  MESSAGE SIZE  text %d B  ->  binary %u B  (%d %% smaller)\n",
            text_len, (unsigned)n, (int)(100 - ((100 * (int)n) / text_len)));
     check(n < (uint32_t)text_len, "binary is smaller than text");
+}
+
+/* v3.0 watch word: every field at its limits, saturation, the side bit */
+static void p9_watch(void)
+{
+    s5_watch_t w;
+
+    printf("P9 watch word (v3.0): 32 bits, one store\n");
+
+    w = s5_watch_pack(false, S5_WATCH_CLEARING, 0U, 0U,
+                      OBSTACLE_RANGE_CLEAR);
+    check(!s5_watch_left(w) && (s5_watch_phase(w) == S5_WATCH_CLEARING) &&
+          (s5_watch_reverse_mm(w) == 0U) && (s5_watch_lateral_mm(w) == 0U) &&
+          (s5_watch_range(w) == OBSTACLE_RANGE_CLEAR), "zeros and CLEAR");
+
+    w = s5_watch_pack(true, S5_WATCH_PASSED, 250U, 300U, 2500U);
+    check(s5_watch_left(w) && (s5_watch_phase(w) == S5_WATCH_PASSED) &&
+          (s5_watch_reverse_mm(w) == 250U) &&
+          (s5_watch_lateral_mm(w) == 300U) && (s5_watch_range(w) == 2500U),
+          "reverse 250, lateral 300, range 2500 survive");
+
+    w = s5_watch_pack(true, S5_WATCH_SEEN, 51U, 1022U, 0xFFFEU);
+    check((s5_watch_reverse_mm(w) == 52U) && (s5_watch_lateral_mm(w) == 1020U),
+          "2 mm reverse rounds, 4 mm lateral truncates");
+
+    w = s5_watch_pack(false, S5_WATCH_LOOKING, 9999U, 0xFFFFU, 0xFFFFU);
+    check((s5_watch_reverse_mm(w) == 510U) && (s5_watch_lateral_mm(w) == 1020U) &&
+          (s5_watch_range(w) == OBSTACLE_RANGE_UNKNOWN),
+          "over-range saturates, never wraps");
+
+    w = (s5_watch_t)(7UL << 28);
+    check(s5_watch_phase(w) == S5_WATCH_BLIND,
+          "corrupt phase code reads BLIND, never PASSED");
+
+    {
+        obstacle_health_t        h;
+        obstacle_health_t        g;
+        obstacle_health_packed_t pk;
+
+        memset(&h, 0, sizeof(h));
+        h.calibrated = true;
+        h.state      = OBSTACLE_ST_WATCH;
+        obstacle_health_pack(&h, &pk);
+        obstacle_health_unpack(&pk, &g);
+        check(g.calibrated && (g.state == OBSTACLE_ST_WATCH) &&
+              (g.fault == OBSTACLE_FAULT_NONE),
+              "health: calibrated bit and WATCH state round trip");
+    }
 }
 
 static void p8_size_table(void)
@@ -329,6 +383,7 @@ int main(void)
     p6_us_result();
     p7_telemetry();
     p8_size_table();
+    p9_watch();
 
     printf("\n%d checks, %d failures\n", g_checks, g_failures);
 

@@ -21,8 +21,8 @@
  *    Private task state is a C bit-field struct (no other context
  *    touches it, so its read-modify-writes cannot race).
  *
- * States (9, stored in 4 bits)
- * ----------------------------
+ * States (10, stored in 4 bits)
+ * -----------------------------
  *   GUARD      sensor ahead, one ping per 60 ms tick
  *   CONFIRM    one close return seen; a second one starts the scan
  *   WAIT_STOP  DETECTED raised; VehicleController stops the car. Sweep
@@ -30,8 +30,13 @@
  *   COARSE     5-point sweep, one ping each
  *   FINE       7 points, 10 deg apart, round the nearest IN-PATH return
  *   PUBLISH    build, plan, publish, sensor back to straight ahead
- *   ASSIST     controller manoeuvres; S5 keeps pinging ahead. No
- *              resume within 5 s -> FAULT
+ *   ASSIST     controller manoeuvres; S5 keeps pinging ahead. No word
+ *              from VehicleController for 5 s -> FAULT (v3.0: VC kicks
+ *              every loop, so a long bypass is fine, a dead VC is not)
+ *   WATCH      v3.0, pass leg: alternate front ping and side ping at
+ *              S5_WATCH_DEG towards the obstacle. Measures the gap
+ *              (SIDE_CLOSE) and decides when the car is past it (PASSED)
+ *              from the side data and odometry, not from a guess.
  *   FAULT      SENSOR: range UNKNOWN, E-stop cause bit set, retry every
  *              500 ms, 3 good pings -> GUARD (the E-stop stays latched
  *              until VehicleController clears it).
@@ -43,6 +48,7 @@
 
 #include "drv_servo.h"
 #include "drv_ultrasonic.h"
+#include "s5_calib.h"
 #include "s5_config.h"
 
 /*=====================================================================*/
@@ -51,7 +57,7 @@
 
 typedef struct
 {
-    unsigned int state       : 4;   /* obstacle_state_t (9 values)      */
+    unsigned int state       : 4;   /* obstacle_state_t (10 values)     */
     unsigned int fault       : 3;   /* obstacle_fault_t (5 values)      */
     unsigned int fault_run   : 4;   /* hard sensor errors in a row 0..10*/
     unsigned int good_run    : 2;   /* good pings while faulted 0..3    */
@@ -70,6 +76,39 @@ S5_STATIC_ASSERT(sizeof(s5_task_ctx_t) == 4U, task_ctx_one_word);
 S5_STATIC_ASSERT(S5_FAULT_LIMIT <= 15U, fault_run_fits_4_bits);
 S5_STATIC_ASSERT(S5_RECOVER_SAMPLES <= 3U, good_run_fits_2_bits);
 S5_STATIC_ASSERT(S5_MAX_REVERSES <= 3U, reverses_fit_2_bits);
+
+/** v3.0 WATCH: task-private, one word. */
+typedef struct
+{
+    unsigned int phase       : 3;   /* s5_watch_phase_t (6 values)      */
+    unsigned int left        : 1;   /* obstacle is on the left          */
+    unsigned int clear_looks : 2;   /* side looks in a row with nothing */
+    unsigned int look_side   : 1;   /* next look is the side one        */
+    unsigned int odo         : 1;   /* start distance taken             */
+} s5_watch_ctx_t;
+
+S5_STATIC_ASSERT(sizeof(s5_watch_ctx_t) == 4U, watch_ctx_one_word);
+S5_STATIC_ASSERT(S5_WATCH_CLEAR_LOOKS <= 3U, clear_looks_fit_2_bits);
+
+/** Geometry correction from s5_calib.h (v3.0). */
+static const s5_geom_cal_t g_geom_cal =
+{
+    (int16_t)S5_CAL_BEAM_HALF_DDEG,
+    (int16_t)S5_FINE_STEP_DEG,
+    (int16_t)S5_SWEEP_LIMIT_DEG,
+    (uint16_t)OBSTACLE_TRIGGER_MM
+};
+
+/** After a REVERSE the object is further than 300 mm on purpose: it is
+ *  still the obstacle, so the rescan plans round anything up to just
+ *  past where the car backed off to. */
+static const s5_geom_cal_t g_geom_cal_rescan =
+{
+    (int16_t)S5_CAL_BEAM_HALF_DDEG,
+    (int16_t)S5_FINE_STEP_DEG,
+    (int16_t)S5_SWEEP_LIMIT_DEG,
+    (uint16_t)(S5_REMEASURE_FAR_MM + 100U)
+};
 
 /*=====================================================================*/
 /* Kernel objects                                                      */
@@ -95,6 +134,13 @@ static obstacle_health_packed_t  g_health_pk;
 /** Missed guard ticks. Written only by the cyclic handler. */
 static volatile uint8_t g_overruns = 0U;
 
+/** v3.0 watch word. Written only by the obstacle task, with one store. */
+static volatile s5_watch_t g_watch = 0U;
+
+/** v3.0 VehicleController heartbeat. Written only by VC (one writer),
+ *  read by the obstacle task: any change = "VC is alive". */
+static volatile uint8_t g_kick = 0U;
+
 /** Set once during subsystemN_init(), before the task exists. */
 static s5_odometry_fn g_odometry  = NULL;
 static ID             g_estop_flg = 0;
@@ -112,6 +158,18 @@ static uint16_t g_build_us_max  = 0U;
 static uint8_t  g_sensor_faults = 0U;
 
 static uint32_t g_last_close_ms = 0U;   /* blind-zone window        */
+
+/* v3.0 WATCH and REVERSE working data (task-private). */
+static s5_watch_ctx_t g_wctx;
+static int32_t  g_w_start_mm   = 0;     /* odometry at watch start     */
+static int32_t  g_w_clear_mm   = 0;     /* odometry at first clear look*/
+static uint16_t g_w_lat_min    = 0xFFFFU; /* closest face seen, mm     */
+static uint16_t g_w_remaining  = 0U;    /* travel after clearing       */
+static uint16_t g_w_last_range = OBSTACLE_RANGE_UNKNOWN;
+static uint16_t g_reverse_mm   = 0U;    /* for the last REVERSE profile*/
+static s5_edge_probes_t g_probes;       /* v3.0 fine edge intervals    */
+static uint8_t  g_kick_seen    = 0U;
+static uint8_t  g_w_last_phase = 0U;    /* for the phase log           */
 static uint32_t g_phase_ms      = 0U;   /* WAIT_STOP / ASSIST entry */
 static uint32_t g_stopped_ms    = 0U;   /* speed first read as 0    */
 
@@ -188,6 +246,7 @@ static void obs_publish_health(void)
     h.estop_requested   = (g_ctx.estop_req != 0U);
     h.has_profile       = (g_ctx.has_profile != 0U);
     h.odometry_ok       = (g_ctx.odo_ok != 0U);
+    h.calibrated        = (S5_CAL_DONE != 0);
     h.reverses          = (uint8_t)g_ctx.reverses;
     h.last_status       = (uint8_t)g_ctx.last_status;
     h.deadline_overruns = g_overruns;
@@ -350,6 +409,23 @@ static uint16_t obs_ping_ahead(void)
     return r;
 }
 
+/** v3.0: swept ranges are measured from the servo axis, which is what
+ *  the polar geometry assumes. The sensor face sits S5_CAL_SENSOR_ARM_MM
+ *  in front of it. The forward guard keeps the face distance. */
+static uint16_t obs_add_arm(uint16_t r)
+{
+    uint16_t out = r;
+
+    if (obs_is_range(r))
+    {
+        const uint32_t a = (uint32_t)r + (uint32_t)S5_CAL_SENSOR_ARM_MM;
+
+        out = (uint16_t)((a > 0xFFFDU) ? 0xFFFDU : a);
+    }
+
+    return out;
+}
+
 /**
  * @brief   Point the sensor at a bearing and range once (or median of 3).
  *
@@ -372,7 +448,7 @@ static uint16_t obs_measure_at(int16_t bearing_deg, bool use_median)
 
     g_ctx.last_status = S5_FIT(st, DRV_US_STATUS_BITS);
 
-    return obs_status_to_range(st, res);
+    return obs_add_arm(obs_status_to_range(st, res));
 }
 
 /*=====================================================================*/
@@ -415,6 +491,100 @@ static void obs_samples_insert(int16_t bearing_deg, uint16_t range_mm)
     else
     {
         /* Full: dropping costs resolution, never correctness. */
+    }
+}
+
+static bool obs_samples_have(int16_t bearing_deg)
+{
+    const uint8_t n = (uint8_t)g_ctx.count;
+    uint8_t       i;
+    bool          found = false;
+
+    for (i = 0U; (i < n) && !found; i++)
+    {
+        found = (s5_sample_bearing(g_samples[i]) == bearing_deg);
+    }
+
+    return found;
+}
+
+/*=====================================================================*/
+/* v3.0 edge probes                                                    */
+/*=====================================================================*/
+
+/** One ping at a logical angle in 0.1 deg; true if it is the object. */
+static bool obs_probe_hit(int16_t ddeg, uint16_t nearest_mm)
+{
+    const int16_t from_deg = drv_servo_get_angle();
+    ultrasonic_result_t res;
+    ultrasonic_status_t st;
+    uint16_t            r;
+    int16_t             to_deg;
+
+    (void)drv_servo_set_angle_ddeg(
+        (int16_t)(((int16_t)DRV_SERVO_CENTRE_DEG * 10) + ddeg));
+    to_deg = drv_servo_get_angle();
+    (void)tk_dly_tsk((RELTIM)drv_servo_settle_ms(from_deg, to_deg));
+
+    st = drv_ultrasonic_ping(&res);
+    g_ctx.last_status = S5_FIT(st, DRV_US_STATUS_BITS);
+    r  = obs_add_arm(obs_status_to_range(st, res));
+
+    return obs_is_range(r) &&
+           ((uint32_t)r <= ((uint32_t)nearest_mm + S5_PROBE_DEPTH_MM));
+}
+
+/**
+ * Bisect the interval between the outermost bearing that heard the
+ * object (hit) and the next sample out (miss). towards = +1 left edge,
+ * -1 right edge.
+ */
+static void obs_probe_edge(s5_edge_probe_t *p_probe, int16_t edge_deg,
+                           int16_t towards, uint16_t nearest_mm)
+{
+    int32_t hit  = (int32_t)edge_deg * 10;
+    int32_t miss = hit + ((int32_t)towards * S5_FINE_STEP_DEG * 10);
+    uint8_t k;
+
+    for (k = 0U; k < (uint8_t)S5_EDGE_PROBES; k++)
+    {
+        const int32_t mid = (hit + miss) / 2;
+
+        if (obs_probe_hit((int16_t)mid, nearest_mm))
+        {
+            hit = mid;
+        }
+        else
+        {
+            miss = mid;
+        }
+    }
+
+    p_probe->valid     = true;
+    p_probe->hit_ddeg  = (int16_t)hit;
+    p_probe->miss_ddeg = (int16_t)miss;
+}
+
+/** Probe every edge the sweep saw (an edge at the sweep limit was not
+ *  seen: nothing to narrow). */
+static void obs_probe_edges(const obstacle_profile_t *p)
+{
+    g_probes.left.valid  = false;
+    g_probes.right.valid = false;
+
+    if (p->valid && obs_is_range(p->nearest_mm))
+    {
+        if (p->left_edge_deg < (int16_t)S5_SWEEP_LIMIT_DEG)
+        {
+            obs_probe_edge(&g_probes.left, p->left_edge_deg, 1,
+                           p->nearest_mm);
+        }
+
+        if (p->right_edge_deg > (int16_t)(-S5_SWEEP_LIMIT_DEG))
+        {
+            obs_probe_edge(&g_probes.right, p->right_edge_deg, -1,
+                           p->nearest_mm);
+        }
     }
 }
 
@@ -492,12 +662,124 @@ static obstacle_state_t obs_goto_wait_stop(uint16_t r)
     return OBSTACLE_ST_WAIT_STOP;
 }
 
+/** ASSIST for a NEW profile: a request left over from the previous
+ *  obstacle must not steer this one. */
 static obstacle_state_t obs_goto_assist(void)
 {
-    obs_drop_request(S5_REQ_RESUME);
-    g_phase_ms = obs_now_ms();
+    obs_drop_request(S5_REQ_RESUME | S5_REQ_WATCH_LEFT | S5_REQ_WATCH_RIGHT |
+                     S5_REQ_WATCH_END | S5_REQ_RESCAN);
+    g_phase_ms  = obs_now_ms();
+    g_kick_seen = g_kick;
 
     return OBSTACLE_ST_ASSIST;
+}
+
+/** Back to ASSIST in the middle of the same bypass (from WATCH): keep
+ *  whatever VC has already asked for next. */
+static obstacle_state_t obs_return_assist(void)
+{
+    g_phase_ms  = obs_now_ms();
+    g_kick_seen = g_kick;
+
+    return OBSTACLE_ST_ASSIST;
+}
+
+/** VehicleController said something (kick or command): restart the
+ *  ASSIST / WATCH watchdog. */
+static void obs_note_kick(void)
+{
+    const uint8_t k = g_kick;
+
+    if (k != g_kick_seen)
+    {
+        g_kick_seen = k;
+        g_phase_ms  = obs_now_ms();
+    }
+}
+
+static bool obs_vc_silent(void)
+{
+    return ((obs_now_ms() - g_phase_ms) >= S5_ASSIST_TIMEOUT_MS);
+}
+
+/** v3.0 rescan after a REVERSE: the car was stopped by VC, so no
+ *  DETECTED event, just WaitStopped and a fresh sweep. */
+static obstacle_state_t obs_goto_rescan(void)
+{
+    g_phase_ms    = obs_now_ms();
+    g_ctx.stopped = 0U;
+    obs_drop_request(S5_REQ_WATCH_END);     /* superseded by the rescan */
+    obs_tick_enable(true);  /* WAIT_STOP runs on the tick; WATCH had it off */
+
+    return OBSTACLE_ST_WAIT_STOP;
+}
+
+static void obs_publish_watch(void)
+{
+    g_watch = s5_watch_pack((g_wctx.left != 0U),
+                            (s5_watch_phase_t)g_wctx.phase, g_reverse_mm,
+                            g_w_lat_min, g_w_last_range);
+}
+
+static bool obs_odo_distance(int32_t *p_mm)
+{
+    bool ok = false;
+
+    if (g_odometry != NULL)
+    {
+        int32_t speed = 0;
+
+        ok = g_odometry(&speed, p_mm);
+    }
+
+    return ok;
+}
+
+static obstacle_state_t obs_goto_watch(bool left)
+{
+    int32_t d = 0;
+
+    obs_tick_enable(false);
+
+    g_wctx.phase       = S5_FIT(S5_WATCH_LOOKING, S5_WATCH_PHASE_BITS);
+    g_wctx.left        = left ? 1U : 0U;
+    g_wctx.clear_looks = 0U;
+    g_wctx.look_side   = 1U;
+    g_wctx.odo         = obs_odo_distance(&d) ? 1U : 0U;
+    g_w_start_mm       = d;
+    g_w_clear_mm       = d;
+    g_w_lat_min        = 0xFFFFU;
+    g_w_remaining      = 0U;
+    g_w_last_range     = OBSTACLE_RANGE_UNKNOWN;
+    g_w_last_phase     = (uint8_t)S5_WATCH_LOOKING;
+    g_phase_ms         = obs_now_ms();
+    g_kick_seen        = g_kick;
+    obs_publish_watch();
+
+    return OBSTACLE_ST_WATCH;
+}
+
+/** Servo back to straight ahead, waiting for it to settle. */
+static void obs_servo_centre(void)
+{
+    const int16_t from_deg = drv_servo_get_angle();
+
+    if (from_deg != (int16_t)DRV_SERVO_CENTRE_DEG)
+    {
+        (void)drv_servo_set_angle((int16_t)DRV_SERVO_CENTRE_DEG);
+        (void)tk_dly_tsk((RELTIM)drv_servo_settle_ms(
+            from_deg, (int16_t)DRV_SERVO_CENTRE_DEG));
+    }
+}
+
+/** Leave WATCH for ASSIST (front guard on the tick, servo ahead). */
+static obstacle_state_t obs_watch_to_assist(void)
+{
+    obs_servo_centre();
+    (void)obs_ping_ahead();
+    obs_tick_enable(true);
+
+    return obs_return_assist();
 }
 
 static obstacle_state_t obs_goto_guard(void)
@@ -685,7 +967,11 @@ static obstacle_state_t obs_state_fine(void)
 
     for (i = 0U; i < (uint8_t)S5_FINE_POINTS; i++)
     {
-        if ((b >= lo) && (b <= hi))
+        /* v3.0: a coarse bearing is not measured twice, except the
+         * centre (median of 3). The time saved pays for the edge
+         * probes in PUBLISH. */
+        if ((b >= lo) && (b <= hi) &&
+            ((b == centre) || !obs_samples_have(b)))
         {
             obs_samples_insert(b, obs_measure_at(b, (b == centre)));
         }
@@ -705,9 +991,18 @@ static obstacle_state_t obs_state_publish(void)
     uint32_t                  dt;
     bool                      third_reverse = false;
 
+    /* v3.0: narrow each seen edge with two extra pings first (servo
+     * time, so outside the timed part). */
+    obstacle_profile_build(g_samples, (uint8_t)g_ctx.count, &p);
+    obs_probe_edges(&p);
+
     /* Timed: CR1 evidence that packed decoding costs no real time. */
     t0 = drv_ultrasonic_time_us();
     obstacle_profile_build(g_samples, (uint8_t)g_ctx.count, &p);
+    /* v3.0: beam-width edges, true centre, unseen edges -> REVERSE */
+    obstacle_profile_refine(&p, (g_ctx.reverses != 0U) ? &g_geom_cal_rescan
+                                                       : &g_geom_cal,
+                            &g_probes);
     dt = drv_ultrasonic_time_us() - t0;
 
     if (dt > (uint32_t)g_build_us_max)
@@ -739,6 +1034,12 @@ static obstacle_state_t obs_state_publish(void)
     {
         /* Bypass resets the count on resume; STOP/SLOW keep it. */
     }
+
+    /* v3.0: how far VC should back up, published BEFORE the event so
+     * VC reads the matching value when it sees PROFILED. */
+    g_reverse_mm = obstacle_reverse_mm(&p);
+    g_wctx.phase = S5_FIT(S5_WATCH_IDLE, S5_WATCH_PHASE_BITS);
+    obs_publish_watch();
 
     obstacle_profile_pack(&p, &pk);
     obs_publish_profile(&pk);
@@ -794,6 +1095,7 @@ static obstacle_state_t obs_state_assist(void)
 
     obs_wait_tick();
     r = obs_ping_ahead();
+    obs_note_kick();
 
     if (g_ctx.fault_run >= S5_FAULT_LIMIT)
     {
@@ -808,7 +1110,20 @@ static obstacle_state_t obs_state_assist(void)
 
         next = OBSTACLE_ST_GUARD;
     }
-    else if ((obs_now_ms() - g_phase_ms) >= S5_ASSIST_TIMEOUT_MS)
+    else if (obs_take_request(S5_REQ_RESCAN))
+    {
+        /* v3.0: VC backed off; look again from here. */
+        next = obs_goto_rescan();
+    }
+    else if (obs_take_request(S5_REQ_WATCH_LEFT))
+    {
+        next = obs_goto_watch(true);
+    }
+    else if (obs_take_request(S5_REQ_WATCH_RIGHT))
+    {
+        next = obs_goto_watch(false);
+    }
+    else if (obs_vc_silent())
     {
         next = obs_goto_fault(OBSTACLE_FAULT_ASSIST_TIMEOUT);
     }
@@ -819,6 +1134,167 @@ static obstacle_state_t obs_state_assist(void)
             /* Something under 120 mm while manoeuvring. */
             obs_raise(S5_EVT_HARD_STOP);
         }
+    }
+
+    return next;
+}
+
+/**
+ * @brief   v3.0 WATCH: one look per call, alternating side and front.
+ *
+ * Side look (servo at S5_WATCH_DEG towards the obstacle):
+ *   LOOKING  -> SEEN      the face is within S5_WATCH_SEEN_LAT_MM beside us
+ *   SEEN     -> CLEARING  S5_WATCH_CLEAR_LOOKS looks in a row with nothing
+ *                         beside us; the remaining travel is worked out
+ *                         from the closest face seen
+ *   CLEARING -> SEEN      the face came back (a longer or uneven object)
+ *   LOOKING  -> BLIND     S5_WATCH_BLIND_MM driven and never seen it
+ *   any: face closer than the chassis half-width + S5_SIDE_CLOSE_MM
+ *        -> S5_EVT_SIDE_CLOSE (VC steers away)
+ * Front look: forward guard, S5_EVT_HARD_STOP under 120 mm.
+ * CLEARING and the odometry say the rear is past -> S5_EVT_PASSED,
+ * back to ASSIST.
+ */
+static obstacle_state_t obs_state_watch(void)
+{
+    obstacle_state_t next = OBSTACLE_ST_WATCH;
+    int32_t          dist = 0;
+    const bool       have = obs_odo_distance(&dist);
+
+    if (have && (g_wctx.odo == 0U))
+    {
+        g_wctx.odo   = 1U;
+        g_w_start_mm = dist;
+    }
+
+    if (g_wctx.look_side != 0U)
+    {
+        const int16_t b = (g_wctx.left != 0U) ? (int16_t)S5_WATCH_DEG
+                                              : (int16_t)(-S5_WATCH_DEG);
+        const uint16_t r   = obs_measure_at(b, false);
+        const uint16_t lat = obstacle_watch_lateral_mm(
+            r, (int16_t)S5_WATCH_DEG, (int16_t)S5_CAL_BEAM_HALF_DDEG);
+        const bool beside  = obs_is_range(r) &&
+                             (lat <= (uint16_t)S5_WATCH_SEEN_LAT_MM);
+
+        g_w_last_range = r;
+
+        if (beside)
+        {
+            if (lat < g_w_lat_min)
+            {
+                g_w_lat_min = lat;
+            }
+
+            if (lat < (uint16_t)(OBSTACLE_HALF_WIDTH_MM + S5_SIDE_CLOSE_MM))
+            {
+                obs_raise(S5_EVT_SIDE_CLOSE);
+            }
+
+            g_wctx.phase       = S5_FIT(S5_WATCH_SEEN, S5_WATCH_PHASE_BITS);
+            g_wctx.clear_looks = 0U;
+        }
+        else if ((g_wctx.phase == (unsigned int)S5_WATCH_SEEN) ||
+                 (g_wctx.phase == (unsigned int)S5_WATCH_CLEARING))
+        {
+            if (g_wctx.clear_looks < S5_WATCH_CLEAR_LOOKS)
+            {
+                if (g_wctx.clear_looks == 0U)
+                {
+                    g_w_clear_mm = dist;    /* first look past the face */
+                }
+                g_wctx.clear_looks++;
+            }
+
+            if ((g_wctx.phase == (unsigned int)S5_WATCH_SEEN) &&
+                (g_wctx.clear_looks >= S5_WATCH_CLEAR_LOOKS))
+            {
+                g_w_remaining = obstacle_watch_remaining_mm(
+                    g_w_lat_min, (int16_t)S5_WATCH_DEG,
+                    (int16_t)S5_CAL_BEAM_HALF_DDEG);
+                g_wctx.phase  = S5_FIT(S5_WATCH_CLEARING,
+                                       S5_WATCH_PHASE_BITS);
+            }
+        }
+        else if ((g_wctx.phase == (unsigned int)S5_WATCH_LOOKING) &&
+                 have && (g_wctx.odo != 0U) &&
+                 ((dist - g_w_start_mm) >= (int32_t)S5_WATCH_BLIND_MM))
+        {
+            g_wctx.phase = S5_FIT(S5_WATCH_BLIND, S5_WATCH_PHASE_BITS);
+        }
+        else
+        {
+            /* Still looking, or BLIND: nothing new. */
+        }
+    }
+    else
+    {
+        uint16_t r;
+
+        obs_servo_centre();
+        r = obs_ping_ahead();
+
+        if (obs_is_hard(r))
+        {
+            obs_raise(S5_EVT_HARD_STOP);
+        }
+    }
+
+    g_wctx.look_side = S5_FIT(g_wctx.look_side ^ 1U, 1U);
+    obs_note_kick();
+
+    if (g_wctx.phase != g_w_last_phase)
+    {
+        /* A few lines per bypass; the evidence for "passed". */
+        tm_printf((UB *)"S5: watch %d -> %d, face %d mm beside, at %d mm\n",
+                  (INT)g_w_last_phase, (INT)g_wctx.phase, (INT)g_w_lat_min,
+                  (INT)(dist - g_w_start_mm));
+        g_w_last_phase = (uint8_t)g_wctx.phase;
+    }
+
+    if ((g_wctx.phase == (unsigned int)S5_WATCH_CLEARING) && have &&
+        ((dist - g_w_clear_mm) >= (int32_t)g_w_remaining))
+    {
+        g_wctx.phase = S5_FIT(S5_WATCH_PASSED, S5_WATCH_PHASE_BITS);
+        obs_publish_watch();
+        obs_raise(S5_EVT_PASSED);
+        next = obs_watch_to_assist();
+    }
+    else if (g_ctx.fault_run >= S5_FAULT_LIMIT)
+    {
+        next = obs_goto_fault(OBSTACLE_FAULT_SENSOR);
+    }
+    else if (obs_take_request(S5_REQ_RESCAN))
+    {
+        /* Checked before WATCH_END: VC sends both when it gives up on
+         * a leg, and the rescan is the one that matters. */
+        obs_servo_centre();
+        next = obs_goto_rescan();
+    }
+    else if (obs_take_request(S5_REQ_WATCH_END))
+    {
+        next = obs_watch_to_assist();
+    }
+    else if (obs_take_request(S5_REQ_RESUME))
+    {
+        obs_servo_centre();
+        g_ctx.reverses = 0U;
+        obs_tick_enable(true);
+        next = OBSTACLE_ST_GUARD;
+    }
+    else if (obs_vc_silent())
+    {
+        obs_servo_centre();
+        next = obs_goto_fault(OBSTACLE_FAULT_ASSIST_TIMEOUT);
+    }
+    else
+    {
+        /* Keep watching. */
+    }
+
+    if (next == OBSTACLE_ST_WATCH)
+    {
+        obs_publish_watch();
     }
 
     return next;
@@ -923,6 +1399,7 @@ EXPORT void obstacle_task(INT stacd, void *exinf)
             case OBSTACLE_ST_FINE:      state = obs_state_fine();      break;
             case OBSTACLE_ST_PUBLISH:   state = obs_state_publish();   break;
             case OBSTACLE_ST_ASSIST:    state = obs_state_assist();    break;
+            case OBSTACLE_ST_WATCH:     state = obs_state_watch();     break;
             case OBSTACLE_ST_FAULT:     state = obs_state_fault();     break;
             case OBSTACLE_ST_INIT:
             default:
@@ -1049,7 +1526,7 @@ EXPORT uint32_t obstacle_get_telemetry(uint8_t *p_buf, uint32_t len)
         const obstacle_profile_packed_t p = g_profile_pk;
 
         (void)tk_unl_mtx(g_mtxid);
-        n = s5_tlm_encode(p_buf, len, g_front, &h, &p);
+        n = s5_tlm_encode(p_buf, len, g_front, &h, &p, g_watch);
     }
 
     return n;
@@ -1063,6 +1540,42 @@ EXPORT void obstacle_resume(void)
 EXPORT void obstacle_reset_fault(void)
 {
     (void)tk_set_flg(flg_obstacle, S5_REQ_RESET);
+}
+
+EXPORT void obstacle_rescan(void)
+{
+    (void)tk_set_flg(flg_obstacle, S5_REQ_RESCAN);
+}
+
+EXPORT void obstacle_watch_start(bool obstacle_on_left)
+{
+    (void)tk_set_flg(flg_obstacle, obstacle_on_left ? S5_REQ_WATCH_LEFT
+                                                    : S5_REQ_WATCH_RIGHT);
+}
+
+EXPORT void obstacle_watch_end(void)
+{
+    (void)tk_set_flg(flg_obstacle, S5_REQ_WATCH_END);
+}
+
+EXPORT void obstacle_assist_kick(void)
+{
+    /* One writer (VehicleController), so the ++ cannot race. */
+    g_kick = (uint8_t)(g_kick + 1U);
+}
+
+EXPORT void obstacle_get_watch(obstacle_watch_t *p_out)
+{
+    if (p_out != NULL)
+    {
+        const s5_watch_t w = g_watch;   /* one 32-bit load */
+
+        p_out->obstacle_on_left = s5_watch_left(w);
+        p_out->phase            = s5_watch_phase(w);
+        p_out->reverse_mm       = s5_watch_reverse_mm(w);
+        p_out->lateral_mm       = s5_watch_lateral_mm(w);
+        p_out->side_range_mm    = s5_watch_range(w);
+    }
 }
 
 EXPORT void obstacle_register_odometry(s5_odometry_fn fn)

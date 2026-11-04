@@ -16,6 +16,9 @@ Define a test here before running it. Test IDs never change.
 | S5-H02 | CR1 encoders: every field at its limits, saturation, wire format, size table, text vs binary size | CR1 items 1-3 | auto | `make pack` | `31 checks, 0 failures` |
 | S5-H03 | CR1 no loss of function: v1 geometry (unpacked) vs v2 (packed) on 20 000 random sweeps | CR1 item 4 | auto | `make equiv` | `0 mismatches` |
 | S5-H04 | State machine on a virtual clock, scenarios S1-S5, S7-S12 (incl. WaitStopped, STOP_TIMEOUT, REVERSE_LIMIT, ASSIST_TIMEOUT, E-stop set never cleared, sensor recovery) | FR24, FR25, NFR9, NFR11, tutor feedback | auto | `make sim` | every scenario `0 failures` |
+| S5-H05 | v3.0 maths: sine table, centre point v2 vs v3 (12 boxes/posts, 2 beam widths, edge probes), unseen edge -> REVERSE, reverse distances, side-watch formulas | prof feedback 1, 3; NFR15 | auto | `make v3` | `21 checks, 0 failures`; v3 centre error <= 2 deg when both edges seen |
+| S5-H06 | v3.0 calibration: the real `s5_calibrate.c` against a simulated faulty robot (trim -3.5 deg, backlash 1.5 deg, beam 12 deg, range x1.03 - 8 mm); then the obstacle task on that robot without / with the result | prof feedback 1 | auto | `make cal` | trim/backlash within 1 deg, beam within 2 deg, scale within 1 %, offset within 5 mm, all 3 steps PASS; calibrated centre error <= 2 deg |
+| S5-H07 | v3.0 2-D closed loop: real S5 + real `vc_obstacle.c` drive a simulated car (Buddy 2 API mock, ray-cast sonar, IR on an 18 mm line). C1 box on line, C2 offset box, C3 box wider than the view, C4 450 mm long box, C5 wall beside, C6 box dropped 90 mm ahead, C7 boxed in, C8 odometry errors, C9 faulty servo, C10 second box in the pass lane (replan), C11 calibrated faulty robot + odometry errors | prof feedback 2, 3; FR25; rejoin +/-50 mm | auto | `make car` | no collision in any scenario; C7 safe stop in FAULT; all others rejoin within +/-50 mm with the rear past the obstacle |
 
 ### On-target tests: `cd build_make && make TEST=1 -j8`
 
@@ -36,6 +39,13 @@ Define a test here before running it. Test IDs never change.
 | S5-M02 | Servo travel 60 deg on the power bank | A5b | manual | phone slow-motion video of a 0 -> 60 deg move | <= 140 ms + 25 ms |
 | S5-M03 | Range accuracy at 50, 100, 200, 300 mm, 20 readings each | NFR15 | manual | tape-measured board, log front range | within +/-10 mm |
 | S5-M04 | ECHO never above 3.3 V on GP17 | safety | manual | scope or meter on GP17 during pings | <= 3.3 V |
+| S5-U12 | v3.0 refined centre of an 80 mm box from packed samples + edge probes | prof feedback 1 | auto | `subsystem5_test.c` | PASS: centre 0 deg, width 60..100 mm |
+| S5-U13 | v3.0 watch word round trip on the ARM compiler | CR1 | auto | `subsystem5_test.c` | PASS |
+| S5-U14 | Health reports the calibration status (and prints the values) | prof feedback 1 | auto | `subsystem5_test.c` | PASS; `[INFO] ... calibration: DONE` once S5-M05 is done |
+| S5-M05 | Calibration on the robot | prof feedback 1, NFR15 | manual | `CALIBRATION.md`: S5_CAL_BUILD 1, follow the 3 steps, paste the values | step 1/2/3 PASS; every range point within +/-10 mm after the fit |
+| S5-M06 | Bypass on the floor: 100 x 150 mm box on the line, car line following at 200 mm/s | FR25, rejoin | manual | car image, serial log `[VC-OBS]` lines, tape measure at the rejoin point | no contact; `[VC-OBS] rejoined: ... PASS`; measured axle-to-line <= 50 mm |
+| S5-M07 | Side watch on a long box (100 x 450 mm) | prof feedback 2 | manual | as M06; log shows `S5: watch 1 -> 2 -> 3`, then `passed` | no contact on the turn back; rear past the box when it turns in |
+| S5-M08 | Reverse to remeasure: box wider than the view (300 mm), or a box put down 10 cm in front | prof feedback 3 | manual | as M06; log shows `reverse N mm to remeasure`, then a bypass | backs off, rescans, passes; no contact |
 
 *Method:* **auto** = `TEST_CHECK` in code, result printed on the console;
 **manual** = a person observes the result (LED, scope, meter, phone app…).
@@ -50,6 +60,7 @@ Add a new row for every run. Never edit or delete old rows.
 | 2026-11-01 | bench (v2.0 driver) | not committed | Buddy 5 | FAIL | serial log, bench image v1 | Distances correct, 0 no-response, but one ping every ~3 s instead of 4/s: waits used TIMER_TIMERAWL, which is not 1 MHz in this port. Fixed in v2.1 |
 | 2026-11-01 | S5-U01..U11 (v2.1 test image) | not committed | Buddy 5 | 10 PASS, U10 FAIL | serial log | U10 failed on ASSIST_TIMEOUT (no VehicleController on the bench), not a sensor fault: 1241 pings, 0 no-response. Test corrected in v2.2. Profile build 10 us (TIMER-based) |
 | 2026-11-01 | bench (v2.1 driver) | not committed | Buddy 5 | PASS | serial log, bench image v2 | One line every 300 ms, 72 pings, 0 no-response, 125-1131 mm tracked by hand; servo sweep +/-30 deg clears the board |
+| 2026-11-04 | S5-H01..H07 (v3.0) | branch buddy5-v3.0, not merged | Buddy 5 (generated run) | PASS | `logs/2026-11-04_host_tests_v3.0.txt`, `logs/2026-11-04_bypass_sim_v3.0.txt` | H05 centre error 1.4 -> 0.4 deg, width 28 -> 10 mm. H06 finds trim -35, backlash 15, beam 110, scale 3983, offset 7 on the faulty sim robot. H07 11/11 scenarios, no collision, rejoin within 7 mm, C7 safe stop. Simulated scan 1391 ms (NFR11 1.8 s) |
 
 ---
 
@@ -60,7 +71,7 @@ Add a new row for every run. Never edit or delete old rows.
 | Field | Valid range | Bits | Representation |
 |---|---|---|---|
 | Range (front, sample, profile nearest) | 30..2500 mm, plus CLEAR and UNKNOWN | 12 | 0..4093 mm, 0xFFE = CLEAR, 0xFFF = UNKNOWN; saturates at 4093, never wraps into a sentinel. Public API keeps the 16-bit codes 0xFFFE / 0xFFFF |
-| Sample bearing | -70..+70 deg, 10 deg grid (15 values); v2.2 scans only -30..+30 (7 values) | 4 | index = bearing / 10 + 7. 7 values would fit 3 bits; 4 are kept so a remounted bracket can scan wider with no format change |
+| Sample bearing | -70..+70 deg, 10 deg grid (15 values); v2.2 scans only -30..+30 (7 values) | 4 | index = bearing / 10 + 7. 7 values would fit 3 bits; 4 are kept so a remounted bracket can scan wider with no format change. v3.0 edge probes at 2.5 deg are NOT stored as samples: they only narrow the two edge intervals (`s5_edge_probes_t`, 12 B, task-private) |
 | Profile bearing, left edge, right edge | -75..+75 deg | 8 each | stored +75 (unsigned, Barr-C) |
 | Width, swing left, swing right | 0..4095 mm | 12 each | saturating |
 | Gap left, gap right | 0..1500 mm | 11 each | 1500 = open |
@@ -68,7 +79,14 @@ Add a new row for every run. Never edit or delete old rows.
 | Sample count | 0..16 | 5 | |
 | Valid / has profile / odometry ok / E-stop requested | yes/no | 1 each | |
 | Action | 6 values | 3 | CONTINUE, SLOW, STOP, BYPASS_L, BYPASS_R, REVERSE; codes 6-7 decode as STOP |
-| ObstacleScan state | 9 values | 4 | INIT, GUARD, CONFIRM, WAIT_STOP, COARSE, FINE, PUBLISH, ASSIST, FAULT |
+| ObstacleScan state | 10 values | 4 | INIT, GUARD, CONFIRM, WAIT_STOP, COARSE, FINE, PUBLISH, ASSIST, FAULT, WATCH (v3.0) |
+| v3.0 watch phase | 6 values | 3 | IDLE, LOOKING, SEEN, CLEARING, PASSED, BLIND; a corrupt code reads BLIND, never PASSED |
+| v3.0 reverse distance | 50..250 mm (encoders good to ~3 mm) | 8 | 2 mm units, 0..510 |
+| v3.0 side clearance (sensor axis to face) | 0..300 mm used, compared with 115 mm | 8 | 4 mm units, 0..1020, saturating |
+| v3.0 side range | as range | 12 | same 12-bit code |
+| v3.0 side of the obstacle | left / right | 1 | |
+| v3.0 calibrated | yes/no | 1 | health bit 7 (was spare) |
+| v3.0 calibration constants | trim +/-30 deg, backlash 0..8 deg, beam 2..30 deg (0.1 deg); scale +/-10 % (Q12); offset +/-100 mm | compile-time | `s5_calib.h`, checked by static asserts; not stored in RAM |
 | Fault cause | 5 values | 3 | NONE, SENSOR, STOP_TIMEOUT, REVERSE_LIMIT, ASSIST_TIMEOUT |
 | Ultrasonic status | 8 values | 3 | OK, NO_ECHO, NO_RESPONSE, TOO_CLOSE, TOO_FAR, ECHO_STUCK, NOT_READY, BAD_PARAM |
 | Echo width | 0..25 000 us measurable | 15 | saturates at 32 767 |
@@ -78,7 +96,8 @@ Add a new row for every run. Never edit or delete old rows.
 | Scans, ping counters | counters | 16 each | saturate at 65 535 |
 | Profile build worst time | 0..65 535 us | 16 | saturating |
 | S5 fault in the shared fault bitmask | yes/no | 1 | S5's E-stop cause bit (registered by the E-stop owner) |
-| Events to VehicleController | 5 events | 5 bits | `flg_obstacle`: DETECTED, HARD_STOP, PROFILED, CLEARED, FAULT |
+| Events to VehicleController | 7 events | 7 bits | `flg_obstacle`: DETECTED, HARD_STOP, PROFILED, CLEARED, FAULT, SIDE_CLOSE, PASSED (v3.0) |
+| Requests from VehicleController | 6 requests | 6 bits | RESUME, RESET, WATCH_LEFT, WATCH_RIGHT, WATCH_END, RESCAN (v3.0); heartbeat = one 8-bit counter, one writer |
 
 Two packing styles, one rule: **explicit shifts and masks** for everything
 shared or sent (same layout in RAM and on the wire; a word is built in a
@@ -102,11 +121,19 @@ v2 also carries new state that v1 did not have (WaitStopped timers,
 odometry and E-stop registration), so the like-for-like saving is larger
 than 90 B.
 
+### 2b. RAM v2.2 -> v3.0 (measured, same team build, `arm-none-eabi-size`, 2026-11-04)
+
+| Item | v2.2 | v3.0 |
+|---|---|---|
+| Subsystem 5 static RAM (data + bss), car image | 127 B | 183 B (+56 B: watch word, its working state, edge probes and the VC heartbeat 39 B; live calibration values and the servo's last direction 17 B). The calibration image adds 24 B for its result |
+| Subsystem 5 flash (text, car image) | 7 560 B | 11 849 B (calibration task 4 532 B is only linked in the calibration image) |
+| VehicleController obstacle part (`vc_obstacle.c`, new) | - | 113 B RAM, 5 576 B flash. Its state (104 B) is task-private and not packed yet: a CR1 candidate if the team wants the last bytes |
+
 ### 3. Message size before / after (`make pack`, P7)
 
 | Message | Before | After |
 |---|---|---|
-| Obstacle status to MQTT | 201 B JSON text | 29 B binary (-86 %) |
+| Obstacle status to MQTT | 201 B JSON text | 29 B binary (-86 %); v3.0: 33 B with the watch word, against 253 B of JSON for the same fields (-87 %) |
 | Profile copy between tasks (mutex hold) | 32 B | 16 B |
 | Ping result returned to the task | 12 B | 4 B |
 

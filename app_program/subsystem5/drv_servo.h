@@ -24,13 +24,58 @@
 #define DRV_SERVO_MAX_DEG           (120)
 #define DRV_SERVO_CENTRE_DEG        (90)
 
+/**
+ * v3.0 correction, pure so the host tests run the same maths: logical
+ * angle in 0.1 deg (900 = straight ahead) to the physical command. Adds
+ * the trim, and leads the backlash in the direction of travel so the
+ * horn stops where it was asked to. dir: +1 moving left (up), -1 right,
+ * 0 never moved.
+ */
+static inline int32_t drv_servo_correct_ddeg(int32_t angle_ddeg, int8_t dir,
+                                             int16_t trim_ddeg,
+                                             int16_t backlash_ddeg)
+{
+    int32_t ddeg = angle_ddeg + (int32_t)trim_ddeg;
+
+    if (dir > 0)
+    {
+        ddeg += (int32_t)backlash_ddeg;
+    }
+    else if (dir < 0)
+    {
+        ddeg -= (int32_t)backlash_ddeg;
+    }
+    else
+    {
+        /* Never moved yet: no lead. */
+    }
+
+    return ddeg;
+}
+
 /** Configure PWM slice 7 for 50 Hz, 1 us per count, centre the horn.
  *  @return false if the clock cannot give an exact 1 MHz count. */
 bool drv_servo_init(void);
 
 /** Command an absolute angle, clamped to the limits.
+ *  v3.0: the calibrated trim and backlash lead (s5_calib.h) are applied
+ *  here, so every caller's 90 deg really is straight ahead.
  *  @return false if it had to be clamped. */
 bool drv_servo_set_angle(int16_t angle_deg);
+
+/** Calibration only: command a PHYSICAL angle in 0.1 deg, no trim and
+ *  no backlash lead, still clamped to the bracket limits. */
+bool drv_servo_set_raw_ddeg(int16_t ddeg);
+
+/** v3.0: logical angle in 0.1 deg (900 = straight ahead), with trim and
+ *  backlash, for the fine edge probes. get_angle() then returns the
+ *  nearest whole degree. */
+bool drv_servo_set_angle_ddeg(int16_t ddeg);
+
+/** Calibration only: replace the s5_calib.h trim and backlash at run
+ *  time, so the calibration build can verify new values before they
+ *  are pasted in. */
+void drv_servo_set_cal(int16_t trim_ddeg, int16_t backlash_ddeg);
 
 /** Last angle actually commanded. */
 int16_t drv_servo_get_angle(void);

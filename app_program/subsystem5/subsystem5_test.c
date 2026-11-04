@@ -7,6 +7,7 @@
  *	S5-U07       geometry still gives the same answer from packed data
  *	S5-U08       profile build time on the Cortex-M0+ (CR1 performance)
  *	S5-U09..U11  the running task: alive, sensor answering, no overruns
+ *	S5-U12..U14  v3.0: refined centre, watch word, calibration status
  *
  *	The tests run in the initial task while the obstacle task runs, so
  *	they never touch the servo or sonar themselves (one owning task).
@@ -14,6 +15,8 @@
 
 #include "subsystem5.h"
 #include "drv_ultrasonic.h"
+#include "s5_calib.h"
+#include "s5_config.h"
 #include "../test_report.h"
 
 #if APP_TEST
@@ -136,8 +139,8 @@ EXPORT void subsystem5_test(void)
 		uint8_t buf[S5_TLM_LEN];
 		uint32_t n = obstacle_get_telemetry(buf, (uint32_t)sizeof(buf));
 
-		TEST_CHECK("S5-U06", n == S5_TLM_LEN,
-			   "telemetry packet is 29 bytes");
+		TEST_CHECK("S5-U06", (n == S5_TLM_LEN) && (S5_TLM_LEN == 33U),
+			   "telemetry packet is 33 bytes (v3.0: + watch word)");
 	}
 
 	/* ---- geometry and timing ------------------------------------ */
@@ -190,6 +193,63 @@ EXPORT void subsystem5_test(void)
 			   "sensor answering (no SENSOR fault; needs sonar wired)");
 		TEST_CHECK("S5-U11", h.deadline_overruns == 0U,
 			   "no missed 60 ms guard ticks");
+	}
+
+	/* ---- v3.0 ------------------------------------------------------ */
+	{
+		/* An 80 mm box square on, 280 mm ahead, seen by a 7.5 deg beam
+		   on the 10 deg grid, edges probed to 2.5 deg: same vector as
+		   host test V2. The refined centre must be straight ahead. */
+		static const int16_t  b[7] = { -30, -20, -10, 0, 10, 20, 30 };
+		static const uint16_t r[7] = { OBSTACLE_RANGE_CLEAR,
+			OBSTACLE_RANGE_CLEAR, 284U, 280U, 284U,
+			OBSTACLE_RANGE_CLEAR, OBSTACLE_RANGE_CLEAR };
+		const s5_geom_cal_t    cal = { 75, 10, 30, OBSTACLE_TRIGGER_MM };
+		const s5_edge_probes_t pr  = { { true, 150, 175 },
+					       { true, -150, -175 } };
+		s5_sample_t        s[7];
+		obstacle_profile_t p;
+		uint8_t            i;
+
+		for (i = 0U; i < 7U; i++) {
+			s[i] = s5_sample_pack(b[i], r[i]);
+		}
+		obstacle_profile_build(s, 7U, &p);
+		obstacle_profile_refine(&p, &cal, &pr);
+
+		tm_printf((UB*)"[INFO] S5 refined: centre %d deg, width %d mm,"
+			  " action %d\n", (INT)p.bearing_deg, (INT)p.width_mm,
+			  (INT)p.action);
+		TEST_CHECK("S5-U12", (p.bearing_deg == 0) &&
+			   (p.width_mm >= 60U) && (p.width_mm <= 100U),
+			   "v3.0 refined centre 0 deg, width 60..100 mm");
+	}
+
+	{
+		const s5_watch_t w = s5_watch_pack(true, S5_WATCH_CLEARING,
+						   250U, 140U, 280U);
+
+		TEST_CHECK("S5-U13", s5_watch_left(w) &&
+			   (s5_watch_phase(w) == S5_WATCH_CLEARING) &&
+			   (s5_watch_reverse_mm(w) == 250U) &&
+			   (s5_watch_lateral_mm(w) == 140U) &&
+			   (s5_watch_range(w) == 280U),
+			   "v3.0 watch word round trip on the ARM compiler");
+	}
+
+	{
+		obstacle_health_t h;
+
+		obstacle_get_health(&h);
+		tm_printf((UB*)"[INFO] S5 calibration: %s (trim %d, backlash %d,"
+			  " beam %d in 0.1 deg; range x%d/4096, offset %d mm)\n",
+			  h.calibrated ? "DONE" : "NOT DONE - run S5_CAL_BUILD",
+			  (INT)S5_CAL_SERVO_TRIM_DDEG,
+			  (INT)S5_CAL_SERVO_BACKLASH_DDEG,
+			  (INT)S5_CAL_BEAM_HALF_DDEG, (INT)S5_CAL_RANGE_SCALE_Q12,
+			  (INT)S5_CAL_RANGE_OFFSET_MM);
+		TEST_CHECK("S5-U14", h.calibrated == (S5_CAL_DONE != 0),
+			   "health reports the calibration status");
 	}
 
 	TEST_SUMMARY("subsystem5");
