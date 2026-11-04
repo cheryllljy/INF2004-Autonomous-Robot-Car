@@ -14,6 +14,7 @@
  */
 
 #include "vehicle_controller.h"
+#include "vc_obstacle.h"		/* Buddy 5 hook (v3.0) */
 #include "../subsystem2/motion_control.h"
 #include "../subsystem3/b3_port.h"
 #include "../subsystem5/subsystem5.h"
@@ -98,6 +99,12 @@ EXPORT void vc_fill_telemetry(B1_Telemetry *p_out)
 LOCAL void enter(vc_state_t next)
 {
 	if (next != vc.state) {
+		/* Buddy 5: leaving OBSTACLE any way but "bypass done" (STOP,
+		   E-stop, RESET) ends the manoeuvre and frees S5. */
+		if ((vc.state == VC_STATE_OBSTACLE) &&
+		    (next != VC_STATE_LINE_FOLLOW)) {
+			vc_obs_leave();
+		}
 		tm_printf((UB*)"[VC] state %d -> %d\n", vc.state, next);
 		vc.state = next;
 		vc.state_ms = 0;
@@ -333,6 +340,11 @@ LOCAL void handle_flags(void)
 /*  3. Inputs from the other subsystems                               */
 /* ------------------------------------------------------------------ */
 
+LOCAL int32_t abs_i32(int32_t v)
+{
+	return (v < 0) ? -v : v;
+}
+
 /* IF-S5-4: called from Buddy 5's task; never blocks */
 LOCAL bool vc_odometry(int32_t *p_speed_mm_s, int32_t *p_distance_mm)
 {
@@ -359,8 +371,12 @@ LOCAL void read_motion(void)
 
 	g_odo_seq++;			/* odd: writing */
 	__sync_synchronize();
-	g_odo_speed_mm_s = ((int32_t)vc.motion.speed_l_mmps +
-			    vc.motion.speed_r_mmps) / 2;
+	/* Buddy 5 (v3.0): the FASTER wheel, not the mean. Turning on the
+	   spot the mean is ~0, and S5's WaitStopped would sweep while the
+	   car is still spinning. */
+	g_odo_speed_mm_s = (abs_i32(vc.motion.speed_l_mmps) >
+			    abs_i32(vc.motion.speed_r_mmps)) ?
+			   vc.motion.speed_l_mmps : vc.motion.speed_r_mmps;
 	g_odo_dist_mm    = vc.motion.distance_total_mm;
 	__sync_synchronize();
 	g_odo_seq++;			/* even: done */
@@ -380,7 +396,8 @@ LOCAL void read_imu(b3_context_t *p_ctx)
 	p_ctx->terrain_unstable = false;
 }
 
-/* OWNER: Buddy 5 -- obstacle events (IF-S5-1). Skipped until S5 runs. */
+/* OWNER: Buddy 5 -- obstacle events (IF-S5-1, IF-S5-7). The manoeuvre
+   itself is in vc_obstacle.c; this only routes the events. */
 LOCAL void read_obstacle(void)
 {
 	UINT	ptn = 0U;
@@ -392,21 +409,55 @@ LOCAL void read_obstacle(void)
 		       &ptn, TMO_POL) < E_OK) {
 		return;				/* nothing new */
 	}
+
+	/* Under 120 mm while moving: cut the motors now (Buddy 2's
+	   obstacle cause bit, released by vc_obstacle once stopped). Not
+	   the latched E-stop. */
+	if ((ptn & S5_EVT_HARD_STOP) &&
+	    ((vc.state == VC_STATE_LINE_FOLLOW) ||
+	     (vc.state == VC_STATE_TURNING) ||
+	     (vc.state == VC_STATE_OBSTACLE))) {
+		vc_obs_hard_stop(&vc.motion);
+	}
+
 	if ((ptn & (S5_EVT_DETECTED | S5_EVT_HARD_STOP)) &&
 	    ((vc.state == VC_STATE_LINE_FOLLOW) ||
 	     (vc.state == VC_STATE_TURNING))) {
 		stop_motors();			/* normal stop, not an E-stop */
 		enter(VC_STATE_OBSTACLE);
+		vc_obs_begin(&vc.motion);
 	}
-	if (ptn & S5_EVT_PROFILED) {
-		/* TODO Buddy 5 + Buddy 2: bypass using obstacle_get_profile() */
-	}
-	if ((ptn & S5_EVT_CLEARED) && (vc.state == VC_STATE_OBSTACLE)) {
+
+	if (vc.state == VC_STATE_OBSTACLE) {
+		vc_obs_events(ptn);
+	} else if (ptn & S5_EVT_PROFILED) {
+		/* Parked (IDLE / STOPPED / E-stop): someone's hand in front
+		   of the sensor. Nothing to drive round; S5 back to GUARD. */
 		obstacle_resume();
-		enter(VC_STATE_LINE_FOLLOW);
 	}
-	/* S5_EVT_FAULT: S5 sets VC_FAULT_NO_ECHO itself (registered in
-	   vc_init), so the fault path above handles it. */
+
+	/* S5_EVT_FAULT: a SENSOR fault sets VC_FAULT_NO_ECHO itself
+	   (registered in vc_init). A mission fault (stop timeout, reverse
+	   limit, VC silent) latches S5, so it no longer looks for
+	   obstacles: while driving the car must not go on. Parked, there
+	   is nothing to protect: clear it so S5 keeps guarding. */
+	if (ptn & S5_EVT_FAULT) {
+		obstacle_health_t h;
+
+		obstacle_get_health(&h);
+		if ((h.fault != OBSTACLE_FAULT_NONE) &&
+		    (h.fault != OBSTACLE_FAULT_SENSOR)) {
+			if ((vc.state == VC_STATE_LINE_FOLLOW) ||
+			    (vc.state == VC_STATE_TURNING) ||
+			    (vc.state == VC_STATE_OBSTACLE)) {
+				vc_raise_fault(VC_FAULT_OBSTACLE);
+			} else {
+				tm_printf((UB*)"[VC] S5 fault %d while parked,"
+					  " cleared\n", (INT)h.fault);
+				obstacle_reset_fault();
+			}
+		}
+	}
 }
 
 /* ------------------------------------------------------------------ */
@@ -566,8 +617,22 @@ LOCAL void act(void)
 			vc_raise_fault(VC_FAULT_TASK);
 		}
 		break;
-	case VC_STATE_IDLE:
 	case VC_STATE_OBSTACLE:
+		/* Buddy 5: scan, reverse, bypass, rejoin (vc_obstacle.c) */
+		switch (vc_obs_step(&vc.motion, vc.line.line.left_black,
+				    vc.line.line.right_black, VC_PERIOD_MS)) {
+		case VC_OBS_DONE:
+			enter(VC_STATE_LINE_FOLLOW);
+			break;
+		case VC_OBS_FAULT:
+			vc_raise_fault(VC_FAULT_OBSTACLE);
+			break;
+		case VC_OBS_RUNNING:
+		default:
+			break;
+		}
+		break;
+	case VC_STATE_IDLE:
 	case VC_STATE_STOPPED:
 	case VC_STATE_ESTOP:
 	default:
@@ -600,6 +665,7 @@ LOCAL void vc_task(INT stacd, void *exinf)
 		poll_buddy1();
 		handle_flags();
 		read_motion();
+		vc_obs_service_cut(&vc.motion, VC_PERIOD_MS);	/* Buddy 5 */
 		read_obstacle();
 		exchange_line();
 		act();

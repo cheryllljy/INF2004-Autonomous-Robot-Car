@@ -116,4 +116,12 @@ void drv_ultrasonic_get_stats(ultrasonic_stats_t *p_stats);
 /** Microsecond clock used for the timing evidence (build time). */
 uint32_t drv_ultrasonic_time_us(void);
 
+/** v3.0: echo width -> mm with the temperature-corrected speed of sound
+ *  but WITHOUT the s5_calib.h range fit. The calibration build fits
+ *  against this; everything else gets calibrated ranges from ping(). */
+uint16_t drv_us_raw_mm(uint32_t echo_us);
+
+/** Calibration only: replace the s5_calib.h range fit at run time. */
+void drv_us_set_cal(int32_t scale_q12, int32_t offset_mm);
+
 #endif /* DRV_ULTRASONIC_H */

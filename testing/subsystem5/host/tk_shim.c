@@ -42,6 +42,8 @@ static int      g_stop;
 static int      g_running;
 static jmp_buf  g_exit_point;
 static void   (*g_idle_hook)(void);
+static void   (*g_print_hook)(const char *text);
+static int      g_quiet;
 
 /*=====================================================================*/
 /* Clock                                                               */
@@ -94,6 +96,8 @@ void tkshim_reset(void)
     g_stop      = 0;
     g_running   = 0;
     g_idle_hook = NULL;
+    g_print_hook = NULL;
+    g_quiet = 0;
 }
 
 uint32_t tkshim_now_ms(void)            { return g_now_ms; }
@@ -331,14 +335,27 @@ ER tk_get_otm(SYSTIM *pk_tim)
     return E_OK;
 }
 
+void tkshim_set_print_hook(void (*hook)(const char *text)) { g_print_hook = hook; }
+void tkshim_set_quiet(int quiet) { g_quiet = quiet; }
+
 INT tm_printf(const UB *format, ...)
 {
     va_list ap;
+    char    buf[512];
     int     n;
 
     va_start(ap, format);
-    n = vprintf((const char *)format, ap);
+    n = vsnprintf(buf, sizeof(buf), (const char *)format, ap);
     va_end(ap);
+
+    if (!g_quiet)
+    {
+        fputs(buf, stdout);
+    }
+    if (g_print_hook != NULL)
+    {
+        g_print_hook(buf);
+    }
 
     return n;
 }

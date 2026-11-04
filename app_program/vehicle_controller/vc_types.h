@@ -76,7 +76,9 @@ typedef enum {
 #define VC_FAULT_NO_ECHO	B1_FAULT_NO_ECHO	/* Buddy 5 (sets it itself) */
 #define VC_FAULT_WIFI_LOSS	B1_FAULT_WIFI_LOSS	/* Buddy 1 */
 #define VC_FAULT_LINE		(1U << 5)	/* Buddy 3: task error, event queue full */
-#define VC_FAULT_SPARE		(1U << 6)	/* free for the team */
+#define VC_FAULT_OBSTACLE	(1U << 6)	/* Buddy 5: ObstacleScan mission
+						   fault or a failed bypass
+						   (v3.0, was VC_FAULT_SPARE) */
 #define VC_FAULT_TASK		(1U << 7)	/* VehicleController / kernel call */
 #define VC_FAULT_BITS		8U
 #define VC_FAULT_MASK		((1U << VC_FAULT_BITS) - 1U)
@@ -137,7 +139,7 @@ _Static_assert(B3_NAV_UTURN < (1U << VC_NAV_BITS),
 	       "b3_nav_command_t no longer fits 3 bits");
 _Static_assert((VC_FAULT_MOTOR_STALL + VC_FAULT_ENCODER + VC_FAULT_IMU +
 		VC_FAULT_NO_ECHO + VC_FAULT_WIFI_LOSS + VC_FAULT_LINE +
-		VC_FAULT_SPARE + VC_FAULT_TASK) == VC_FAULT_MASK,
+		VC_FAULT_OBSTACLE + VC_FAULT_TASK) == VC_FAULT_MASK,
 	       "fault cause bits must be distinct and fill 8 bits");
 _Static_assert(VC_SW_USED_BITS <= 32U, "status word overflow");
 

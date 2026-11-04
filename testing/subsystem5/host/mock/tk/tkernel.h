@@ -119,6 +119,10 @@ uint32_t tkshim_now_ms(void);
 void     tkshim_set_time_budget_ms(uint32_t budget_ms);
 /** Called once per simulated millisecond (the "other tasks"). */
 void     tkshim_set_idle_hook(void (*hook)(void));
+/** v3.0: see every tm_printf line (the calibration test follows the
+ *  prompts), and optionally keep stdout quiet. */
+void     tkshim_set_print_hook(void (*hook)(const char *text));
+void     tkshim_set_quiet(int quiet);
 /** Current pattern of a flag, for test observers. */
 UINT     tkshim_flag_pattern(ID flgid);
 

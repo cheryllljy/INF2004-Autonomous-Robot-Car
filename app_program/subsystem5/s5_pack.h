@@ -274,6 +274,104 @@ static inline uint32_t s5_front_stamp(s5_front_t w)
     return S5_GET(w, S5_FRONT_TIME_SHIFT, S5_TIME_BITS);
 }
 
+/*=====================================================================*/
+/* v3.0 watch word: 32 bits, shared without a lock                     */
+/*=====================================================================*/
+
+/*
+ * What S5 knows about the obstacle beside the car on the pass leg, and
+ * how far it wants the car to back up after a REVERSE profile. One
+ * writer (the obstacle task), one store, so VehicleController and the
+ * telemetry read a matching set with one load.
+ *
+ *   bit 31      side: 1 = obstacle on the LEFT (car passes on its right)
+ *   bit 30..28  watch phase (3 bits, 6 values)
+ *   bit 27..20  reverse distance, 2 mm units (8 bits, 0..510 mm)
+ *   bit 19..12  lateral clearance, sensor axis to face, 4 mm units
+ *               (8 bits, 0..1020 mm, saturating)
+ *   bit 11..0   last side range, 12-bit code
+ *
+ * Units of 2 mm and 4 mm: the reverse is driven by encoders good to
+ * ~3 mm (NFR12), and the side clearance is compared with a 40 mm limit,
+ * so finer steps would be bits with no information in them (CR1).
+ */
+typedef uint32_t s5_watch_t;
+
+typedef enum
+{
+    S5_WATCH_IDLE = 0,      /* not watching                           */
+    S5_WATCH_LOOKING,       /* pass leg started, obstacle not yet beside */
+    S5_WATCH_SEEN,          /* obstacle face beside the car           */
+    S5_WATCH_CLEARING,      /* face gone; driving until the rear clears */
+    S5_WATCH_PASSED,        /* S5_EVT_PASSED raised                   */
+    S5_WATCH_BLIND,         /* never saw it beside us: use the profile */
+    S5_WATCH_PHASE_COUNT
+} s5_watch_phase_t;
+
+#define S5_WATCH_RANGE_SHIFT        (0U)
+#define S5_WATCH_LAT_SHIFT          (12U)
+#define S5_WATCH_LAT_BITS           (8U)
+#define S5_WATCH_LAT_UNIT_MM        (4U)
+#define S5_WATCH_REV_SHIFT          (20U)
+#define S5_WATCH_REV_BITS           (8U)
+#define S5_WATCH_REV_UNIT_MM        (2U)
+#define S5_WATCH_PHASE_SHIFT        (28U)
+#define S5_WATCH_PHASE_BITS         (3U)
+#define S5_WATCH_SIDE_SHIFT         (31U)
+
+static inline s5_watch_t s5_watch_pack(bool left, s5_watch_phase_t phase,
+                                       uint16_t reverse_mm,
+                                       uint16_t lateral_mm,
+                                       uint16_t side_range_mm)
+{
+    const uint32_t rev = s5_sat_u(((uint32_t)reverse_mm +
+                                   (S5_WATCH_REV_UNIT_MM / 2U)) /
+                                  S5_WATCH_REV_UNIT_MM, S5_WATCH_REV_BITS);
+    const uint32_t lat = s5_sat_u((uint32_t)lateral_mm /
+                                  S5_WATCH_LAT_UNIT_MM, S5_WATCH_LAT_BITS);
+
+    return S5_PUT(s5_range_encode(side_range_mm), S5_WATCH_RANGE_SHIFT,
+                  S5_RANGE_BITS) |
+           S5_PUT(lat, S5_WATCH_LAT_SHIFT, S5_WATCH_LAT_BITS) |
+           S5_PUT(rev, S5_WATCH_REV_SHIFT, S5_WATCH_REV_BITS) |
+           S5_PUT((uint32_t)phase, S5_WATCH_PHASE_SHIFT,
+                  S5_WATCH_PHASE_BITS) |
+           S5_PUT(left ? 1U : 0U, S5_WATCH_SIDE_SHIFT, 1U);
+}
+
+static inline bool s5_watch_left(s5_watch_t w)
+{
+    return (S5_GET(w, S5_WATCH_SIDE_SHIFT, 1U) != 0U);
+}
+
+static inline s5_watch_phase_t s5_watch_phase(s5_watch_t w)
+{
+    const uint32_t p = S5_GET(w, S5_WATCH_PHASE_SHIFT, S5_WATCH_PHASE_BITS);
+
+    /* A corrupt code must never read as PASSED. */
+    return (p < (uint32_t)S5_WATCH_PHASE_COUNT) ? (s5_watch_phase_t)p
+                                                 : S5_WATCH_BLIND;
+}
+
+static inline uint16_t s5_watch_reverse_mm(s5_watch_t w)
+{
+    return (uint16_t)(S5_GET(w, S5_WATCH_REV_SHIFT, S5_WATCH_REV_BITS) *
+                      S5_WATCH_REV_UNIT_MM);
+}
+
+static inline uint16_t s5_watch_lateral_mm(s5_watch_t w)
+{
+    return (uint16_t)(S5_GET(w, S5_WATCH_LAT_SHIFT, S5_WATCH_LAT_BITS) *
+                      S5_WATCH_LAT_UNIT_MM);
+}
+
+static inline uint16_t s5_watch_range(s5_watch_t w)
+{
+    return s5_range_decode(S5_GET(w, S5_WATCH_RANGE_SHIFT, S5_RANGE_BITS));
+}
+
+S5_STATIC_ASSERT(S5_WATCH_PHASE_COUNT <= 8, watch_phase_fits_3_bits);
+S5_STATIC_ASSERT(S5_WATCH_SIDE_SHIFT == 31U, watch_fills_32);
 S5_STATIC_ASSERT(S5_FRONT_TIME_SHIFT + S5_TIME_BITS == 32U, front_fills_32);
 S5_STATIC_ASSERT(sizeof(s5_sample_t) == 2U, sample_is_16_bits);
 

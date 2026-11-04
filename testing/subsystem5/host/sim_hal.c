@@ -22,10 +22,11 @@
 
 #include "drv_servo.h"
 #include "drv_ultrasonic.h"
+#include "s5_calib.h"
 
 #define SIM_MAX_BOXES       (4)
-#define SIM_BEAM_HALF_DEG   (7.5)
-#define SIM_BEAM_RAYS       (5)
+#define SIM_BEAM_RAYS       (9)
+#define SIM_SPEED_DMM_MS    (3464.0)    /* same as the driver at 25 C */
 #define SIM_PI              (3.14159265358979323846)
 #define SIM_QUIET_MS        (60U)   /* real: 60 ms of kernel time */
 #define SIM_WINDOW_MS       (30U)   /* real: 30 ms of kernel time (v2.1) */
@@ -48,8 +49,25 @@ static int                g_fired;
 static uint32_t           g_noise_seed = 1U;
 static int16_t            g_noise_mm;
 static int32_t            g_speed;
+static int32_t            g_distance;
 static ultrasonic_stats_t g_stats;
 static sim_counters_t     g_counters;
+
+/* v3.0 error model */
+static double  g_beam_half = 7.5;
+static int16_t g_true_trim;         /* 0.1 deg */
+static int16_t g_true_backlash;     /* 0.1 deg */
+static double  g_range_scale;
+static double  g_range_off;
+static int32_t g_cmd_ddeg  = 900;   /* last physical command */
+static double  g_phys_ddeg = 900.0; /* where the horn is */
+static int8_t  g_dir;
+static int32_t g_logical = 900;     /* last logical command, 0.1 deg */
+static int16_t g_cal_trim     = (int16_t)S5_CAL_SERVO_TRIM_DDEG;
+static int16_t g_cal_backlash = (int16_t)S5_CAL_SERVO_BACKLASH_DDEG;
+static int32_t g_cal_scale    = (int32_t)S5_CAL_RANGE_SCALE_Q12;
+static int32_t g_cal_offset   = (int32_t)S5_CAL_RANGE_OFFSET_MM;
+static double (*g_ray_fn)(double bearing_deg);
 
 /*=====================================================================*/
 /* World control                                                       */
@@ -85,9 +103,46 @@ void sim_set_speed_mm_s(int32_t s)    { g_speed = s; }
 bool sim_odometry(int32_t *p_speed_mm_s, int32_t *p_distance_mm)
 {
     *p_speed_mm_s  = g_speed;
-    *p_distance_mm = 0;
+    *p_distance_mm = g_distance;
 
     return true;
+}
+
+void sim_set_distance_mm(int32_t d) { g_distance = d; }
+
+void sim_set_servo_error(int16_t t, int16_t b)
+{
+    g_true_trim     = t;
+    g_true_backlash = b;
+}
+
+void sim_set_beam_half_deg(double h)            { g_beam_half = h; }
+void sim_set_range_error(double sc, double off) { g_range_scale = sc; g_range_off = off; }
+void sim_set_ray_fn(double (*fn)(double))       { g_ray_fn = fn; }
+
+double sim_sensor_bearing_deg(void)
+{
+    return (g_phys_ddeg - 900.0 - (double)g_true_trim) / 10.0;
+}
+
+/** The gears: moving up the horn stops `backlash` short, moving down it
+ *  stops `backlash` over; holding still it stays put. */
+static void sim_servo_command(int32_t cmd_ddeg)
+{
+    if (cmd_ddeg > g_cmd_ddeg)
+    {
+        g_phys_ddeg = (double)(cmd_ddeg - g_true_backlash);
+    }
+    else if (cmd_ddeg < g_cmd_ddeg)
+    {
+        g_phys_ddeg = (double)(cmd_ddeg + g_true_backlash);
+    }
+    else
+    {
+        /* No move. */
+    }
+
+    g_cmd_ddeg = cmd_ddeg;
 }
 
 void sim_counters_reset(void)
@@ -97,7 +152,22 @@ void sim_counters_reset(void)
     g_fired = 0;
     g_angle = DRV_SERVO_CENTRE_DEG;
     g_speed = 0;
+    g_distance = 0;
     g_noise_mm = 0;
+    g_beam_half = 7.5;
+    g_true_trim = 0;
+    g_true_backlash = 0;
+    g_range_scale = 0.0;
+    g_range_off = 0.0;
+    g_cmd_ddeg = 900;
+    g_phys_ddeg = 900.0;
+    g_dir = 0;
+    g_logical = 900;
+    g_cal_trim     = (int16_t)S5_CAL_SERVO_TRIM_DDEG;
+    g_cal_backlash = (int16_t)S5_CAL_SERVO_BACKLASH_DDEG;
+    g_cal_scale    = (int32_t)S5_CAL_RANGE_SCALE_Q12;
+    g_cal_offset   = (int32_t)S5_CAL_RANGE_OFFSET_MM;
+    g_ray_fn = NULL;
 }
 
 void sim_counters_get(sim_counters_t *p_out)
@@ -111,6 +181,11 @@ void sim_counters_get(sim_counters_t *p_out)
 
 static double sim_cast_ray(double bearing_deg)
 {
+    if (g_ray_fn != NULL)
+    {
+        return g_ray_fn(bearing_deg);
+    }
+
     const double rad  = bearing_deg * SIM_PI / 180.0;
     const double sinb = sin(rad);
     const double cosb = cos(rad);
@@ -146,8 +221,8 @@ static double sim_beam_range(double bearing_deg)
 
     for (i = 0; i < SIM_BEAM_RAYS; i++)
     {
-        const double off = -SIM_BEAM_HALF_DEG +
-                           ((2.0 * SIM_BEAM_HALF_DEG * i) /
+        const double off = -g_beam_half +
+                           ((2.0 * g_beam_half * i) /
                             (SIM_BEAM_RAYS - 1));
         const double r   = sim_cast_ray(bearing_deg + off);
 
@@ -186,7 +261,33 @@ static void sim_count(uint16_t *p)
 bool drv_servo_init(void)
 {
     g_angle = DRV_SERVO_CENTRE_DEG;
+    g_dir   = 0;
+    g_logical = (int32_t)g_angle * 10;
+    sim_servo_command(drv_servo_correct_ddeg(g_logical, 0, g_cal_trim,
+                                             g_cal_backlash));
     return true;
+}
+
+bool drv_servo_set_angle_ddeg(int16_t ddeg)
+{
+    int32_t c = ddeg;
+
+    if (c < DRV_SERVO_MIN_DEG * 10) { c = DRV_SERVO_MIN_DEG * 10; }
+    if (c > DRV_SERVO_MAX_DEG * 10) { c = DRV_SERVO_MAX_DEG * 10; }
+
+    if (c != g_logical)
+    {
+        g_counters.servo_moves++;
+        g_dir = (c > g_logical) ? 1 : -1;
+    }
+    g_logical = c;
+    g_angle   = (int16_t)((c + 5) / 10);
+
+    /* The real driver's correction (drv_servo.h), then the gears. */
+    sim_servo_command(drv_servo_correct_ddeg(c, g_dir, g_cal_trim,
+                                             g_cal_backlash));
+
+    return (c == ddeg);
 }
 
 bool drv_servo_set_angle(int16_t angle_deg)
@@ -196,13 +297,30 @@ bool drv_servo_set_angle(int16_t angle_deg)
     if (c < DRV_SERVO_MIN_DEG) { c = DRV_SERVO_MIN_DEG; }
     if (c > DRV_SERVO_MAX_DEG) { c = DRV_SERVO_MAX_DEG; }
 
-    if (c != g_angle)
-    {
-        g_counters.servo_moves++;
-    }
-    g_angle = c;
+    (void)drv_servo_set_angle_ddeg((int16_t)(c * 10));
 
     return (c == angle_deg);
+}
+
+bool drv_servo_set_raw_ddeg(int16_t ddeg)
+{
+    int16_t c = ddeg;
+
+    if (c < (int16_t)(DRV_SERVO_MIN_DEG * 10)) { c = (int16_t)(DRV_SERVO_MIN_DEG * 10); }
+    if (c > (int16_t)(DRV_SERVO_MAX_DEG * 10)) { c = (int16_t)(DRV_SERVO_MAX_DEG * 10); }
+
+    g_angle   = (int16_t)(c / 10);
+    g_logical = (int32_t)c - g_cal_trim;
+    g_dir     = 0;
+    sim_servo_command((int32_t)c);
+
+    return (c == ddeg);
+}
+
+void drv_servo_set_cal(int16_t trim_ddeg, int16_t backlash_ddeg)
+{
+    g_cal_trim     = trim_ddeg;
+    g_cal_backlash = backlash_ddeg;
 }
 
 int16_t drv_servo_get_angle(void)
@@ -275,8 +393,7 @@ ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result)
         }
         else
         {
-            const double range =
-                sim_beam_range((double)(g_angle - DRV_SERVO_CENTRE_DEG));
+            const double range = sim_beam_range(sim_sensor_bearing_deg());
 
             if (range <= 0.0)
             {
@@ -285,9 +402,14 @@ ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result)
             }
             else
             {
-                const int32_t r = (int32_t)(range + 0.5) + sim_noise();
+                /* What the sensor really reports, then what the driver
+                 * makes of it with the current calibration. */
+                const double  raw = (range * (1.0 + g_range_scale)) +
+                                    g_range_off + (double)sim_noise();
+                const int32_t r   = (((int32_t)(raw + 0.5) * g_cal_scale) /
+                                     4096) + g_cal_offset;
 
-                echo = (uint32_t)((2.0 * range) / 0.343);
+                echo = (uint32_t)((raw * 20000.0 / SIM_SPEED_DMM_MS) + 0.5);
 
                 if (r < (int32_t)DRV_US_MIN_VALID_MM)
                 {
@@ -377,4 +499,15 @@ ultrasonic_status_t drv_ultrasonic_ping_median(ultrasonic_result_t *p_result)
 void drv_ultrasonic_get_stats(ultrasonic_stats_t *p_stats)
 {
     *p_stats = g_stats;
+}
+
+uint16_t drv_us_raw_mm(uint32_t echo_us)
+{
+    return (uint16_t)(((double)echo_us * SIM_SPEED_DMM_MS / 20000.0) + 0.5);
+}
+
+void drv_us_set_cal(int32_t scale_q12, int32_t offset_mm)
+{
+    g_cal_scale  = scale_q12;
+    g_cal_offset = offset_mm;
 }

@@ -14,6 +14,7 @@
 #include "drv_servo.h"
 
 #include "drv_pwm_s5.h"
+#include "s5_calib.h"
 #include "s5_config.h"
 #include "s5_pack.h"
 
@@ -57,45 +58,68 @@ S5_STATIC_ASSERT(S5_PWM_IS_CHAN_B(S5_SERVO_GPIO), servo_on_channel_b);
 static int16_t g_angle_deg = DRV_SERVO_CENTRE_DEG;
 static bool    g_ready     = false;
 
+/** v3.0 backlash: direction of the last move, +1 left, -1 right. The
+ *  correction keeps its sign while the horn holds still, because the
+ *  gears stay where the last move left them. */
+static int8_t  g_last_dir  = 0;
+
+/** Live calibration. Start from s5_calib.h; only the calibration build
+ *  changes them (drv_servo_set_cal), to verify new values at once. */
+static int16_t g_trim_ddeg     = (int16_t)S5_CAL_SERVO_TRIM_DDEG;
+static int16_t g_backlash_ddeg = (int16_t)S5_CAL_SERVO_BACKLASH_DDEG;
+
+/* A calibration that would push the 60..120 deg window past the
+ * physical 0..180 range is a typo, not a measurement. */
+S5_STATIC_ASSERT((S5_CAL_SERVO_TRIM_DDEG <= 300) &&
+                 (S5_CAL_SERVO_TRIM_DDEG >= -300), servo_trim_sane);
+S5_STATIC_ASSERT((S5_CAL_SERVO_BACKLASH_DDEG >= 0) &&
+                 (S5_CAL_SERVO_BACKLASH_DDEG <= 80), servo_backlash_sane);
+
 /*=====================================================================*/
 /* Private helpers                                                     */
 /*=====================================================================*/
 
-static UW drv_servo_angle_to_us(int16_t angle_deg)
+/** Pulse for a PHYSICAL angle in 0.1 deg (no trim, no backlash). One
+ *  count is 1 us = 0.09 deg, so 0.1 deg steps are real. */
+static UW drv_servo_ddeg_to_us(int32_t ddeg)
 {
-    int32_t effective = (int32_t)angle_deg;
+    int32_t effective = ddeg;
     int32_t span_us;
 
+    if (effective < 0)
+    {
+        effective = 0;
+    }
+    else if (effective > ((int32_t)DRV_SERVO_SPAN_DEG * 10))
+    {
+        effective = (int32_t)DRV_SERVO_SPAN_DEG * 10;
+    }
+    else
+    {
+        /* In range. */
+    }
+
 #if (DRV_SERVO_INVERT != 0)
-    effective = (int32_t)DRV_SERVO_SPAN_DEG - effective;
+    effective = ((int32_t)DRV_SERVO_SPAN_DEG * 10) - effective;
 #endif
 
     span_us = (int32_t)DRV_SERVO_PULSE_MAX_US -
               (int32_t)DRV_SERVO_PULSE_MIN_US;
 
     return (UW)((int32_t)DRV_SERVO_PULSE_MIN_US +
-                ((effective * span_us) / (int32_t)DRV_SERVO_SPAN_DEG));
+                ((effective * span_us) /
+                 ((int32_t)DRV_SERVO_SPAN_DEG * 10)));
 }
 
-static int16_t drv_servo_clamp(int16_t angle_deg)
+/** Logical angle -> physical command with the live calibration. */
+static int32_t drv_servo_corrected_ddeg(int32_t angle_ddeg, int8_t dir)
 {
-    int16_t result = angle_deg;
-
-    if (result < (int16_t)DRV_SERVO_MIN_DEG)
-    {
-        result = (int16_t)DRV_SERVO_MIN_DEG;
-    }
-    else if (result > (int16_t)DRV_SERVO_MAX_DEG)
-    {
-        result = (int16_t)DRV_SERVO_MAX_DEG;
-    }
-    else
-    {
-        /* Inside the limits. */
-    }
-
-    return result;
+    return drv_servo_correct_ddeg(angle_ddeg, dir, g_trim_ddeg,
+                                  g_backlash_ddeg);
 }
+
+/** Last logical command in 0.1 deg, for the direction of travel. */
+static int32_t g_logical_ddeg = (int32_t)DRV_SERVO_CENTRE_DEG * 10;
 
 /*=====================================================================*/
 /* Public interface                                                    */
@@ -118,7 +142,11 @@ bool drv_servo_init(void)
     (void)pwm_set_wrap((UINT)S5_SERVO_GPIO, (UW)(DRV_SERVO_PERIOD_US - 1U));
 
     g_angle_deg = (int16_t)DRV_SERVO_CENTRE_DEG;
-    (void)pwm_set_cc((UINT)S5_SERVO_GPIO, drv_servo_angle_to_us(g_angle_deg));
+    g_last_dir  = 0;
+    g_logical_ddeg = (int32_t)g_angle_deg * 10;
+    (void)pwm_set_cc((UINT)S5_SERVO_GPIO,
+                     drv_servo_ddeg_to_us(drv_servo_corrected_ddeg(
+                         g_logical_ddeg, g_last_dir)));
 
     /* Route the pin to the PWM block only after the compare value is
      * set, so the servo never sees a garbage first pulse. */
@@ -130,16 +158,90 @@ bool drv_servo_init(void)
     return g_ready;
 }
 
-bool drv_servo_set_angle(int16_t angle_deg)
+bool drv_servo_set_angle_ddeg(int16_t ddeg)
 {
-    bool          exact   = false;
-    const int16_t clamped = drv_servo_clamp(angle_deg);
+    bool    exact = false;
+    int32_t c     = (int32_t)ddeg;
+
+    if (c < ((int32_t)DRV_SERVO_MIN_DEG * 10))
+    {
+        c = (int32_t)DRV_SERVO_MIN_DEG * 10;
+    }
+    else if (c > ((int32_t)DRV_SERVO_MAX_DEG * 10))
+    {
+        c = (int32_t)DRV_SERVO_MAX_DEG * 10;
+    }
+    else
+    {
+        /* Inside the limits. */
+    }
 
     if (g_ready)
     {
-        (void)pwm_set_cc((UINT)S5_SERVO_GPIO, drv_servo_angle_to_us(clamped));
-        g_angle_deg = clamped;
-        exact       = (clamped == angle_deg);
+        if (c > g_logical_ddeg)
+        {
+            g_last_dir = 1;
+        }
+        else if (c < g_logical_ddeg)
+        {
+            g_last_dir = -1;
+        }
+        else
+        {
+            /* Same angle: the gears have not moved. */
+        }
+
+        (void)pwm_set_cc((UINT)S5_SERVO_GPIO,
+                         drv_servo_ddeg_to_us(drv_servo_corrected_ddeg(
+                             c, g_last_dir)));
+        g_logical_ddeg = c;
+        g_angle_deg    = (int16_t)((c + 5) / 10);
+        exact          = (c == (int32_t)ddeg);
+    }
+
+    return exact;
+}
+
+bool drv_servo_set_angle(int16_t angle_deg)
+{
+    int32_t    d = (int32_t)angle_deg * 10;
+    const bool in_range = (d >= ((int32_t)DRV_SERVO_MIN_DEG * 10)) &&
+                          (d <= ((int32_t)DRV_SERVO_MAX_DEG * 10));
+
+    /* Keep the 0.1 deg value inside int16 whatever the caller sent;
+     * set_angle_ddeg clamps to the bracket limits. */
+    if (d < 0)    { d = 0; }
+    if (d > 1800) { d = 1800; }
+
+    return drv_servo_set_angle_ddeg((int16_t)d) && in_range;
+}
+
+bool drv_servo_set_raw_ddeg(int16_t ddeg)
+{
+    bool    exact = false;
+    int16_t c     = ddeg;
+
+    /* Same bracket limits as the logical command. */
+    if (c < (int16_t)(DRV_SERVO_MIN_DEG * 10))
+    {
+        c = (int16_t)(DRV_SERVO_MIN_DEG * 10);
+    }
+    else if (c > (int16_t)(DRV_SERVO_MAX_DEG * 10))
+    {
+        c = (int16_t)(DRV_SERVO_MAX_DEG * 10);
+    }
+    else
+    {
+        /* Inside the limits. */
+    }
+
+    if (g_ready)
+    {
+        (void)pwm_set_cc((UINT)S5_SERVO_GPIO, drv_servo_ddeg_to_us(c));
+        g_angle_deg    = (int16_t)(c / 10);
+        g_logical_ddeg = (int32_t)c - (int32_t)g_trim_ddeg;
+        g_last_dir     = 0;
+        exact          = (c == ddeg);
     }
 
     return exact;
@@ -170,4 +272,19 @@ void drv_servo_release(void)
         /* Compare 0 holds the output low: no pulse, servo goes limp. */
         (void)pwm_set_cc((UINT)S5_SERVO_GPIO, 0U);
     }
+}
+
+void drv_servo_set_cal(int16_t trim_ddeg, int16_t backlash_ddeg)
+{
+    int16_t t = trim_ddeg;
+    int16_t b = backlash_ddeg;
+
+    /* Same sanity window as the compile-time checks. */
+    if (t > 300)  { t = 300; }
+    if (t < -300) { t = -300; }
+    if (b < 0)    { b = 0; }
+    if (b > 80)   { b = 80; }
+
+    g_trim_ddeg     = t;
+    g_backlash_ddeg = b;
 }

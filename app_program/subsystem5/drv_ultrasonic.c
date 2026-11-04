@@ -44,6 +44,7 @@
 #include "drv_ultrasonic.h"
 
 #include "drv_pwm_s5.h"
+#include "s5_calib.h"
 #include "s5_config.h"
 
 #include <bsp/libbsp.h>
@@ -68,8 +69,13 @@
  */
 #define DRV_US_QUIET_MS             (60U)
 
-/** mm = us * 343 / 2000 (speed of sound ~343 m/s at 20 degC). */
-#define DRV_US_SPEED_MM_PER_MS      (343U)
+/** v3.0: speed of sound from the air temperature, in 0.1 m/s
+ *  (= 0.1 mm/ms): 331.3 + 0.606 T. 25 C -> 3464 (v2 used 343.0 fixed). */
+#define DRV_US_SPEED_DMM_PER_MS     (3313U + ((606U * (uint32_t)S5_AIR_TEMP_C) / 100U))
+
+S5_STATIC_ASSERT((S5_AIR_TEMP_C >= 0) && (S5_AIR_TEMP_C <= 50), air_temp_sane);
+S5_STATIC_ASSERT((S5_CAL_RANGE_SCALE_Q12 >= 3686) &&
+                 (S5_CAL_RANGE_SCALE_Q12 <= 4506), range_scale_within_10pc);
 
 /** Kernel tick, used to turn a remaining time into a delay. */
 #define DRV_US_TICK_MS              (10U)
@@ -87,6 +93,10 @@ static bool               g_fired_once   = false;
 static bool               g_ready        = false;
 static ultrasonic_stats_t g_stats        = { 0U, 0U, 0U, 0U };
 
+/* Live range calibration; only the calibration build changes it. */
+static int32_t g_scale_q12  = (int32_t)S5_CAL_RANGE_SCALE_Q12;
+static int32_t g_offset_mm  = (int32_t)S5_CAL_RANGE_OFFSET_MM;
+
 /*=====================================================================*/
 /* Private helpers                                                     */
 /*=====================================================================*/
@@ -99,13 +109,24 @@ static void drv_us_count(uint16_t *p_counter)
     }
 }
 
+/** Calibrated range: raw * scale / 4096 + offset, saturating. */
 static uint16_t drv_us_to_mm(uint32_t echo_us)
 {
-    uint32_t mm = (echo_us * DRV_US_SPEED_MM_PER_MS) / 2000U;
+    int32_t mm = (int32_t)drv_us_raw_mm(echo_us);
 
-    if (mm > 0xFFFDU)
+    mm = ((mm * g_scale_q12) / 4096) + g_offset_mm;
+
+    if (mm < 0)
     {
-        mm = 0xFFFDU;
+        mm = 0;
+    }
+    else if (mm > 0xFFFD)
+    {
+        mm = 0xFFFD;
+    }
+    else
+    {
+        /* In range. */
     }
 
     return (uint16_t)mm;
@@ -393,7 +414,32 @@ void drv_ultrasonic_get_stats(ultrasonic_stats_t *p_stats)
     }
 }
 
+uint16_t drv_us_raw_mm(uint32_t echo_us)
+{
+    /* echo <= 65535 us and speed <= 3616, so the product fits 32 bits. */
+    uint32_t mm = (echo_us * DRV_US_SPEED_DMM_PER_MS) / 20000U;
+
+    if (mm > 0xFFFDU)
+    {
+        mm = 0xFFFDU;
+    }
+
+    return (uint16_t)mm;
+}
+
 uint32_t drv_ultrasonic_time_us(void)
 {
     return (uint32_t)s5_time_us();
+}
+
+void drv_us_set_cal(int32_t scale_q12, int32_t offset_mm)
+{
+    /* +/-10 % and +/-100 mm, like the compile-time check. */
+    if (scale_q12 < 3686) { scale_q12 = 3686; }
+    if (scale_q12 > 4506) { scale_q12 = 4506; }
+    if (offset_mm < -100) { offset_mm = -100; }
+    if (offset_mm > 100)  { offset_mm = 100; }
+
+    g_scale_q12 = scale_q12;
+    g_offset_mm = offset_mm;
 }

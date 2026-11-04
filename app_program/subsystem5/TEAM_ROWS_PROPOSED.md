@@ -24,7 +24,7 @@ Also note: GP14 must not be used as PWM (it shares slice 7 with the servo).
 
 | Peripheral | Owner subsystem | Owning task | Pins |
 |---|---|---|---|
-| PWM slices (list) | S5 (Buddy 5): slice 0 (echo timing), slice 7 (servo) | `obstacle` | GP15, GP17 |
+| PWM slices (list) | S5 (Buddy 5): slice 0 (echo timing), slice 7 (servo) | `obstacle` (or `s5_cal` in the calibration image, never both) | GP15, GP17 |
 
 S5 releases the PWM block from reset at init (idempotent; `config.h` has
 `USE_PTMR = 0`). Buddy 2's motors need the same release.
@@ -43,12 +43,20 @@ mapping and change `S5_PRI_OBSTACLE` in `subsystem5.h` only.
 
 | ID | From → To | Mechanism | Object ID name | Data / meaning | Agreed by |
 |---|---|---|---|---|---|
-| IF-S5-1 | S5 → VehicleController | event flag (owned by S5) | `flg_obstacle` | DETECTED, HARD_STOP, PROFILED, CLEARED, FAULT; wait with `TWF_ORW \| TWF_BITCLR` | proposed |
+| IF-S5-1 | S5 → VehicleController | event flag (owned by S5) | `flg_obstacle` | DETECTED, HARD_STOP, PROFILED, CLEARED, FAULT, SIDE_CLOSE, PASSED (v3.0); wait with `TWF_ORW \| TWF_BITCLR` | proposed |
 | IF-S5-2 | VehicleController → S5 | function → flag bit | `obstacle_resume()`, `obstacle_reset_fault()` | bypass done / leave latched fault | proposed |
 | IF-S5-3 | S5 → any task | lock-free word; mutex copy | `obstacle_get_front_mm()`, `obstacle_get_profile()` | mm / CLEAR 0xFFFE / UNKNOWN 0xFFFF; profile | proposed |
 | IF-S5-4 | S2 → S5 | callback registered in `_init()` | `obstacle_register_odometry()` | speed mm/s, distance mm, non-blocking | proposed |
 | IF-S5-5 | S5 → E-stop owner | sets one bit, never clears | `obstacle_register_estop()` | sensor fault only | proposed |
-| IF-S5-6 | S5 → Telemetry (S1) | function | `obstacle_get_telemetry()` | 29 B binary, layout in `obstacle_model.h` | proposed |
+| IF-S5-6 | S5 → Telemetry (S1) | function | `obstacle_get_telemetry()` | 33 B binary, version 2 (v3.0), layout in `obstacle_model.h` | proposed |
+| IF-S5-7 | VehicleController ↔ S5 (v3.0 bypass) | functions → flag bits; lock-free watch word | `obstacle_watch_start/end()`, `obstacle_rescan()`, `obstacle_assist_kick()`, `obstacle_get_watch()` | pass-leg side watch, rescan after a reverse, VC heartbeat, side clearance and reverse distance | proposed |
+| IF-VC-5 | VehicleController → MotionControl (S2) | Buddy 2's e-stop cause bit | `MOTION_ESTOP_OBSTACLE` | HARD_STOP motor cut, set and cleared by `vc_obstacle.c` only | proposed |
+
+## VehicleController fault bits (v3.0)
+
+| Bit | Name | Set by | Cleared by |
+|---|---|---|---|
+| 6 | `VC_FAULT_OBSTACLE` (was `VC_FAULT_SPARE`) | VC, on an S5 mission fault while driving, or a failed bypass | VC on RESET (also calls `obstacle_reset_fault()`) |
 
 ## Section 6. Kernel object budget (S5 column)
 

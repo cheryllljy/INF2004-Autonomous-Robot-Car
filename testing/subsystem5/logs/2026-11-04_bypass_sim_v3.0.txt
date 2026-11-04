@@ -1,0 +1,129 @@
+S5-H07 2-D bypass simulation (no calibration)
+    rear 320 mm past the obstacle's far end
+C1 box 100x150 on the line                                 PASS
+    rejoined at y 1340 mm: axle -4 mm from the line, heading -0.0 deg; closest approach 71 mm; reverses 0, hard stops 0, side steps 0; episode 17.0 s
+     0.00 s  S5: ObstacleScan up (servo GP15, sonar GP16/17)
+     2.44 s  [VC-OBS] step 0 -> 1  (x 0 y 0 mm)
+     4.42 s  [VC-OBS] bypass LEFT: nearest 231 mm, swing 175 mm, out 70 deg
+     4.42 s  [VC-OBS] step 1 -> 4  (x 0 y 50 mm)
+     5.67 s  [VC-OBS] step 4 -> 5  (x 0 y 50 mm)
+     7.56 s  [VC-OBS] step 5 -> 6  (x 195 y 120 mm)
+     8.67 s  [VC-OBS] step 6 -> 7  (x 195 y 120 mm)
+     8.83 s  S5: watch 1 -> 2, face 145 mm beside, at 0 mm
+    10.08 s  S5: watch 2 -> 3, face 144 mm beside, at 162 mm
+    13.02 s  [VC-OBS] passed (closest face 144 mm from the sensor axis)
+    13.02 s  [VC-OBS] step 7 -> 9  (x 195 y 705 mm)
+    13.85 s  [VC-OBS] step 9 -> 10  (x 195 y 705 mm)
+    15.34 s  [VC-OBS] line found (x 58 mm)
+    16.18 s  [VC-OBS] step 10 -> 11  (x -4 y 905 mm)
+    17.01 s  [VC-OBS] rejoined: -4 mm from the line (PASS, tolerance 50), 14580 ms
+    17.01 s  [VC-OBS] step 11 -> 12  (x -4 y 905 mm)
+S5-H07 2-D bypass simulation (no calibration)
+    rear 401 mm past the obstacle's far end
+C3 wide box 300x150 (fills the +/-30 deg view)             PASS
+    rejoined at y 1421 mm: axle -4 mm from the line, heading +0.0 deg; closest approach 72 mm; reverses 1, hard stops 0, side steps 0; episode 21.6 s
+     0.00 s  S5: ObstacleScan up (servo GP15, sonar GP16/17)
+     2.44 s  [VC-OBS] step 0 -> 1  (x 0 y 0 mm)
+     4.03 s  [VC-OBS] reverse 168 mm to remeasure (nearest 233 mm)
+     4.03 s  [VC-OBS] step 1 -> 2  (x 0 y 50 mm)
+     6.09 s  [VC-OBS] step 2 -> 1  (x 0 y -119 mm)
+     7.73 s  [VC-OBS] bypass LEFT: nearest 402 mm, swing 275 mm, out 45 deg
+     7.73 s  [VC-OBS] step 1 -> 4  (x 0 y -119 mm)
+     8.70 s  [VC-OBS] step 4 -> 5  (x 0 y -119 mm)
+    11.99 s  [VC-OBS] step 5 -> 6  (x 295 y 176 mm)
+    12.82 s  [VC-OBS] step 6 -> 7  (x 295 y 176 mm)
+    12.98 s  S5: watch 1 -> 2, face 144 mm beside, at 0 mm
+    13.73 s  S5: watch 2 -> 3, face 144 mm beside, at 88 mm
+    16.67 s  [VC-OBS] passed (closest face 144 mm from the sensor axis)
+    16.67 s  [VC-OBS] step 7 -> 9  (x 295 y 686 mm)
+    17.50 s  [VC-OBS] step 9 -> 10  (x 295 y 686 mm)
+    19.94 s  [VC-OBS] line found (x 57 mm)
+    20.78 s  [VC-OBS] step 10 -> 11  (x -4 y 987 mm)
+    21.61 s  [VC-OBS] rejoined: -4 mm from the line (PASS, tolerance 50), 19180 ms
+    21.61 s  [VC-OBS] step 11 -> 12  (x -4 y 987 mm)
+S5-H07 2-D bypass simulation (no calibration)
+    rear 320 mm past the obstacle's far end
+C4 long box 100x450 (v2's guessed depth was 150)           PASS
+    rejoined at y 1640 mm: axle -4 mm from the line, heading -0.0 deg; closest approach 71 mm; reverses 0, hard stops 0, side steps 0; episode 19.0 s
+     0.00 s  S5: ObstacleScan up (servo GP15, sonar GP16/17)
+     2.44 s  [VC-OBS] step 0 -> 1  (x 0 y 0 mm)
+     4.42 s  [VC-OBS] bypass LEFT: nearest 231 mm, swing 175 mm, out 70 deg
+     4.42 s  [VC-OBS] step 1 -> 4  (x 0 y 50 mm)
+     5.67 s  [VC-OBS] step 4 -> 5  (x 0 y 50 mm)
+     7.56 s  [VC-OBS] step 5 -> 6  (x 195 y 120 mm)
+     8.67 s  [VC-OBS] step 6 -> 7  (x 195 y 120 mm)
+     8.83 s  S5: watch 1 -> 2, face 145 mm beside, at 0 mm
+    12.08 s  S5: watch 2 -> 3, face 144 mm beside, at 462 mm
+    15.02 s  [VC-OBS] passed (closest face 144 mm from the sensor axis)
+    15.02 s  [VC-OBS] step 7 -> 9  (x 195 y 1005 mm)
+    15.85 s  [VC-OBS] step 9 -> 10  (x 195 y 1005 mm)
+    17.34 s  [VC-OBS] line found (x 58 mm)
+    18.18 s  [VC-OBS] step 10 -> 11  (x -4 y 1205 mm)
+    19.01 s  [VC-OBS] rejoined: -4 mm from the line (PASS, tolerance 50), 16580 ms
+    19.01 s  [VC-OBS] step 11 -> 12  (x -4 y 1205 mm)
+S5-H07 2-D bypass simulation (no calibration)
+    rear 304 mm past the obstacle's far end
+C6 box dropped 90 mm in front while driving                PASS
+    rejoined at y 1042 mm: axle +4 mm from the line, heading +0.0 deg; closest approach 29 mm; reverses 1, hard stops 1, side steps 0; episode 19.5 s
+     0.00 s  S5: ObstacleScan up (servo GP15, sonar GP16/17)
+     2.02 s  [VC-OBS] HARD STOP: motors cut (200 mm/s)
+     2.02 s  [VC-OBS] step 0 -> 1  (x 0 y 0 mm)
+     2.18 s  [VC-OBS] hard stop released
+     3.19 s  [VC-OBS] reverse 172 mm to remeasure (nearest 79 mm)
+     3.19 s  [VC-OBS] step 1 -> 2  (x 0 y 7 mm)
+     5.29 s  [VC-OBS] step 2 -> 1  (x 0 y -167 mm)
+     6.85 s  [VC-OBS] bypass RIGHT: nearest 250 mm, swing 178 mm, out 70 deg
+     6.85 s  [VC-OBS] step 1 -> 4  (x 0 y -167 mm)
+     8.10 s  [VC-OBS] step 4 -> 5  (x 0 y -167 mm)
+    10.01 s  [VC-OBS] step 5 -> 6  (x -198 y -94 mm)
+    11.12 s  [VC-OBS] step 6 -> 7  (x -198 y -94 mm)
+    11.26 s  S5: watch 1 -> 2, face 150 mm beside, at 0 mm
+    12.51 s  S5: watch 2 -> 3, face 147 mm beside, at 160 mm
+    15.46 s  [VC-OBS] passed (closest face 144 mm from the sensor axis)
+    15.46 s  [VC-OBS] step 7 -> 9  (x -198 y 488 mm)
+    16.29 s  [VC-OBS] step 9 -> 10  (x -198 y 488 mm)
+    17.81 s  [VC-OBS] line found (x -58 mm)
+    18.65 s  [VC-OBS] step 10 -> 11  (x 3 y 691 mm)
+    19.48 s  [VC-OBS] rejoined: 3 mm from the line (PASS, tolerance 50), 17470 ms
+    19.48 s  [VC-OBS] step 11 -> 12  (x 3 y 691 mm)
+S5-H07 2-D bypass simulation (no calibration)
+C7 boxed in: box + walls both sides                        PASS
+    safe stop in FAULT after 10.6 s, closest approach 75 mm, reverses 2
+     0.00 s  S5: ObstacleScan up (servo GP15, sonar GP16/17)
+     2.44 s  [VC-OBS] step 0 -> 1  (x 0 y 0 mm)
+     4.03 s  [VC-OBS] reverse 168 mm to remeasure (nearest 233 mm)
+     4.03 s  [VC-OBS] step 1 -> 2  (x 0 y 50 mm)
+     6.09 s  [VC-OBS] step 2 -> 1  (x 0 y -119 mm)
+     7.30 s  [VC-OBS] reverse 154 mm to remeasure (nearest 247 mm)
+     7.30 s  [VC-OBS] step 1 -> 2  (x 0 y -119 mm)
+     9.22 s  [VC-OBS] step 2 -> 1  (x 0 y -275 mm)
+    10.55 s  S5: FAULT cause 3
+S5-H07 2-D bypass simulation (no calibration)
+    rear 1293 mm past the obstacle's far end
+C10 second box blocking the pass lane (replan from WATCH)  PASS
+    rejoined at y 2313 mm: axle +5 mm from the line, heading +0.0 deg; closest approach 32 mm; reverses 0, hard stops 0, side steps 0; episode 30.3 s
+     0.00 s  S5: ObstacleScan up (servo GP15, sonar GP16/17)
+     2.44 s  [VC-OBS] step 0 -> 1  (x 0 y 0 mm)
+     4.42 s  [VC-OBS] bypass LEFT: nearest 234 mm, swing 175 mm, out 70 deg
+     4.42 s  [VC-OBS] step 1 -> 4  (x 0 y 50 mm)
+     5.67 s  [VC-OBS] step 4 -> 5  (x 0 y 50 mm)
+     7.56 s  [VC-OBS] step 5 -> 6  (x 195 y 120 mm)
+     8.67 s  [VC-OBS] step 6 -> 7  (x 195 y 120 mm)
+     8.83 s  S5: watch 1 -> 2, face 145 mm beside, at 0 mm
+    10.08 s  S5: watch 2 -> 3, face 145 mm beside, at 162 mm
+    12.15 s  [VC-OBS] replan: something ahead on the pass leg
+    12.15 s  [VC-OBS] step 7 -> 3  (x 195 y 575 mm)
+    12.16 s  [VC-OBS] step 3 -> 1  (x 195 y 575 mm)
+    13.78 s  [VC-OBS] bypass RIGHT: nearest 207 mm, swing 171 mm, out 70 deg
+    13.78 s  [VC-OBS] step 1 -> 4  (x 195 y 575 mm)
+    15.03 s  [VC-OBS] step 4 -> 5  (x 195 y 575 mm)
+    18.28 s  [VC-OBS] step 5 -> 6  (x -191 y 716 mm)
+    19.39 s  [VC-OBS] step 6 -> 7  (x -191 y 716 mm)
+    21.82 s  S5: watch 1 -> 5, face 65535 mm beside, at 316 mm
+    26.34 s  [VC-OBS] no side data, using the profile pass distance
+    26.34 s  [VC-OBS] step 7 -> 9  (x -191 y 1683 mm)
+    27.17 s  [VC-OBS] step 9 -> 10  (x -191 y 1683 mm)
+    28.62 s  [VC-OBS] line found (x -58 mm)
+    29.46 s  [VC-OBS] step 10 -> 11  (x 3 y 1878 mm)
+    30.29 s  [VC-OBS] rejoined: 3 mm from the line (PASS, tolerance 50), 27860 ms
+    30.29 s  [VC-OBS] step 11 -> 12  (x 3 y 1878 mm)

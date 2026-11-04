@@ -25,9 +25,15 @@
  *	IF-S5-5  S5 -> E-stop owner        obstacle_register_estop(): S5 SETS its
  *	                                   cause bit on a sensor fault only;
  *	                                   only VehicleController clears it.
- *	IF-S5-6  S5 -> Telemetry (Buddy 1) obstacle_get_telemetry(): 29-byte
- *	                                   binary packet (layout in
- *	                                   obstacle_model.h)
+ *	IF-S5-6  S5 -> Telemetry (Buddy 1) obstacle_get_telemetry(): 33-byte
+ *	                                   binary packet, version 2 (layout
+ *	                                   in obstacle_model.h)
+ *	IF-S5-7  v3.0 VehicleController <-> S5, the bypass:
+ *	         obstacle_watch_start(side) / obstacle_watch_end()   pass leg
+ *	         obstacle_rescan()        after backing off a REVERSE
+ *	         obstacle_assist_kick()   every VC loop while OBSTACLE
+ *	         obstacle_get_watch()     side clearance, phase, reverse mm
+ *	         events S5_EVT_SIDE_CLOSE, S5_EVT_PASSED
  *
  *	Normal obstacle stops do NOT use the E-stop. S5 raises S5_EVT_DETECTED
  *	(and S5_EVT_HARD_STOP under 120 mm); VehicleController sends STOP to
@@ -66,10 +72,20 @@
 #define S5_EVT_CLEARED		0x0008U	/* OUT  scan found the path clear */
 #define S5_EVT_FAULT		0x0010U	/* OUT  S5 entered FAULT; see
 					   obstacle_get_health().fault */
-#define S5_EVT_ALL		0x001FU
+#define S5_EVT_SIDE_CLOSE	0x0020U	/* OUT  v3.0 WATCH: flank closer
+					   than S5_SIDE_CLOSE_MM to the
+					   obstacle: steer away */
+#define S5_EVT_PASSED		0x0040U	/* OUT  v3.0 WATCH: the rear of the
+					   car is past the obstacle */
+#define S5_EVT_ALL		0x007FU
 
 #define S5_REQ_RESUME		0x0100U	/* IN   bypass done, line found */
 #define S5_REQ_RESET		0x0200U	/* IN   leave a latched fault */
+#define S5_REQ_WATCH_LEFT	0x0400U	/* IN   v3.0 pass leg, obstacle on
+					   the car's left */
+#define S5_REQ_WATCH_RIGHT	0x0800U	/* IN   ...on the right */
+#define S5_REQ_WATCH_END	0x1000U	/* IN   stop watching, back to ASSIST */
+#define S5_REQ_RESCAN		0x2000U	/* IN   car backed off: scan again */
 
 IMPORT ID	flg_obstacle;
 
@@ -98,6 +114,24 @@ IMPORT uint32_t	obstacle_get_telemetry(uint8_t *p_buf, uint32_t len);
 IMPORT void	obstacle_resume(void);		/* ASSIST -> GUARD */
 IMPORT void	obstacle_reset_fault(void);	/* latched FAULT -> GUARD */
 
+/* v3.0 bypass support (IF-S5-7) */
+IMPORT void	obstacle_rescan(void);		/* ASSIST -> WAIT_STOP -> scan */
+IMPORT void	obstacle_watch_start(bool obstacle_on_left); /* -> WATCH */
+IMPORT void	obstacle_watch_end(void);	/* WATCH -> ASSIST */
+IMPORT void	obstacle_assist_kick(void);	/* "VC alive", every loop */
+
+typedef struct {
+	bool		 obstacle_on_left;
+	s5_watch_phase_t phase;
+	uint16_t	 reverse_mm;	/* back off this far on REVERSE */
+	uint16_t	 lateral_mm;	/* closest face beside us (sensor axis),
+					   0xFFFF = none seen yet */
+	uint16_t	 side_range_mm;	/* last side ping (range code) */
+} obstacle_watch_t;
+
+/* Lock-free: one 32-bit read of the watch word. */
+IMPORT void	obstacle_get_watch(obstacle_watch_t *p_out);
+
 /* ---------------------------------------------------------------------
  *  Registration, call during subsystemN_init() (before any task runs)
  * --------------------------------------------------------------------- */
@@ -115,5 +149,23 @@ IMPORT void	obstacle_register_estop(ID flgid, UINT cause_bit);
  * --------------------------------------------------------------------- */
 IMPORT ER	obstacle_create_objects(void);
 IMPORT void	obstacle_task(INT stacd, void *exinf);
+
+/* v3.0 calibration build (s5_calibrate.c): the task, and its result for
+   the host test that runs it against a simulated wrong servo. */
+typedef struct {
+	bool	finished;		/* all three steps ran */
+	bool	step1_ok;		/* servo trim, backlash, beam */
+	bool	step2_ok;		/* range fit within NFR15 */
+	bool	step3_ok;		/* verify: post centred at 0 deg */
+	int16_t	trim_ddeg;
+	int16_t	backlash_ddeg;
+	int16_t	beam_half_ddeg;
+	int32_t	scale_q12;
+	int32_t	offset_mm;
+	int16_t	verify_bearing_deg;	/* S5 sweep centre of the post */
+} s5_cal_result_t;
+
+IMPORT void	s5_calibrate_task(INT stacd, void *exinf);
+IMPORT void	s5_cal_get_result(s5_cal_result_t *p_out);
 
 #endif /* SUBSYSTEM5_H */

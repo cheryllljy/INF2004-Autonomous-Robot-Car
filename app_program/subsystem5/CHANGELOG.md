@@ -4,6 +4,115 @@ Buddy 5, student ID 2502410. Newest first. v1 stays in
 `app_program/old_src/` (not built) and in git history; nothing is
 overwritten.
 
+## v3.0 (2026-11-04): prof feedback, calibration, side watch, reverse, VC bypass
+
+Prof feedback after Tribunal 1 (meeting 2026-11-03):
+1. "However you adjust it you can't get the centre point" -> calibrate.
+2. Turn and scan while passing the obstacle, so the car cannot hit it.
+3. Work with VehicleController: too close to measure well -> reverse and
+   measure again.
+
+### 1. Calibration (`s5_calib.h`, `s5_calibrate.c`, drivers, geometry)
+- Three stacked errors explained in `s5_calib.h`: servo trim (horn spline
+  teeth ~15 deg apart, so it cannot be fixed by re-seating), gear
+  backlash (stops short on the side it came from), beam width (an
+  object looks wider, edges and centre move). Plus range scale/offset.
+- `drv_servo`: every command gets trim + a backlash lead in the
+  direction of travel (`drv_servo_correct_ddeg()`, pure, shared with
+  the simulator). New 0.1 deg command for the edge probes.
+- `drv_ultrasonic`: speed of sound from `S5_AIR_TEMP_C` (25 C = 346.4
+  m/s; v2's 343 read 1 % long), then `true = raw * scale / 4096 +
+  offset` from the calibration.
+- Geometry: `obstacle_profile_refine()` runs after the unchanged v2
+  build (so the CR1 equivalence test S5-H03 still holds). Each seen edge
+  is placed half way between the last bearing that heard it and the
+  first that did not, each moved in by the measured beam half-angle.
+  Centre = middle of the corrected edges (v2 averaged the hit bearings).
+- Edge probes: two extra pings per seen edge bisect that interval
+  (10 -> 5 -> 2.5 deg). Paid for by no longer re-pinging coarse
+  bearings in the fine pass. Simulated scan 1256 -> 1391 ms (NFR11 1.8 s).
+- Host result (S5-H05 V2, 12 cases, both edges seen): centre error
+  1.4 -> 0.4 deg, width error 28 -> 10 mm.
+- Guided calibration build (`S5_CAL_BUILD 1`): servo creep 60..120 deg
+  in 1 deg steps both ways at a thin post (trim, backlash, beam), board
+  at 100/200/300/500 mm (least squares fit, NFR15 check per point),
+  then a verify sweep with the new values live. Prints the block for
+  `s5_calib.h`. Guide: `testing/subsystem5/CALIBRATION.md`.
+- Host result (S5-H06): against a simulated servo 3.5 deg off with
+  1.5 deg backlash, a 12 deg beam and a range 3 % long - 8 mm, it finds
+  trim -3.5, backlash 1.5, beam 11.0, scale 3983/4096 (true 3977),
+  offset 7 mm (true 7.8). The obstacle task's mean centre error on that
+  robot goes 3.8 -> 1.6 deg, width error 48 -> 24 mm.
+- Health bit 7 (was spare) = calibrated; shown in telemetry and S5-U14.
+
+### 2. WATCH: turn and scan while passing
+- New state `OBSTACLE_ST_WATCH` (10 states, still 4 bits). On the pass
+  leg the servo alternates front ping / side ping at `S5_WATCH_DEG`
+  towards the obstacle.
+- Phases LOOKING -> SEEN -> CLEARING -> PASSED (or BLIND), in a new
+  lock-free 32-bit watch word (side, phase, reverse mm /2, lateral mm /4,
+  last side range).
+- `S5_EVT_SIDE_CLOSE`: flank closer than 40 mm to the face.
+- `S5_EVT_PASSED`: measured, not guessed. When the side look goes clear
+  the obstacle's far end is L * cot(w + h) ahead (L = closest face seen,
+  w = look angle, h = beam half-angle); the car drives that plus sensor-
+  to-rear plus margin. v2 assumed every obstacle 150 mm deep: the 450 mm
+  box in simulation C4 would have been hit on the way back.
+- The ASSIST watchdog now means "no word from VC for 5 s"
+  (`obstacle_assist_kick()` every VC loop), because a full bypass takes
+  longer than 5 s.
+
+### 3. Reverse to remeasure
+- `obstacle_reverse_mm()`: inside the hard stop back to 250 mm, an edge
+  outside the +/-30 deg view (or boxed in) back to 400 mm; 50..250 mm.
+  Published in the watch word before PROFILED.
+- An edge at the sweep limit is now "unseen": that side's gap is 0, not
+  open (v2 would have planned a bypass through a side it never saw).
+- `obstacle_rescan()`: VC backs off, S5 waits for the stop and sweeps
+  again, planning round anything up to 500 mm (else the backed-off
+  obstacle reads CONTINUE and the car drives back into it - found in
+  simulation C3). Third REVERSE in a row is still REVERSE_LIMIT.
+
+### 4. VehicleController (Buddy 5 hook)
+- New `vehicle_controller/vc_obstacle.c/.h` (Buddy 5 owns it): wait for
+  the scan, reverse + rescan, the bypass legs (turn out 45 deg or 70 deg
+  if close, out, parallel, pass with WATCH, side-step 10 deg on
+  SIDE_CLOSE, turn in, drive until Buddy 3's IR sees the line plus the
+  IR-to-axle distance, align), dead-reckoned pose and the rejoin error
+  printed against +/-50 mm, replan limits and timeouts.
+- HARD_STOP: instant motor cut through Buddy 2's `MOTION_ESTOP_OBSTACLE`,
+  released once both wheels are still. Only while driving forward (S5
+  keeps reporting under 120 mm while backing away). Not the latched
+  system E-stop.
+- `vehicle_controller.c` (shared): includes vc_obstacle.h; `enter()`
+  ends the manoeuvre when OBSTACLE is left early; odometry speed for S5
+  is the faster wheel, not the mean (turning on the spot the mean is 0
+  and WaitStopped would sweep while spinning); `read_obstacle()` routes
+  events to vc_obstacle, cuts on HARD_STOP, raises the new fault bit on
+  an S5 mission fault while driving (clears it while parked);
+  `act()` runs vc_obs_step() in OBSTACLE.
+- `vc_types.h` (shared): `VC_FAULT_SPARE` (bit 6) -> `VC_FAULT_OBSTACLE`.
+- `app_main.c` (shared): `subsystem5_init/start` switched back on (off
+  since 2026-11-02).
+
+### Evidence
+- Host (`cd testing/subsystem5/host && make`): all v2 tests still pass,
+  plus S5-H05 (21 checks), S5-H06 (calibration), S5-H07 (2-D closed-loop
+  bypass, 11 scenarios: no collision, rejoin within 7 mm of the line,
+  boxed-in ends in a safe FAULT stop).
+- Bugs the simulation found and that are fixed here: the "passed"
+  formula used the inner beam edge (car went 160 mm further than
+  needed); HARD_STOP cut the motors while backing away, pinning the car
+  (C6); a backed-off obstacle read CONTINUE (C3); a rescan sent while
+  S5 was in WATCH was dropped and the 60 ms tick stayed off (C10); a
+  leg was blocked only under 150 mm, too late at 150 mm/s with 50 mm of
+  car in front of the sensor (C10); a wall beyond the line stopped the
+  way back (C5).
+  Logs: `testing/subsystem5/logs/2026-11-04_*`.
+- Target: car, TEST=1 and calibration images build with no new warnings
+  (strict -Wall -Wextra -Wconversion on all S5 and VC-obstacle files).
+- Telemetry packet 29 -> 33 B (version 2), nobody decoded version 1.
+
 ## v2.2 (2026-11-01): scan limited to +/-30 deg
 
 - Bench: the bracket hits the Pico board beyond +/-30 deg; the bench

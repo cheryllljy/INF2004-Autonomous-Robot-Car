@@ -57,7 +57,7 @@ static const char *state_name(obstacle_state_t s)
     static const char *names[OBSTACLE_ST_COUNT] =
     {
         "INIT", "GUARD", "CONFIRM", "WAIT_STOP", "COARSE", "FINE",
-        "PUBLISH", "ASSIST", "FAULT"
+        "PUBLISH", "ASSIST", "FAULT", "WATCH"
     };
 
     return ((unsigned)s < OBSTACLE_ST_COUNT) ? names[s] : "?";
