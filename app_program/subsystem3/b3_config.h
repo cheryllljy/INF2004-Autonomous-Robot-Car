@@ -7,7 +7,7 @@
  *   IR_L = GP27 (ADC1)  left line sensor
  *   IR_B = GP28 (ADC2)  barcode sensor and junction check
  * IR_L/IR_R: the module's DO output is read digitally; its threshold is set
- * by the module's potentiometer. IR_B: see B3_BARCODE_ANALOG below. The test
+ * by the module's potentiometer. IR_B: DO too, as an edge interrupt. The test
  * build also reads the pins on the ADC as a self-check (subsystem3_test.c). */
 #define B3_IR_R_GPIO                  26U
 #define B3_IR_L_GPIO                  27U
@@ -29,26 +29,10 @@
 #define B3_IR_B_BLACK_LEVEL           1U /* phototransistor + pull-up: black = high */
 #define B3_INPUT_PULL_UP              1U
 
-/* IR_B barcode input.
- * 0 = wire the module's DO to GP28. Edges come from the GPIO interrupt and
- *     the module's potentiometer sets the black/white threshold.
- * 1 = wire the module's AO to GP28 (ADC2). A TIMER alarm samples it every
- *     B3_ANALOG_SAMPLE_US and the threshold follows the white and black
- *     levels actually measured, so thin bars that only partly fill the
- *     sensor spot still give edges and the pot no longer matters.
- *     B3_IR_B_BLACK_LEVEL 1 means AO reads higher over black. */
-#ifndef B3_BARCODE_ANALOG
-#define B3_BARCODE_ANALOG             0U  /* 1 = AO mode; off: module AO swung only ~0.1 V (2026-10-27) */
-#endif
-#define B3_ANALOG_SAMPLE_US           1000U /* 1 kHz: a 3 mm bar at 100 mm/s spans 30 samples */
-#define B3_ANALOG_THRESHOLD_PCT       50U   /* edge point between white (0) and black (100) */
-#define B3_ANALOG_HYST_PCT            10U   /* must pass threshold +/- this to switch colour */
-#define B3_ANALOG_CONFIRM_SAMPLES     2U    /* samples past the hysteresis before an edge counts */
-#define B3_ANALOG_MIN_CONTRAST        300U  /* ADC counts black - white before any edge counts */
-#define B3_ANALOG_ATTACK_SHIFT        1U    /* levels move 1/2 of the way to a new extreme per sample */
-#define B3_ANALOG_DECAY_SHIFT         12U   /* and relax back with a 4096-sample (~4 s) time constant */
-#define B3_ANALOG_TIMER_ALARM         3U    /* RP2040 TIMER alarm used (IRQ number = alarm number) */
-#define B3_ANALOG_IRQ_PRIORITY        1
+/* IR_B barcode input: the module's DO goes to GP28. Edges come from the
+ * GPIO interrupt and the module's potentiometer sets the black/white
+ * threshold. (The AO/ADC mode was removed on 2026-11-04: nyx is staying on
+ * DO.) */
 
 #define B3_TASK_PRIORITY              17
 #define B3_TASK_STACK_BYTES           4096U
@@ -138,12 +122,6 @@
 #error "IR sensors must be on the ADC pins GP26..GP28"
 #endif
 
-#if B3_BARCODE_ANALOG && \
-    ((B3_ANALOG_HYST_PCT >= B3_ANALOG_THRESHOLD_PCT) || \
-     ((B3_ANALOG_THRESHOLD_PCT + B3_ANALOG_HYST_PCT) >= 100U) || \
-     (B3_ANALOG_CONFIRM_SAMPLES < 1U) || (B3_ANALOG_TIMER_ALARM > 3U))
-#error "Check the B3_ANALOG_ settings"
-#endif
 
 #if (B3_IR_L_GPIO == B3_IR_R_GPIO) || \
     (B3_IR_L_GPIO == B3_IR_B_GPIO) || \

@@ -53,7 +53,13 @@
  * mqtt.c arms its own cyclic keepalive timer per client, and mqtt_utk.c adds
  * the heartbeat chain plus a connect-retry timer. Four covers those with
  * room to spare; each slot is only a few bytes. */
-#define MEMP_NUM_SYS_TIMEOUT        (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 4)
+#define MEMP_NUM_SYS_TIMEOUT        (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 6)
+/* Edit (Buddy 3, 2026-11-04): +6, was +4. The FR3 link monitor already used
+ * the last spare slot, and the test build adds the test-log timer
+ * (mqtt_utk.c). The two MQTT sizes below give the test-log publisher room
+ * next to the telemetry and probe publishes (lwIP defaults: 256 bytes, 4). */
+#define MQTT_OUTPUT_RINGBUF_SIZE    1024
+#define MQTT_REQ_MAX_IN_FLIGHT      8
 
 #define LWIP_ARP                    1
 #define LWIP_ETHERNET               1

@@ -19,7 +19,7 @@ EXPORT ID		mbx_samples;	/* IF-01 */
 EXPORT ID		mtx_stats;	/* IF-04 */
 EXPORT APP_STATS	app_stats;
 
-#if !B3_INSTALL_IO_BANK0_HANDLER && !B3_BARCODE_ANALOG
+#if !B3_INSTALL_IO_BANK0_HANDLER
 /* GP28 barcode edges, called by the shared GPIO dispatcher (interrupt context).
    Buddy 3 enables and acknowledges its own edge events. */
 static void s3_barcode_irq(uint32_t pin)
@@ -70,14 +70,10 @@ EXPORT ER subsystem3_init(void)
 #if !B3_INSTALL_IO_BANK0_HANDLER
 	/* The team's one GPIO interrupt handler (gpio_dispatch.c, owned by
 	   Buddy 3). Runs here in usermain on core 0. If Buddy 2 already
-	   started it in subsystem2_init(), this start call just returns true.
-	   With B3_BARCODE_ANALOG, GP28 is an ADC input read by Buddy 3's own
-	   TIMER sampler, so only Buddy 2's encoder pins use the dispatcher. */
-#if !B3_BARCODE_ANALOG
+	   started it in subsystem2_init(), this start call just returns true. */
 	if (!gpio_dispatch_register(B3_IR_B_GPIO, 0U, s3_barcode_irq)) {
 		return E_SYS;
 	}
-#endif
 	if (!gpio_dispatch_start()) {
 		return E_SYS;
 	}

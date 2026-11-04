@@ -170,8 +170,7 @@ LOCAL void run_with_context(INT ms, BOOL follow, BOOL scan)
 
 #if B3_TEST_HW
 /* Read one ADC channel.  Uses Buddy 3's polled read (b3_port_adc_read)
-   rather than the kernel "adca" driver, so it cannot collide with the
-   IR_B analog sampler when B3_BARCODE_ANALOG is 1.  -1 = ADC busy. */
+   rather than the kernel "adca" driver.  -1 = ADC busy. */
 LOCAL INT adc_read(UW ch)
 {
 	return (INT)b3_port_adc_read(ch);
@@ -224,12 +223,6 @@ LOCAL void sample_ir(IR_COUNTS *p)
 			a = adc_read(ch[k]);
 			if (a < p->adc_min[k]) p->adc_min[k] = a;
 			if (a > p->adc_max[k]) p->adc_max[k] = a;
-#if B3_BARCODE_ANALOG
-			/* IR_B is AO on an analog pad: no digital level */
-			if (k == 2) {
-				continue;
-			}
-#endif
 			/* digital high should read above mid-scale on the ADC */
 			if ((a >= B3_ADC_MID) != (((pins >> pin[k]) & 1U) != 0U)) {
 				p->mismatch[k]++;
@@ -244,24 +237,6 @@ LOCAL void sample_ir(IR_COUNTS *p)
 	}
 }
 
-#if B3_BARCODE_ANALOG
-/* IR_B analog levels as the adaptive threshold sees them (black is high,
-   0..4095, whatever the wiring polarity) */
-LOCAL void print_analog(const char *id)
-{
-	b3_ir_analog_stats_t	a;
-
-	b3_ir_analog_stats(&a);
-	tm_printf((UB*)"[TEST] %s   IR_B analog: now %u (%s)  white %u  black %u"
-		  "  contrast %u (min %u)  edge at %u +/- %u  near misses %u"
-		  "  samples %u\n", id, (unsigned)a.level,
-		  a.black_now ? "black" : "white", (unsigned)a.white,
-		  (unsigned)a.black, (unsigned)(a.black - a.white),
-		  (unsigned)B3_ANALOG_MIN_CONTRAST, (unsigned)a.threshold,
-		  (unsigned)a.hysteresis, (unsigned)a.near_misses,
-		  (unsigned)a.samples);
-}
-#endif
 
 LOCAL void print_ir(const char *id, const IR_COUNTS *p)
 {
@@ -275,9 +250,6 @@ LOCAL void print_ir(const char *id, const IR_COUNTS *p)
 			  p->black[k], B3_TEST_SAMPLES,
 			  p->adc_min[k], p->adc_max[k], p->mismatch[k]);
 	}
-#if B3_BARCODE_ANALOG
-	print_analog(id);
-#endif
 }
 #endif /* B3_TEST_HW */
 
@@ -481,9 +453,7 @@ LOCAL void buddy3_task_tests(INT *p_pass, INT *p_fail)
 #if B3_TEST_HW
 /* Print the raw IR_B edge log (test build only) and return the number
    of edges.  Each line shows the colour that ENDED at that edge and how
-   long it lasted; in analog mode also the level that element reached
-   (black is high), and any near miss: a dip that crossed the threshold
-   but not the hysteresis, which is what a missed thin bar looks like.
+   long it lasted.
    Printed after the capture so USB output cannot delay the Buddy 3 task
    while it is scanning. */
 LOCAL UW print_edge_log(const char *id)
@@ -524,9 +494,6 @@ LOCAL UW print_edge_log(const char *id)
 			  (ev[i] == B3_GPIO_EDGE_RISE) ? "white" :
 			  (ev[i] == B3_GPIO_EDGE_FALL) ? "black" : "BOTH ",
 			  (unsigned)d);
-#if B3_BARCODE_ANALOG
-		tm_printf((UB*)", reached %4u", (unsigned)pk[i]);
-#endif
 		tm_printf((UB*)"%s\n",
 			  (d < B3_MIN_EDGE_US) ? "  <- under B3_MIN_EDGE_US" :
 			  (d > B3_MAX_ELEMENT_US) ? "  <- over B3_MAX_ELEMENT_US" : "");
@@ -537,9 +504,6 @@ LOCAL UW print_edge_log(const char *id)
 		  (unsigned)edges, (unsigned)misses, (unsigned)n,
 		  (unsigned)total, (unsigned)((edges > 1U) ? dmin : 0U),
 		  (unsigned)dmax);
-#if B3_BARCODE_ANALOG
-	print_analog(id);
-#endif
 	return edges;
 }
 
@@ -759,10 +723,6 @@ LOCAL void buddy3_hw_tests(INT *p_pass, INT *p_fail)
 	}
 #if B3_TEST_LIVE_IR
 	live_ir();
-#endif
-#if B3_BARCODE_ANALOG
-	tm_printf((UB*)"[TEST] B3-H00   IR_B is analog: wire the module's AO"
-		  " (not DO) to GP28\n");
 #endif
 
 #if !B3_RUN_LINE_TESTS

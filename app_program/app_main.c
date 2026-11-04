@@ -55,7 +55,13 @@
 
 #include "app.h"
 #include "vehicle_controller/vehicle_controller.h"
+#if defined(APP_MQTT) && APP_MQTT && APP_TEST
+#include "../lib/liblwip/sysdepend/pico_rp2040/mqtt_utk.h"	/* b1_fr3_get_status */
+#endif
 
+#ifndef APP_TEST_MQTT_WAIT_S
+#define APP_TEST_MQTT_WAIT_S	30	/* MQTT test build: wait this long for the broker */
+#endif
 #ifndef APP_TEST_START_DELAY_S
 #define APP_TEST_START_DELAY_S	5	/* seconds before the test run starts */
 #endif
@@ -138,6 +144,28 @@ EXPORT INT usermain(void)
 	/* Test build (make TEST=1): run every subsystem's tests in turn,
 	   here in the initial task, while the system is running.  Tests may
 	   call tk_dly_tsk() to let the other tasks work for a while. */
+#if defined(APP_MQTT) && APP_MQTT
+	/* MQTT test build: every [TEST] line is also published on
+	   inf2004/robot/test (lib/libtm/.../tm_com.c, mqtt_utk.c).  Wait for
+	   the broker first so the start of the run is not missed; give up
+	   after APP_TEST_MQTT_WAIT_S and run anyway (lines are kept until
+	   the connection comes up, see tm_mqtt_log_dropped). */
+	{
+		B1_FR3_Status	link;
+		INT		s;
+
+		for (s = 0; s < APP_TEST_MQTT_WAIT_S; s++) {
+			if (b1_fr3_get_status(&link) == 0 && link.mqtt_up) {
+				break;
+			}
+			tm_printf((UB*)"[TEST] waiting for MQTT broker (%d s)\n", s);
+			tk_dly_tsk(1000);
+		}
+		tm_printf((UB*)"[TEST] MQTT %s\n", (s < APP_TEST_MQTT_WAIT_S) ?
+			  "connected: test lines go to inf2004/robot/test" :
+			  "not connected yet: running anyway");
+	}
+#endif
 	/* Give time to open the serial monitor before the first result */
 	{
 		INT	n;

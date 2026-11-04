@@ -82,8 +82,132 @@ LOCAL void uart_snd_dat(const UB* buf, INT size)
 IMPORT void tm_usb_console_put(const UB *buf, INT size);
 #endif
 
+/*
+ * Test lines over MQTT (added 2026-11-04 by Buddy 3, for testing with the
+ * car unplugged).  In a test build with the MQTT client (make TEST=1
+ * MQTT=1 ...), every console line that starts with "[TEST]" is also kept
+ * in a ring here.  mqtt_utk.c (network task) takes them out with
+ * tm_mqtt_log_peek()/tm_mqtt_log_drop() and publishes each line on
+ * inf2004/robot/test.  This side never waits and never calls lwIP, so it
+ * is safe from any task, handler or core.  A full ring drops the line and
+ * counts it in tm_mqtt_log_dropped.
+ */
+#if defined(APP_MQTT) && APP_MQTT && defined(APP_TEST) && APP_TEST
+#include <tk/tkernel.h>
+#include <tk/smp.h>
+
+#define MLOG_PREFIX	"[TEST]"
+#define MLOG_PREFIX_LEN	6
+#define MLOG_LINE_MAX	160		/* longer lines are cut */
+#define MLOG_RING_SIZE	16384U		/* power of two; records = length byte + text (~240 lines) */
+#define MLOG_RING_MASK	(MLOG_RING_SIZE - 1U)
+
+LOCAL UB	mlog_line[MLOG_LINE_MAX];
+LOCAL UW	mlog_len;
+LOCAL UB	mlog_ring[MLOG_RING_SIZE];
+LOCAL UW	mlog_head, mlog_tail;
+#if TK_SUPPORT_SMP
+LOCAL T_SPLOCK	mlog_lock;		/* 0 = unlocked, so no init needed */
+#endif
+EXPORT volatile UW	tm_mqtt_log_dropped;
+
+LOCAL void mlog_lock_enter(UINT *intsts)
+{
+#if TK_SUPPORT_SMP
+	(void)ISpinLock(&mlog_lock, intsts);
+#else
+	DI(*intsts);
+#endif
+}
+
+LOCAL void mlog_lock_leave(UINT intsts)
+{
+#if TK_SUPPORT_SMP
+	(void)ISpinUnlock(&mlog_lock, intsts);
+#else
+	EI(intsts);
+#endif
+}
+
+/* Lock held.  Keep the finished line if it is a test line. */
+LOCAL void mlog_end_line(void)
+{
+	UW	i, used;
+
+	for (i = 0; i < MLOG_PREFIX_LEN; i++) {
+		if (i >= mlog_len || mlog_line[i] != (UB)MLOG_PREFIX[i]) {
+			return;
+		}
+	}
+	used = (mlog_head - mlog_tail) & MLOG_RING_MASK;
+	if (used + mlog_len + 1U > MLOG_RING_MASK) {
+		tm_mqtt_log_dropped++;
+		return;
+	}
+	mlog_ring[mlog_head] = (UB)mlog_len;
+	mlog_head = (mlog_head + 1U) & MLOG_RING_MASK;
+	for (i = 0; i < mlog_len; i++) {
+		mlog_ring[mlog_head] = mlog_line[i];
+		mlog_head = (mlog_head + 1U) & MLOG_RING_MASK;
+	}
+}
+
+LOCAL void mlog_put(const UB *buf, INT size)
+{
+	UINT	intsts;
+
+	mlog_lock_enter(&intsts);
+	for ( ; size > 0; size--, buf++) {
+		if (*buf == '\n') {
+			mlog_end_line();
+			mlog_len = 0;
+		} else if (*buf != '\r' && mlog_len < MLOG_LINE_MAX) {
+			mlog_line[mlog_len++] = *buf;
+		}
+	}
+	mlog_lock_leave(intsts);
+}
+
+/* Network task: copy the oldest line (no newline) without removing it.
+   Returns its length, or 0 when there is none. */
+EXPORT INT tm_mqtt_log_peek(UB *buf, INT max)
+{
+	UINT	intsts;
+	UW	len, i, at;
+
+	mlog_lock_enter(&intsts);
+	if (mlog_head == mlog_tail) {
+		mlog_lock_leave(intsts);
+		return 0;
+	}
+	len = mlog_ring[mlog_tail];
+	at = (mlog_tail + 1U) & MLOG_RING_MASK;
+	for (i = 0; i < len && i < (UW)max; i++) {
+		buf[i] = mlog_ring[at];
+		at = (at + 1U) & MLOG_RING_MASK;
+	}
+	mlog_lock_leave(intsts);
+	return (INT)i;
+}
+
+/* Network task: remove the line tm_mqtt_log_peek() returned. */
+EXPORT void tm_mqtt_log_drop(void)
+{
+	UINT	intsts;
+
+	mlog_lock_enter(&intsts);
+	if (mlog_head != mlog_tail) {
+		mlog_tail = (mlog_tail + 1U + mlog_ring[mlog_tail]) & MLOG_RING_MASK;
+	}
+	mlog_lock_leave(intsts);
+}
+#endif /* APP_MQTT && APP_TEST */
+
 EXPORT	void	tm_snd_dat( const UB* buf, INT size )
 {
+#if defined(APP_MQTT) && APP_MQTT && defined(APP_TEST) && APP_TEST
+	mlog_put(buf, size);
+#endif
 #if TM_CONSOLE_USB_CDC
 	tm_usb_console_put(buf, size);
 #endif

@@ -137,6 +137,9 @@ static uint8_t fr3_loss_reason = B1_FR3_REASON_NONE;
 static uint8_t fr3_reported_reason = B1_FR3_REASON_NONE;
 
 static void heartbeat_timeout(void *arg);
+#if defined(APP_TEST) && APP_TEST
+static void test_log_timeout(void *arg);
+#endif
 static void retry_timeout(void *arg);
 static void fr3_monitor_timeout(void *arg);
 
@@ -1348,12 +1351,140 @@ static void connection_cb(
     }
 }
 
+/* --------------------------------------------------------
+ * Test lines over MQTT (added 2026-11-04 by Buddy 3)
+ *
+ * Test build only.  tm_com.c keeps every console line that
+ * starts with "[TEST]"; this timer publishes them on
+ * TEST_LOG_TOPIC, so the test run can be watched with
+ * mosquitto_sub while the car is unplugged.  QoS 0.  A line
+ * that does not fit in lwIP's MQTT buffer yet stays queued
+ * for the next tick.
+ * -------------------------------------------------------- */
+
+#if defined(APP_TEST) && APP_TEST
+#define TEST_LOG_TOPIC "inf2004/robot/test"
+#define TEST_LOG_MS 20u
+#define TEST_LOG_BURST 8u
+#define TEST_LOG_LINE_MAX 160
+#define TEST_LOG_MAX_IN_FLIGHT 3u   /* of MQTT_REQ_MAX_IN_FLIGHT (8): the rest
+                                       stays free for telemetry and the FR3
+                                       probe, so test output can never starve
+                                       the link monitor */
+
+extern int tm_mqtt_log_peek(unsigned char *buf, int max);
+extern void tm_mqtt_log_drop(void);
+extern volatile unsigned long tm_mqtt_log_dropped;
+
+static unsigned int test_log_in_flight = 0u;
+
+static void test_log_sent_cb(void *arg, err_t result)
+{
+    (void)arg;
+    (void)result;
+
+    if (test_log_in_flight > 0u)
+    {
+        test_log_in_flight--;
+    }
+}
+
+static err_t test_log_publish(const unsigned char *data, int len)
+{
+    err_t result;
+
+    if (test_log_in_flight >= TEST_LOG_MAX_IN_FLIGHT)
+    {
+        return ERR_MEM;
+    }
+
+    result = mqtt_publish(client, TEST_LOG_TOPIC, data, (u16_t)len,
+                          0, 0, test_log_sent_cb, NULL);
+
+    if (result == ERR_OK)
+    {
+        test_log_in_flight++;
+    }
+
+    return result;
+}
+
+static void test_log_timeout(void *arg)
+{
+    static unsigned long dropped_sent = 0u;
+    unsigned char line[TEST_LOG_LINE_MAX + 48];
+    unsigned int n;
+    int len;
+
+    (void)arg;
+
+    if (client == NULL ||
+        !mqtt_client_is_connected(client))
+    {
+        /* a dropped connection never calls back for QoS 0 */
+        test_log_in_flight = 0u;
+    }
+    else
+    {
+        if (tm_mqtt_log_dropped != dropped_sent)
+        {
+            int k = 0;
+            unsigned long v = tm_mqtt_log_dropped;
+            char digits[12];
+            int d = 0;
+            const char *head = "[TEST] (MQTT log: total lines dropped ";
+
+            while (head[k] != '\0') { line[k] = (unsigned char)head[k]; k++; }
+            do { digits[d++] = (char)('0' + (v % 10u)); v /= 10u; } while (v != 0u && d < 11);
+            while (d > 0) { line[k++] = (unsigned char)digits[--d]; }
+            line[k++] = ')';
+
+            if (test_log_publish(line, k) == ERR_OK)
+            {
+                dropped_sent = tm_mqtt_log_dropped;
+            }
+        }
+
+        for (n = 0u; n < TEST_LOG_BURST; n++)
+        {
+            len = tm_mqtt_log_peek(line, TEST_LOG_LINE_MAX);
+
+            if (len <= 0)
+            {
+                break;
+            }
+
+            if (test_log_publish(line, len) != ERR_OK)
+            {
+                break;  /* buffer full: retry this line next tick */
+            }
+
+            tm_mqtt_log_drop();
+        }
+    }
+
+    sys_timeout(TEST_LOG_MS, test_log_timeout, NULL);
+}
+#endif
+
 void mqtt_utk_start(void)
 {
     struct mqtt_connect_client_info_t client_info = {0};
     err_t result;
 
     fr3_monitor_start();
+
+#if defined(APP_TEST) && APP_TEST
+    {
+        static u8_t test_log_started = 0u;
+
+        if (!test_log_started)
+        {
+            test_log_started = 1u;
+            sys_timeout(TEST_LOG_MS, test_log_timeout, NULL);
+        }
+    }
+#endif
 
     if (connecting || retry_pending)
     {
