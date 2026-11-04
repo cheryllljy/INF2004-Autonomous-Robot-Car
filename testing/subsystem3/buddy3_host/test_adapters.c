@@ -205,7 +205,7 @@ static void test_task_boundary(void)
     buddy3_get_snapshot(&snapshot);
     CHECK(snapshot.control_active);
     CHECK(!snapshot.stop_required);
-    CHECK((120 == snapshot.line.left_mm_s) && (120 == snapshot.line.right_mm_s));
+    CHECK((B3_BASE_SPEED_MM_S == snapshot.line.left_mm_s) && (B3_BASE_SPEED_MM_S == snapshot.line.right_mm_s));
 
     /* A broad transverse patch is a candidate; a short barcode bar is not. */
     emit(true);
@@ -255,6 +255,47 @@ static void test_task_boundary(void)
     g_pins = (B3_IR_L_BLACK_LEVEL != 0U) ? (g_pins | (1U << B3_IR_L_GPIO))
                                          : (g_pins & ~(1U << B3_IR_L_GPIO));
 #endif
+
+    /* Barcode slowdown: a thin IR_B bar slows the car until IR_B has read
+     * white for B3_SCAN_SLOW_WHITE_US, then base speed comes back. */
+    g_pins = (B3_IR_L_BLACK_LEVEL != 0U) ? (g_pins & ~(1U << B3_IR_L_GPIO))
+                                         : (g_pins | (1U << B3_IR_L_GPIO));
+    g_pins = (B3_IR_R_BLACK_LEVEL != 0U) ? (g_pins & ~(1U << B3_IR_R_GPIO))
+                                         : (g_pins | (1U << B3_IR_R_GPIO));
+    emit(false);
+    for (unsigned int pass = 0U; pass < 200U; ++pass)
+    {
+        g_now += 5000U;
+        context.time_us = g_now;
+        buddy3_set_context(&context);
+        one_task_pass();
+    }
+    buddy3_get_snapshot(&snapshot);
+    CHECK((B3_BASE_SPEED_MM_S == snapshot.line.left_mm_s) && (B3_BASE_SPEED_MM_S == snapshot.line.right_mm_s));
+    emit(true);
+    emit(false); /* thin bar, both edges queued before the next pass */
+    context.time_us = g_now;
+    buddy3_set_context(&context);
+    one_task_pass(); /* edges are read after this pass's speed is set */
+    g_now += 5000U;
+    context.time_us = g_now;
+    buddy3_set_context(&context);
+    one_task_pass();
+    buddy3_get_snapshot(&snapshot);
+    CHECK((B3_SCAN_SPEED_MM_S == snapshot.line.left_mm_s) &&
+          (B3_SCAN_SPEED_MM_S == snapshot.line.right_mm_s));
+    g_now += B3_SCAN_SLOW_WHITE_US - 10000U;
+    context.time_us = g_now;
+    buddy3_set_context(&context);
+    one_task_pass();
+    buddy3_get_snapshot(&snapshot);
+    CHECK(B3_SCAN_SPEED_MM_S == snapshot.line.left_mm_s);
+    g_now += 20000U;
+    context.time_us = g_now;
+    buddy3_set_context(&context);
+    one_task_pass();
+    buddy3_get_snapshot(&snapshot);
+    CHECK((B3_BASE_SPEED_MM_S == snapshot.line.left_mm_s) && (B3_BASE_SPEED_MM_S == snapshot.line.right_mm_s));
 
     context.stop_requested = true;
     buddy3_set_context(&context);

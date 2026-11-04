@@ -67,7 +67,103 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         p_line->last_seen_us = now_us;
     }
     p_line->last_error = result.error;
-    correction = (int16_t)(result.error * B3_CORRECTION_MM_S);
+
+    /* Sharp turn: one side black for B3_SHARP_TURN_US. */
+    if (result.error != p_line->side)
+    {
+        p_line->side = result.error;
+        p_line->side_since_us = now_us;
+    }
+    if ((B3_SHARP_TURN_US != 0U) && (result.error != 0) &&
+        ((now_us - p_line->side_since_us) >= B3_SHARP_TURN_US))
+    {
+        p_line->sharp = result.error;
+    }
+    if (p_line->sharp != 0)
+    {
+        if (result.error == p_line->sharp)
+        {
+            p_line->sharp_last_us = now_us;
+        }
+        else if ((result.state == B3_LINE_CROSSING) ||
+                 (result.error != 0) ||
+                 ((now_us - p_line->sharp_last_us) >= B3_SHARP_HOLD_US))
+        {
+            p_line->sharp = 0; /* crossing, other side, or straight again */
+            p_line->recovering = (result.state != B3_LINE_CROSSING);
+            p_line->sharp_end_us = now_us;
+        }
+    }
+    /* Ramp instead of steps (2026-11-04, the car jerked on the figure 8):
+     * the longer one side stays black, the slower the car and the harder
+     * the correction, reaching a pivot (inner wheel 0) at B3_SHARP_TURN_US.
+     * ramp_pm is 0..1000 per mille. */
+    {
+        int32_t ramp_pm = 0;
+        int32_t base = base_mm_s;
+        int32_t corr = B3_CORRECTION_MM_S;
+
+        if (p_line->sharp != 0)
+        {
+            result.sharp_turn = true;
+            ramp_pm = 1000;
+        }
+        else if ((B3_SHARP_TURN_US != 0U) && (result.error != 0))
+        {
+            uint32_t held = now_us - p_line->side_since_us;
+            ramp_pm = (int32_t)(((uint64_t)held * 1000U) / B3_SHARP_TURN_US);
+            if (ramp_pm > 1000)
+            {
+                ramp_pm = 1000;
+            }
+        }
+        if (p_line->recovering && (p_line->sharp == 0))
+        {
+            /* Ease back up to speed after a sharp turn (B3_SHARP_RECOVER_US). */
+            uint32_t since = now_us - p_line->sharp_end_us;
+            if ((result.state == B3_LINE_CROSSING) ||
+                (since >= B3_SHARP_RECOVER_US))
+            {
+                p_line->recovering = false;
+            }
+            else if (base > B3_SHARP_SPEED_MM_S)
+            {
+                int32_t cap = B3_SHARP_SPEED_MM_S +
+                    (int32_t)(((uint64_t)(base - B3_SHARP_SPEED_MM_S) * since) /
+                              B3_SHARP_RECOVER_US);
+                if (base > cap)
+                {
+                    base = cap;
+                }
+            }
+        }
+        if (base > B3_SHARP_SPEED_MM_S)
+        {
+            base -= ((base - B3_SHARP_SPEED_MM_S) * ramp_pm) / 1000;
+        }
+        if (corr > base)
+        {
+            corr = base;
+        }
+        corr += ((base - corr) * ramp_pm) / 1000;
+        base_mm_s = (int16_t)base;
+        if (result.error != 0)
+        {
+            correction = (int16_t)(result.error * corr);
+        }
+        else if (result.sharp_turn && (result.state != B3_LINE_CROSSING))
+        {
+            /* Side white again inside the hold: the line may have
+             * crossed under the sensor and out, so keep turning gently
+             * towards it instead of driving straight off the curve. */
+            correction = (int16_t)(p_line->sharp * B3_CORRECTION_MM_S);
+        }
+        else
+        {
+            correction = 0;
+        }
+    }
+
     /* Never reverse a wheel in the line-tracking controller. */
     if (correction > base_mm_s)
     {

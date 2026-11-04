@@ -48,11 +48,41 @@
  * sensor, and the car steers back towards it (left black: turn left). */
 #define B3_LINE_DEBOUNCE_US           2000U
 #define B3_LINE_LOST_GRACE_US         50000U /* unused since the straddle layout */
-#define B3_BASE_SPEED_MM_S            120
+#define B3_BASE_SPEED_MM_S            60
 #define B3_MAX_REQUEST_MM_S           400
-#define B3_CORRECTION_MM_S            40
-#define B3_RECOVERY_SPEED_MM_S        50
-#define B3_SCAN_SPEED_MM_S            100
+#define B3_CORRECTION_MM_S            25  /* was 40: smaller kick when a sensor just touches the line, less weaving on straights (2026-11-04) */
+/* Sharp turns / U-turns (2026-11-04). If the same side sensor stays black
+ * for B3_SHARP_TURN_US, the line is bending faster than the normal
+ * correction can follow: speed ramps down to B3_SHARP_SPEED_MM_S and the
+ * correction ramps up until the inner wheel stops (pivot), smoothly over
+ * that time rather than in one step. The slow speed is held for
+ * B3_SHARP_HOLD_US after the side goes white again (a U-turn flickers),
+ * and ends at once on a crossing (both black) so junctions still see
+ * >= B3_JUNCTION_MIN_SPEED_MM_S. B3_SHARP_TURN_US 0 turns this off. */
+#define B3_SHARP_TURN_US              100000U /* was 150 ms: slow down earlier in a curve */
+#define B3_SHARP_SPEED_MM_S           60      /* was 60 */
+#define B3_SHARP_HOLD_US              150000U /* was 300 ms: shorter gentle turn after the curve, less overshoot */
+/* After a sharp turn ends, speed climbs back from B3_SHARP_SPEED_MM_S to
+ * the base speed over this time instead of jumping (the jump made the car
+ * weave on the straight after a turn). A crossing skips it, so junctions
+ * still see full speed. */
+#define B3_SHARP_RECOVER_US           400000U
+#define B3_RECOVERY_SPEED_MM_S        60
+/* Slow down over a barcode so IR_B catches thin bars (nyx, 2026-11-04; was
+ * 100). Any black seen by IR_B starts the slow speed; it ends only after IR_B
+ * has read white for B3_SCAN_SLOW_WHITE_US (longer than the widest gap inside
+ * a barcode), so the car stays at one speed across the whole barcode even if
+ * the decoder gives up halfway. Bar widths are measured in time, so each width
+ * is also rescaled by the measured wheel speed (B3_SCAN_SPEED_COMPENSATE).
+ * Safety: the slow speed lasts at most B3_SCAN_SLOW_MAX_US, and a crossing
+ * (both line sensors black) ends it so junctions (>= 80 mm/s) still fire. */
+#define B3_SCAN_SPEED_MM_S            60
+#define B3_SCAN_SLOW_WHITE_US         800000U  /* 30 mm of white at 50 mm/s */
+#define B3_SCAN_SLOW_MAX_US           6000000U
+/* Retry a failed decode with the first/last bar trimmed to the other narrow
+ * bar of the same '*' (seen 3-4x too long on the car, 2026-11-04). */
+#define B3_TRIM_OUTER_BARS            1
+#define B3_SCAN_SPEED_COMPENSATE      0
 #define B3_TERRAIN_SPEED_MM_S         70
 #define B3_MAX_YAW_MDEG_S             30000
 
@@ -99,7 +129,15 @@
 /* Code 39 allows wide:narrow from 2:1 to 3:1 (school barcode ~3:1).
  * Accept that whole range with tolerance for sensor/robot movement error. */
 #define B3_WIDE_NARROW_RATIO_MIN_PCT   180U
-#define B3_WIDE_NARROW_RATIO_MAX_PCT   370U
+/* was 370: the car's IR_B reads printed 3:1 bars as 4-4.7:1 (2026-11-04). */
+#define B3_WIDE_NARROW_RATIO_MAX_PCT   550U
+/* Narrowest vs widest narrow element in one character (was a fixed 180).
+ * On the car narrow bars and gaps varied 48-125 ms in one letter while the
+ * wide ones were all 3x longer, so a wider spread is safe as long as the two
+ * groups stay clearly apart (the separate 1.5x gap check). */
+#define B3_NARROW_SPREAD_MAX_PCT       400U  /* 260 failed a 'Z' with a 33 ms thin bar next to 123 ms ones */
+/* 1: both start and stop '*' must decode. 0: the letter plus one '*'. */
+#define B3_NEED_BOTH_STARS             0
 
 
 /* Course/barcode dimensions from the supplied reference.

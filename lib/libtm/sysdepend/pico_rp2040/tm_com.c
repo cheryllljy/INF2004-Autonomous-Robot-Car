@@ -84,20 +84,23 @@ IMPORT void tm_usb_console_put(const UB *buf, INT size);
 
 /*
  * Test lines over MQTT (added 2026-11-04 by Buddy 3, for testing with the
- * car unplugged).  In a test build with the MQTT client (make TEST=1
- * MQTT=1 ...), every console line that starts with "[TEST]" is also kept
- * in a ring here.  mqtt_utk.c (network task) takes them out with
+ * car unplugged).  In any build with the MQTT client (MQTT=1), every
+ * console line that starts with "[TEST]" (test build) or "[VC" (the
+ * VehicleController: START/STOP, barcodes, junctions, obstacles) is also
+ * kept in a ring here.  mqtt_utk.c (network task) takes them out with
  * tm_mqtt_log_peek()/tm_mqtt_log_drop() and publishes each line on
  * inf2004/robot/test.  This side never waits and never calls lwIP, so it
  * is safe from any task, handler or core.  A full ring drops the line and
  * counts it in tm_mqtt_log_dropped.
  */
-#if defined(APP_MQTT) && APP_MQTT && defined(APP_TEST) && APP_TEST
+#if defined(APP_MQTT) && APP_MQTT
 #include <tk/tkernel.h>
 #include <tk/smp.h>
 
 #define MLOG_PREFIX	"[TEST]"
 #define MLOG_PREFIX_LEN	6
+#define MLOG_PREFIX2	"[VC"
+#define MLOG_PREFIX2_LEN	3
 #define MLOG_LINE_MAX	160		/* longer lines are cut */
 #define MLOG_RING_SIZE	16384U		/* power of two; records = length byte + text (~240 lines) */
 #define MLOG_RING_MASK	(MLOG_RING_SIZE - 1U)
@@ -129,15 +132,26 @@ LOCAL void mlog_lock_leave(UINT intsts)
 #endif
 }
 
-/* Lock held.  Keep the finished line if it is a test line. */
+LOCAL BOOL mlog_starts(const char *prefix, UW len)
+{
+	UW	i;
+
+	for (i = 0; i < len; i++) {
+		if (i >= mlog_len || mlog_line[i] != (UB)prefix[i]) {
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+/* Lock held.  Keep the finished line if it is a test or VC line. */
 LOCAL void mlog_end_line(void)
 {
 	UW	i, used;
 
-	for (i = 0; i < MLOG_PREFIX_LEN; i++) {
-		if (i >= mlog_len || mlog_line[i] != (UB)MLOG_PREFIX[i]) {
-			return;
-		}
+	if (!mlog_starts(MLOG_PREFIX, MLOG_PREFIX_LEN) &&
+	    !mlog_starts(MLOG_PREFIX2, MLOG_PREFIX2_LEN)) {
+		return;
 	}
 	used = (mlog_head - mlog_tail) & MLOG_RING_MASK;
 	if (used + mlog_len + 1U > MLOG_RING_MASK) {
@@ -201,11 +215,11 @@ EXPORT void tm_mqtt_log_drop(void)
 	}
 	mlog_lock_leave(intsts);
 }
-#endif /* APP_MQTT && APP_TEST */
+#endif /* APP_MQTT */
 
 EXPORT	void	tm_snd_dat( const UB* buf, INT size )
 {
-#if defined(APP_MQTT) && APP_MQTT && defined(APP_TEST) && APP_TEST
+#if defined(APP_MQTT) && APP_MQTT
 	mlog_put(buf, size);
 #endif
 #if TM_CONSOLE_USB_CDC

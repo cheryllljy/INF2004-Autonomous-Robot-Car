@@ -45,10 +45,10 @@ IMPORT ER subsystem3_init(void);
 IMPORT ER subsystem4_init(void);
 IMPORT ER subsystem5_init(void);
 
-IMPORT ER subsystem1_start(void);	/* uncommented 2026-11-04 (Buddy 3): app_main.c starts S1 */
+// IMPORT ER subsystem1_start(void);	/* uncommented 2026-11-04 (Buddy 3): app_main.c starts S1 */
 IMPORT ER subsystem2_start(void);
 IMPORT ER subsystem3_start(void);
-//IMPORT ER subsystem4_start(void);
+// IMPORT ER subsystem4_start(void);
 IMPORT ER subsystem5_start(void);
 
 #if APP_TEST

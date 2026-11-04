@@ -137,9 +137,7 @@ static uint8_t fr3_loss_reason = B1_FR3_REASON_NONE;
 static uint8_t fr3_reported_reason = B1_FR3_REASON_NONE;
 
 static void heartbeat_timeout(void *arg);
-#if defined(APP_TEST) && APP_TEST
 static void test_log_timeout(void *arg);
-#endif
 static void retry_timeout(void *arg);
 static void fr3_monitor_timeout(void *arg);
 
@@ -1354,15 +1352,14 @@ static void connection_cb(
 /* --------------------------------------------------------
  * Test lines over MQTT (added 2026-11-04 by Buddy 3)
  *
- * Test build only.  tm_com.c keeps every console line that
- * starts with "[TEST]"; this timer publishes them on
+ * MQTT builds.  tm_com.c keeps every console line that
+ * starts with "[TEST]" or "[VC"; this timer publishes them on
  * TEST_LOG_TOPIC, so the test run can be watched with
  * mosquitto_sub while the car is unplugged.  QoS 0.  A line
  * that does not fit in lwIP's MQTT buffer yet stays queued
  * for the next tick.
  * -------------------------------------------------------- */
 
-#if defined(APP_TEST) && APP_TEST
 #define TEST_LOG_TOPIC "inf2004/robot/test"
 #define TEST_LOG_MS 20u
 #define TEST_LOG_BURST 8u
@@ -1465,7 +1462,6 @@ static void test_log_timeout(void *arg)
 
     sys_timeout(TEST_LOG_MS, test_log_timeout, NULL);
 }
-#endif
 
 void mqtt_utk_start(void)
 {
@@ -1474,7 +1470,6 @@ void mqtt_utk_start(void)
 
     fr3_monitor_start();
 
-#if defined(APP_TEST) && APP_TEST
     {
         static u8_t test_log_started = 0u;
 
@@ -1484,7 +1479,6 @@ void mqtt_utk_start(void)
             sys_timeout(TEST_LOG_MS, test_log_timeout, NULL);
         }
     }
-#endif
 
     if (connecting || retry_pending)
     {

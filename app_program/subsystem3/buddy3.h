@@ -44,6 +44,10 @@ typedef struct
     b3_nav_event_t last_barcode;
     uint32_t edge_faults;
     uint32_t rejected_scans;
+    uint32_t reject_element_us; /* element duration that caused the last reject */
+    uint8_t reject_reason;      /* b3_reject_reason_t of the last reject */
+    uint8_t reject_edges;       /* elements measured (of B3_BARCODE_RUNS) at the last reject */
+    uint32_t reject_widths[B3_BARCODE_RUNS]; /* widths (us) of the last "not Code 39" reject */
     uint32_t dropped_events;
     uint32_t max_service_gap_us;
     int32_t task_error;

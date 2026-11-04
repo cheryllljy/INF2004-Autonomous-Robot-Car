@@ -131,7 +131,7 @@ static void test_invalid_frames(void)
     CHECK(b3_code39_decode(widths, &result));
 
     /* Too wide relative to narrow: reject. */
-    make_frame('A', 1000U, 3800U, widths);
+    make_frame('A', 1000U, 5600U, widths);
     CHECK(!b3_code39_decode(widths, &result));
 
     make_frame('A', 1000U, 1200U, widths);
@@ -193,7 +193,14 @@ static void test_stream_and_quiet(void)
     edge.time_us += 90000U;
     edge.black = true;
     CHECK(!b3_barcode_edge(&scan, edge, &result));
+    /* Black inside the trailing white is only a reject once it outlasts a
+       sensor blip, so it is counted at the next edge. */
+    CHECK(0U == scan.rejected);
+    edge.time_us += 30000U;
+    edge.black = false;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
     CHECK(1U == scan.rejected);
+    CHECK(B3_REJECT_TRAILING_QUIET == scan.reject_reason);
     /* Quiet completion can be discovered by the next barcode's first edge. */
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
     edge.time_us += 200000U;
@@ -310,7 +317,9 @@ static void test_timeout_noise_wrap(void)
     edge.time_us += 10U;
     edge.black = false;
     CHECK(!b3_barcode_edge(&scan, edge, &result));
-    CHECK(1U == scan.rejected);
+    /* A 10 us blip is sensor chatter: the start is dropped, not a reject. */
+    CHECK(0U == scan.rejected);
+    CHECK(1U == scan.glitches);
     CHECK(!b3_barcode_active(&scan));
     edge.time_us += 200000U;
     edge.black = true;
@@ -324,6 +333,126 @@ static void test_timeout_noise_wrap(void)
     CHECK(b3_barcode_poll(&scan, edge, &result));
     CHECK('C' == result.symbol);
     (void)puts("PASS: noise rejection, stuck-input timeout and 32-bit timer rollover");
+}
+
+/* Car slows from base speed to half over the barcode: later bars take twice
+ * as long, and the measured speed on each edge rescales them back. */
+static void test_slowdown_compensation(void)
+{
+    uint32_t times[B3_BARCODE_RUNS];
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge = {0};
+    size_t i;
+    const uint16_t slow = (uint16_t)(B3_BASE_SPEED_MM_S / 2);
+    make_frame('A', 10000U, 30000U, times);
+    edge.time_us = 300000U;
+    b3_barcode_init(&scan, edge);
+    edge.time_us = 500000U;
+    edge.black = true;
+    edge.speed_mm_s = B3_BASE_SPEED_MM_S;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+    {
+        bool late = (i >= 10U);
+        edge.time_us += late ? (times[i] * 2U) : times[i];
+        edge.speed_mm_s = late ? slow : (uint16_t)B3_BASE_SPEED_MM_S;
+        edge.black = !edge.black;
+        CHECK(!b3_barcode_edge(&scan, edge, &result));
+    }
+    CHECK(scan.pending);
+    edge.time_us += 200000U; /* 100 ms at base speed, needs 10 x narrow */
+    CHECK(b3_barcode_poll(&scan, edge, &result));
+    CHECK('A' == result.symbol);
+    (void)puts("PASS: slowing down over a barcode is rescaled by measured speed");
+}
+
+/* DO comparator chatter: a 41 us blip inside a bar and another in the
+ * trailing white are absorbed, and the barcode still decodes. */
+static void test_edge_blips(void)
+{
+    uint32_t times[B3_BARCODE_RUNS];
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge = {0};
+    size_t i;
+    make_frame('A', 10000U, 30000U, times);
+    edge.time_us = 300000U;
+    b3_barcode_init(&scan, edge);
+    edge.time_us = 500000U;
+    edge.black = true;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+    {
+        if ((5U == i) || (12U == i))
+        {
+            uint32_t at = edge.time_us + (times[i] / 2U);
+            b3_edge_t blip = edge;
+            blip.time_us = at;
+            blip.black = !edge.black;
+            CHECK(!b3_barcode_edge(&scan, blip, &result));
+            blip.time_us = at + 41U;
+            blip.black = edge.black;
+            CHECK(!b3_barcode_edge(&scan, blip, &result));
+        }
+        edge.time_us += times[i];
+        edge.black = !edge.black;
+        CHECK(!b3_barcode_edge(&scan, edge, &result));
+    }
+    CHECK(scan.pending);
+    {
+        b3_edge_t blip = edge;
+        blip.time_us += 20000U;
+        blip.black = true;
+        CHECK(!b3_barcode_edge(&scan, blip, &result));
+        blip.time_us += 41U;
+        blip.black = false;
+        CHECK(!b3_barcode_edge(&scan, blip, &result));
+        CHECK(scan.pending);
+    }
+    edge.time_us += 100000U;
+    CHECK(b3_barcode_poll(&scan, edge, &result));
+    CHECK('A' == result.symbol);
+    CHECK(0U == scan.rejected);
+    CHECK(3U == scan.glitches);
+    (void)puts("PASS: sub-200 us sensor blips inside a barcode are absorbed");
+}
+
+/* Car capture 2026-11-04 (nyx): every element fine except the first and
+ * last bars, read 3-4x too long. Trimming them decodes the middle letter. */
+static void test_trim_outer_bars(void)
+{
+    static const uint32_t car[B3_BARCODE_RUNS] = {
+        278600U, 177800U, 125400U, 80700U, 315300U, 94100U, 318900U, 91000U, 64600U, 145100U,
+        57000U, 335800U, 332900U, 48200U, 361400U, 80500U, 121600U, 97100U, 83100U, 132600U,
+        52500U, 350600U, 59000U, 110300U, 312300U, 90000U, 334500U, 56500U, 236800U};
+    b3_code39_result_t direct;
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge;
+    static const uint32_t car2[B3_BARCODE_RUNS] = { /* second capture, 33 ms thin bar */
+        238000U, 227100U, 85300U, 116000U, 306000U, 48500U, 319600U, 95300U, 59500U, 161300U,
+        33000U, 351400U, 312700U, 76200U, 342800U, 73000U, 122900U, 91500U, 110700U, 96100U,
+        117600U, 287000U, 125600U, 69100U, 332400U, 84600U, 332800U, 65100U, 146600U};
+    CHECK(!b3_code39_decode(car, &direct));
+#if B3_TRIM_OUTER_BARS
+    edge = feed_frame(&scan, 500000U, car2, NULL, 3000000U);
+    CHECK(scan.pending);
+    CHECK('Z' == scan.decoded.symbol);
+#endif
+    edge = feed_frame(&scan, 500000U, car, NULL, 3000000U);
+#if B3_TRIM_OUTER_BARS
+    CHECK(scan.pending);
+    CHECK(1U == scan.trimmed);
+    edge.time_us += 3000000U;
+    CHECK(b3_barcode_poll(&scan, edge, &result));
+    (void)printf("PASS: car scan with stretched outer bars decodes as '%c' after trimming\n",
+                 result.symbol);
+#else
+    (void)edge;
+    (void)result;
+    CHECK(1U == scan.rejected);
+#endif
 }
 
 static void test_line_logic(void)
@@ -361,6 +490,61 @@ static void test_line_logic(void)
     CHECK((result.left_mm_s >= 0) && (result.right_mm_s >= 0));
     (void)puts("PASS: straddle line rules, steering direction, filtering and crossings");
 
+    /* Sharp turn / U-turn (B3_SHARP_*): IR_R black for a short blip keeps
+     * full speed; held >= B3_SHARP_TURN_US it slows down and pivots. */
+    {
+        uint32_t t;
+        b3_line_init(&line, 0U);
+        (void)b3_line_step(&line, false, true, 0U, 120);
+        result = b3_line_step(&line, false, true, 50000U, 120);
+        CHECK(!result.sharp_turn && ((120 + B3_CORRECTION_MM_S) == result.left_mm_s) &&
+              ((120 - B3_CORRECTION_MM_S) == result.right_mm_s));
+        /* half way: speed and correction ramp, no step */
+        result = b3_line_step(&line, false, true, 50000U + (B3_SHARP_TURN_US / 2U), 120);
+        CHECK(!result.sharp_turn && (result.right_mm_s < (120 - B3_CORRECTION_MM_S)) && (result.right_mm_s > 0) &&
+              ((result.left_mm_s + result.right_mm_s) / 2 < 120) &&
+              ((result.left_mm_s + result.right_mm_s) / 2 > B3_SHARP_SPEED_MM_S));
+        for (t = 60000U; t <= 50000U + B3_SHARP_TURN_US; t += 10000U) /* black since 50 ms */
+        {
+            result = b3_line_step(&line, false, true, t, 120);
+        }
+        CHECK(result.sharp_turn);
+        CHECK((0 == result.right_mm_s) && ((2 * B3_SHARP_SPEED_MM_S) == result.left_mm_s));
+        /* flicker white inside the hold: still slow, still turning gently
+         * towards the line's side (it may have slid out past IR_R) */
+        result = b3_line_step(&line, false, false, t, 120);
+        result = b3_line_step(&line, false, false, t + 50000U, 120);
+        CHECK(result.sharp_turn &&
+              ((B3_SHARP_SPEED_MM_S + B3_CORRECTION_MM_S) == result.left_mm_s) &&
+              ((B3_SHARP_SPEED_MM_S - B3_CORRECTION_MM_S) == result.right_mm_s));
+        /* back on the line side: still pivoting */
+        (void)b3_line_step(&line, false, true, t + 60000U, 120);
+        result = b3_line_step(&line, false, true, t + 70000U, 120);
+        CHECK(result.sharp_turn && (0 == result.right_mm_s));
+        /* white past the hold: sharp turn over, speed eases back up
+         * (B3_SHARP_RECOVER_US) instead of jumping to 120 */
+        (void)b3_line_step(&line, false, false, t + 80000U, 120);
+        t = t + 80000U + B3_SHARP_HOLD_US + 10000U;
+        result = b3_line_step(&line, false, false, t, 120);
+        CHECK(!result.sharp_turn && (result.left_mm_s == result.right_mm_s) &&
+              (result.left_mm_s >= B3_SHARP_SPEED_MM_S) && (result.left_mm_s < 120));
+        result = b3_line_step(&line, false, false, t + (B3_SHARP_RECOVER_US / 2U), 120);
+        CHECK((result.left_mm_s > B3_SHARP_SPEED_MM_S + 10) && (result.left_mm_s < 120));
+        result = b3_line_step(&line, false, false, t + B3_SHARP_RECOVER_US, 120);
+        CHECK((120 == result.left_mm_s) && (120 == result.right_mm_s));
+        /* a crossing ends the slow-down at once (junction needs speed) */
+        b3_line_init(&line, 0U);
+        for (t = 0U; t <= B3_SHARP_TURN_US + 20000U; t += 10000U)
+        {
+            result = b3_line_step(&line, true, false, t, 120);
+        }
+        CHECK(result.sharp_turn && (0 == result.left_mm_s));
+        (void)b3_line_step(&line, true, true, t, 120);
+        result = b3_line_step(&line, true, true, t + 10000U, 120);
+        CHECK(!result.sharp_turn && (120 == result.left_mm_s) && (120 == result.right_mm_s));
+    }
+    (void)puts("PASS: sharp turn slows down, pivots, holds through flicker, eases back to speed, ends on a crossing");
+
 }
 
 int main(void)
@@ -372,6 +556,9 @@ int main(void)
     test_encoder_widths();
     test_timeout_noise_wrap();
     test_any_size();
+    test_slowdown_compensation();
+    test_edge_blips();
+    test_trim_outer_bars();
     test_line_logic();
     (void)printf("All %u checks passed. Host logic tests; no hardware timing claim.\n", g_checks);
     return EXIT_SUCCESS;
