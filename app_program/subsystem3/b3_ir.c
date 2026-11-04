@@ -34,34 +34,6 @@ static volatile uint32_t g_log_count;
 #endif
 
 
-#if B3_BARCODE_ANALOG
-
-#define B3_ADC_MAX          4095U
-#define B3_LEVEL_FRAC_BITS  16U
-
-/*
- * Analog IR_B state. Written only by b3_ir_analog_sample() (sampler
- * interrupt) and b3_ir_init(), always under the port lock. Levels are on
- * a black-is-high scale; the tracked levels keep 16 fraction bits so the
- * slow decay still moves them.
- */
-static uint32_t g_white_q;
-static uint32_t g_black_q;
-static bool g_analog_black;
-static bool g_armed;
-static uint32_t g_confirm;
-static uint32_t g_cross_time_us;
-static bool g_cross_position_valid;
-static uint32_t g_cross_position_ticks;
-static uint32_t g_prev_time_us;
-static uint32_t g_prev_level;
-static uint32_t g_element_peak;
-static uint32_t g_dip_peak;
-static uint32_t g_analog_samples;
-static uint32_t g_near_misses;
-static uint32_t g_last_level;
-
-#endif
 
 
 /*
@@ -89,19 +61,12 @@ static b3_edge_t sample_barcode(uint32_t pins)
         b3_port_time_us();
 
 
-#if B3_BARCODE_ANALOG
-    (void)pins;
-
-    edge.black =
-        g_analog_black;
-#else
     edge.black =
         black_level(
             pins,
             B3_IR_B_GPIO,
             B3_IR_B_BLACK_LEVEL
         );
-#endif
 
 
     if (0 != g_position_reader)
@@ -206,392 +171,6 @@ static void log_entry_locked(
 #endif
 
 
-#if B3_BARCODE_ANALOG
-/*
- * Convert an ADC reading to the black-is-high scale.
- */
-static uint32_t analog_level(uint32_t raw)
-{
-    if (raw > B3_ADC_MAX)
-    {
-        raw =
-            B3_ADC_MAX;
-    }
-
-
-    return (B3_IR_B_BLACK_LEVEL != 0U) ?
-           raw :
-           (B3_ADC_MAX - raw);
-}
-
-
-/*
- * Time at which the signal crossed the threshold, interpolated between
- * the previous sample and this one, so the hysteresis and confirmation
- * samples do not shift the edge.
- */
-static uint32_t crossing_time(
-    uint32_t time_us,
-    uint32_t level,
-    uint32_t threshold)
-{
-    uint32_t from;
-
-    uint32_t to;
-
-
-    from =
-        (g_prev_level > threshold) ?
-        (g_prev_level - threshold) :
-        (threshold - g_prev_level);
-
-    to =
-        (level > g_prev_level) ?
-        (level - g_prev_level) :
-        (g_prev_level - level);
-
-
-    /*
-     * Only when the previous sample was on the other side.
-     */
-    if ((0U == to) ||
-        (from > to) ||
-        ((g_prev_level >= threshold) == (level >= threshold)))
-    {
-        return time_us;
-    }
-
-
-    return g_prev_time_us +
-           (uint32_t)(((uint64_t)(time_us - g_prev_time_us) * from) / to);
-}
-
-
-/*
- * The colour changed: queue the edge timed at the threshold crossing.
- * Caller holds the port lock.
- */
-static void analog_edge_locked(
-    bool black,
-    uint32_t level)
-{
-    b3_edge_t edge =
-        {0};
-
-
-    edge.time_us =
-        g_cross_time_us;
-
-    edge.black =
-        black;
-
-    edge.position_valid =
-        g_cross_position_valid;
-
-    edge.position_ticks =
-        g_cross_position_ticks;
-
-
-#if defined(APP_TEST) && APP_TEST
-    log_entry_locked(
-        g_cross_time_us,
-        (uint8_t)((black == (B3_IR_B_BLACK_LEVEL != 0U)) ?
-                  B3_GPIO_EDGE_RISE :
-                  B3_GPIO_EDGE_FALL),
-        g_element_peak
-    );
-#endif
-
-
-    push_edge_locked(
-        &edge
-    );
-
-
-    g_analog_black =
-        black;
-
-    g_armed =
-        false;
-
-    g_confirm =
-        0U;
-
-    g_element_peak =
-        level;
-}
-
-
-/*
- * IR_B analog sample, from the port's sampler interrupt.
- *
- * The white and black levels follow new extremes quickly (attack) and
- * relax towards the signal slowly (decay), so they hold through a whole
- * barcode but adapt to sensor height, tilt and ambient light. The edge
- * point sits B3_ANALOG_THRESHOLD_PCT of the way from white to black.
- * A colour change needs the signal past the threshold by the hysteresis
- * band for B3_ANALOG_CONFIRM_SAMPLES samples; the edge is timed where the
- * threshold was crossed.
- */
-void b3_ir_analog_sample(
-    uint32_t time_us,
-    uint32_t raw)
-{
-    b3_irq_state_t saved;
-
-    uint32_t level;
-
-    uint32_t level_q;
-
-    uint32_t white;
-
-    uint32_t contrast;
-
-    uint32_t threshold;
-
-    uint32_t hysteresis;
-
-    bool beyond;
-
-    bool past_threshold;
-
-
-    level =
-        analog_level(raw);
-
-    level_q =
-        level << B3_LEVEL_FRAC_BITS;
-
-
-    b3_port_lock(&saved);
-
-
-    ++g_analog_samples;
-
-    g_last_level =
-        level;
-
-
-    /*
-     * Track the black (high) and white (low) levels.
-     */
-    if (level_q > g_black_q)
-    {
-        g_black_q +=
-            (level_q - g_black_q + (1U << B3_ANALOG_ATTACK_SHIFT) - 1U) >>
-            B3_ANALOG_ATTACK_SHIFT;
-    }
-    else
-    {
-        g_black_q -=
-            (g_black_q - level_q) >> B3_ANALOG_DECAY_SHIFT;
-    }
-
-
-    if (level_q < g_white_q)
-    {
-        g_white_q -=
-            (g_white_q - level_q + (1U << B3_ANALOG_ATTACK_SHIFT) - 1U) >>
-            B3_ANALOG_ATTACK_SHIFT;
-    }
-    else
-    {
-        g_white_q +=
-            (level_q - g_white_q) >> B3_ANALOG_DECAY_SHIFT;
-    }
-
-
-    white =
-        g_white_q >> B3_LEVEL_FRAC_BITS;
-
-    contrast =
-        (g_black_q >> B3_LEVEL_FRAC_BITS) - white;
-
-    threshold =
-        white + ((contrast * B3_ANALOG_THRESHOLD_PCT) / 100U);
-
-    hysteresis =
-        (contrast * B3_ANALOG_HYST_PCT) / 100U;
-
-
-    /*
-     * Furthest level from the threshold in the current element.
-     */
-    if (g_analog_black ?
-        (level > g_element_peak) :
-        (level < g_element_peak))
-    {
-        g_element_peak =
-            level;
-    }
-
-
-    if (contrast < B3_ANALOG_MIN_CONTRAST)
-    {
-        /*
-         * Not enough contrast seen yet: noise on one colour.
-         */
-        g_armed =
-            false;
-
-        g_confirm =
-            0U;
-    }
-    else
-    {
-        past_threshold =
-            g_analog_black ?
-            (level <= threshold) :
-            (level >= threshold);
-
-        beyond =
-            g_analog_black ?
-            (level + hysteresis <= threshold) :
-            (level >= threshold + hysteresis);
-
-
-        if (past_threshold)
-        {
-            if (!g_armed)
-            {
-                /*
-                 * Possible edge: remember where it crossed.
-                 */
-                g_armed =
-                    true;
-
-                g_confirm =
-                    0U;
-
-                g_dip_peak =
-                    level;
-
-                g_cross_time_us =
-                    crossing_time(
-                        time_us,
-                        level,
-                        threshold
-                    );
-
-                g_cross_position_valid =
-                    false;
-
-                if (0 != g_position_reader)
-                {
-                    g_cross_position_valid =
-                        g_position_reader(
-                            &g_cross_position_ticks
-                        );
-                }
-            }
-
-
-            if (g_analog_black ?
-                (level < g_dip_peak) :
-                (level > g_dip_peak))
-            {
-                g_dip_peak =
-                    level;
-            }
-
-
-            g_confirm =
-                beyond ? (g_confirm + 1U) : 0U;
-
-
-            if (g_confirm >= B3_ANALOG_CONFIRM_SAMPLES)
-            {
-                analog_edge_locked(
-                    !g_analog_black,
-                    level
-                );
-            }
-        }
-        else if (g_armed)
-        {
-            /*
-             * Crossed the threshold but fell back: a near miss.
-             */
-            ++g_near_misses;
-
-
-#if defined(APP_TEST) && APP_TEST
-            log_entry_locked(
-                g_cross_time_us,
-                0U,
-                g_dip_peak
-            );
-#endif
-
-
-            g_armed =
-                false;
-
-            g_confirm =
-                0U;
-        }
-    }
-
-
-    g_prev_time_us =
-        time_us;
-
-    g_prev_level =
-        level;
-
-
-    b3_port_unlock(saved);
-}
-
-
-void b3_ir_analog_stats(
-    b3_ir_analog_stats_t *p_stats)
-{
-    b3_irq_state_t saved;
-
-    uint32_t white;
-
-    uint32_t black;
-
-
-    b3_port_lock(&saved);
-
-
-    white =
-        g_white_q >> B3_LEVEL_FRAC_BITS;
-
-    black =
-        g_black_q >> B3_LEVEL_FRAC_BITS;
-
-
-    p_stats->samples =
-        g_analog_samples;
-
-    p_stats->near_misses =
-        g_near_misses;
-
-    p_stats->level =
-        (uint16_t)g_last_level;
-
-    p_stats->white =
-        (uint16_t)white;
-
-    p_stats->black =
-        (uint16_t)black;
-
-    p_stats->threshold =
-        (uint16_t)(white + (((black - white) * B3_ANALOG_THRESHOLD_PCT) / 100U));
-
-    p_stats->hysteresis =
-        (uint16_t)(((black - white) * B3_ANALOG_HYST_PCT) / 100U);
-
-    p_stats->black_now =
-        g_analog_black;
-
-
-    b3_port_unlock(saved);
-}
-#endif
 
 
 /*
@@ -605,9 +184,7 @@ ER b3_ir_init(b3_position_reader_t reader)
     {
         B3_IR_R_GPIO,
         B3_IR_L_GPIO,
-#if !B3_BARCODE_ANALOG
         B3_IR_B_GPIO
-#endif
     };
 
     ER status;
@@ -616,9 +193,6 @@ ER b3_ir_init(b3_position_reader_t reader)
 
     unsigned int i;
 
-#if B3_BARCODE_ANALOG
-    uint32_t level;
-#endif
 
 
     status =
@@ -656,36 +230,6 @@ ER b3_ir_init(b3_position_reader_t reader)
     }
 
 
-#if B3_BARCODE_ANALOG
-    /*
-     * IR_B is the module's AO on the ADC. Start the tracked white and
-     * black levels at the first reading, so no edge counts until real
-     * contrast has been seen.
-     */
-    status =
-        b3_port_adc_input_init(
-            B3_IR_B_GPIO
-        );
-
-
-    if (E_OK != status)
-    {
-        return status;
-    }
-
-
-    {
-        int32_t raw =
-            b3_port_adc_read(
-                B3_IR_B_ADC_CH
-            );
-
-        level =
-            analog_level(
-                (raw < 0) ? 0U : (uint32_t)raw
-            );
-    }
-#endif
 
 
     /*
@@ -718,40 +262,6 @@ ER b3_ir_init(b3_position_reader_t reader)
         0U;
 
 
-#if B3_BARCODE_ANALOG
-    g_white_q =
-        level << B3_LEVEL_FRAC_BITS;
-
-    g_black_q =
-        g_white_q;
-
-    g_analog_black =
-        (level > (B3_ADC_MAX / 2U));
-
-    g_armed =
-        false;
-
-    g_confirm =
-        0U;
-
-    g_prev_time_us =
-        b3_port_time_us();
-
-    g_prev_level =
-        level;
-
-    g_last_level =
-        level;
-
-    g_element_peak =
-        level;
-
-    g_analog_samples =
-        0U;
-
-    g_near_misses =
-        0U;
-#endif
 
 
     b3_port_unlock(saved);
@@ -765,18 +275,7 @@ ER b3_ir_init(b3_position_reader_t reader)
     );
 
 
-#if B3_BARCODE_ANALOG
-
-    status =
-        b3_port_install_barcode_sampler();
-
-
-    if (E_OK != status)
-    {
-        return status;
-    }
-
-#elif B3_INSTALL_IO_BANK0_HANDLER
+#if B3_INSTALL_IO_BANK0_HANDLER
 
     status =
         b3_port_install_barcode_irq();

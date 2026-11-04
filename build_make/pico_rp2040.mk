@@ -189,6 +189,7 @@ CFLAGS  += -DCNF_SMP=1
 ASFLAGS += -DCNF_SMP=1
 endif
 CFLAGS  += -DAPP_TEST=$(TEST)
+CFLAGS  += -DAPP_MQTT=$(MQTT)	# 1 = MQTT client built in (test lines also go out over MQTT)
 CFLAGS += -DMOTION_CALIBRATION_BUILD=$(CAL)
 CFLAGS  += -DTM_CONSOLE_UART=$(CRASH_REPORT)
 ifeq ($(CRASH_REPORT),0)
