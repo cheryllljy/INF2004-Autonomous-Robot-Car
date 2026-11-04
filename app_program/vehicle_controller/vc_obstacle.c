@@ -439,6 +439,22 @@ EXPORT vc_obs_result_t vc_obs_step(const motion_status_t *p_motion,
 	if (vo.ev_fault) {
 		/* S5 FAULT: its own handling (E-stop bit or latched mission
 		   fault) is in read_obstacle(); the bypass is over. */
+		/* Diagnostic (Buddy 3, 2026-11-04): which S5 fault, since
+		   S5 itself prints nothing that reaches the MQTT log. */
+		{
+			obstacle_health_t h;
+			static const char *const names[] = {
+				"none", "SENSOR (no echo)",
+				"STOP_TIMEOUT (car not still <= 5 mm/s within 1 s)",
+				"REVERSE_LIMIT (third reverse)",
+				"ASSIST_TIMEOUT (no VC request for 5 s)" };
+
+			obstacle_get_health(&h);
+			tm_printf((UB*)"[VC-OBS] S5 fault %u: %s, S5 state %u\n",
+				  (UINT)h.fault,
+				  (h.fault < (sizeof(names) / sizeof(names[0]))) ?
+				  names[h.fault] : "?", (UINT)h.state);
+		}
 		vo_fail("ObstacleScan fault");
 		return VC_OBS_FAULT;
 	}

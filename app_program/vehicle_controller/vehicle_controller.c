@@ -20,7 +20,9 @@
 #include "../subsystem5/subsystem5.h"
 #include "../subsystem1/buddy1_fr2.h"
 #include "../subsystem1/buddy1_mapping.h"
+#if defined(APP_MQTT) && APP_MQTT
 #include "../../lib/liblwip/sysdepend/pico_rp2040/mqtt_utk.h"
+#endif
 
 EXPORT ID	flg_vc = 0;
 
@@ -47,6 +49,7 @@ typedef struct {
 	uint32_t	last_seq;
 	uint32_t	junctions;	/* Buddy 3 junction_sequence seen */
 	uint32_t	rejected;	/* Buddy 3 rejected_scans seen */
+	bool		scanning;	/* Buddy 3 scan_active seen */
 	INT		state_ms;	/* time in the current state */
 	INT		since_send_ms;
 	int16_t		sent_l;
@@ -54,7 +57,9 @@ typedef struct {
 } vc_t;
 
 LOCAL vc_t	vc;
+#if defined(APP_MQTT) && APP_MQTT
 LOCAL bool b1_reset_pending = false;
+#endif
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                        */
@@ -126,6 +131,7 @@ LOCAL void stop_motors(void)
  */
 LOCAL void poll_buddy1(void)
 {
+#if defined(APP_MQTT) && APP_MQTT
     B1_FR3_Status link = {0};
     B1_FR2_Command command;
     bool status_valid;
@@ -142,6 +148,11 @@ LOCAL void poll_buddy1(void)
             vc.state == VC_STATE_TURNING ||
             vc.state == VC_STATE_OBSTACLE) {
 
+            /* Diagnostic (Buddy 3, 2026-11-04): say which link failed */
+            tm_printf((UB*)"[VC] link lost while driving: %s\n",
+                      !status_valid ? "no status" :
+                      (link.loss_reason == B1_FR3_REASON_WIFI) ?
+                      "Wi-Fi down" : "MQTT broker not answering (3 s)");
             motion_estop_request(MOTION_ESTOP_VEHICLE);
             stop_motors();
             vc_raise_fault(VC_FAULT_WIFI_LOSS);
@@ -258,6 +269,9 @@ LOCAL void poll_buddy1(void)
 
         break;
     }
+#endif /* APP_MQTT: without MQTT=1 there is no Buddy 1 link to poll
+	  (edit by Buddy 3, 2026-11-04, so motion + IR tests build
+	  without Wi-Fi/MQTT) */
 }
 
 /* Send Buddy 3's wheel speeds on change, and refresh them periodically */
@@ -381,7 +395,27 @@ LOCAL void read_motion(void)
 	__sync_synchronize();
 	g_odo_seq++;			/* even: done */
 
+	/* Diagnostic (Buddy 3, 2026-11-04): say which Buddy 2 fault, once */
+	static motion_fault_t reported = MOTION_FAULT_NONE;
+	if (vc.motion.state != MOTION_STATE_FAULT) {
+		reported = MOTION_FAULT_NONE;
+	}
 	if (vc.motion.state == MOTION_STATE_FAULT) {
+		if (vc.motion.fault != reported) {
+			static const char *const names[] = {
+				"none", "STALL_L (left wheel: high PWM, no encoder ticks 300 ms)",
+				"STALL_R (right wheel: high PWM, no encoder ticks 300 ms)",
+				"ENCODER_TIMEOUT (full PWM, wheel far slower than asked)",
+				"LINE_STALE",
+			};
+			unsigned f = (unsigned)vc.motion.fault;
+			reported = vc.motion.fault;
+			tm_printf((UB*)"[VC] Buddy 2 fault %u: %s, speed L %d R %d mm/s, "
+				  "ticks L %d R %d\n", f,
+				  (f < sizeof names / sizeof names[0]) ? names[f] : "?",
+				  (int)vc.motion.speed_l_mmps, (int)vc.motion.speed_r_mmps,
+				  (int)vc.motion.ticks_l, (int)vc.motion.ticks_r);
+		}
 		vc_raise_fault((vc.motion.fault == MOTION_FAULT_ENCODER_TIMEOUT) ?
 			       VC_FAULT_ENCODER : VC_FAULT_MOTOR_STALL);
 	}
@@ -574,11 +608,59 @@ LOCAL void exchange_line(void)
 		on_barcode(ev.barcode.symbol, ev.sequence);
 	}
 
+	/* Diagnostic (Buddy 3, 2026-11-04): IR_B started reading a barcode */
+	if (vc.line.scan_active != vc.scanning) {
+		vc.scanning = vc.line.scan_active;
+		if (vc.scanning) {
+			tm_printf((UB*)"[VC] barcode scan started\n");
+		}
+	}
+
 	/* Diagnostic: a barcode was seen but failed to decode */
 	if (vc.line.rejected_scans != vc.rejected) {
 		vc.rejected = vc.line.rejected_scans;
-		tm_printf((UB*)"[VC] barcode seen but rejected (total %u)\n",
-			  (unsigned)vc.rejected);
+		/* Buddy 3 diagnostics (nyx): elements measured and why. */
+		static const char *const reject_names[] = {
+			"none", "same colour twice (missed edge)",
+			"element too short (noise)", "element too long",
+			"element much wider than the narrowest",
+			"whole scan too long", "not a valid Code 39 pattern",
+			"white before barcode too short",
+			"white after barcode too short",
+		};
+		unsigned why = vc.line.reject_reason;
+		tm_printf((UB*)"[VC] barcode rejected (total %u): %u/%u elements, "
+			  "last element %u us, reason %u: %s\n",
+			  (unsigned)vc.rejected, (unsigned)vc.line.reject_edges,
+			  (unsigned)B3_BARCODE_RUNS,
+			  (unsigned)vc.line.reject_element_us, why,
+			  (why < sizeof reject_names / sizeof reject_names[0]) ?
+				reject_names[why] : "?");
+		if (why == 6U) {	/* not Code 39: show the widths, B = bar, w = gap */
+			for (unsigned c = 0U; c < 3U; ++c) {
+				char line[120];
+				unsigned n = 0U;
+				for (unsigned k = c * 10U;
+				     (k < (c + 1U) * 10U) && (k < B3_BARCODE_RUNS); ++k) {
+					unsigned ms10 = (unsigned)((vc.line.reject_widths[k] + 50U) / 100U);
+					char digits[8];
+					unsigned d = 0U;
+					if (ms10 > 99999U) ms10 = 99999U;
+					digits[d++] = (char)('0' + ms10 % 10U);	/* tenths */
+					digits[d++] = '.';
+					ms10 /= 10U;
+					do { digits[d++] = (char)('0' + ms10 % 10U); ms10 /= 10U; } while (ms10 > 0U);
+					if (n + d + 2U >= sizeof line) break;
+					line[n++] = ' ';
+					line[n++] = (k & 1U) ? 'w' : 'B';
+					while (d > 0U) line[n++] = digits[--d];
+				}
+				line[n] = '\0';
+				tm_printf((UB*)"[VC]   widths ms %u-%u:%s\n", c * 10U,
+					  (c * 10U + 9U < B3_BARCODE_RUNS) ? c * 10U + 9U :
+					  B3_BARCODE_RUNS - 1U, line);
+			}
+		}
 	}
 
 	/* Junction: Buddy 3 counts each one, so a new count = just reached */
