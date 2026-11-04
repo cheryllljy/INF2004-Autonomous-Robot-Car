@@ -34,6 +34,12 @@ typedef struct
     uint32_t last_seen_us;
     int8_t last_error;
     bool ever_seen;
+    int8_t side;            /* side that is black now (-1 L, +1 R, 0 none) */
+    uint32_t side_since_us; /* when that side went black */
+    int8_t sharp;           /* sharp turn in progress: direction, 0 = no */
+    uint32_t sharp_last_us; /* last time the sharp side was still black */
+    bool recovering;        /* speeding back up after a sharp turn */
+    uint32_t sharp_end_us;  /* when the last sharp turn ended */
 } b3_line_t;
 
 typedef struct
@@ -46,6 +52,7 @@ typedef struct
     bool right_black;
     bool stop;
     bool recovery_needed;
+    bool sharp_turn; /* slowed down for a sharp turn (B3_SHARP_*) */
 } b3_line_result_t;
 
 void b3_line_init(b3_line_t *p_line, uint32_t now_us);

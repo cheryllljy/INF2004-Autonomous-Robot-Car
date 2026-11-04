@@ -39,6 +39,22 @@ static bool g_side_motion_good;
  * junction_candidate) so the VehicleController cannot miss one between
  * snapshot reads. Added 2026-10-30. */
 static bool g_prev_junction;
+
+/* Barcode slowdown (nyx, 2026-11-04): set by any IR_B black, cleared after
+ * B3_SCAN_SLOW_WHITE_US of white. */
+static bool g_bar_slow;
+static uint32_t g_bar_slow_since_us;
+static uint32_t g_bar_last_black_us;
+
+static void bar_slow_black(uint32_t time_us)
+{
+    if (!g_bar_slow)
+    {
+        g_bar_slow = true;
+        g_bar_slow_since_us = time_us;
+    }
+    g_bar_last_black_us = time_us;
+}
 static uint32_t g_junction_sequence;
 
 static bool g_event_fault;
@@ -377,6 +393,10 @@ static void service_once(void)
 
     int16_t base_speed;
 
+    uint16_t scan_speed;
+
+    bool crossing;
+
 
     status =
         B3_IR_EMPTY;
@@ -452,7 +472,34 @@ static void service_once(void)
     /*
      * Reduce speed while reading a barcode.
      */
-    if (b3_barcode_active(&g_scan))
+    /*
+     * Barcode slowdown: hold the slow speed while IR_B is black and until
+     * it has read white for B3_SCAN_SLOW_WHITE_US.
+     */
+    crossing =
+        sample.left_black &&
+        sample.right_black;
+
+    if (context.scan_enabled &&
+        !crossing &&
+        sample.barcode.black)
+    {
+        bar_slow_black(now);
+    }
+
+    if (g_bar_slow &&
+        ((!context.scan_enabled) ||
+         crossing ||
+         ((!sample.barcode.black) &&
+          ((now - g_bar_last_black_us) >=
+           B3_SCAN_SLOW_WHITE_US)) ||
+         ((now - g_bar_slow_since_us) >=
+          B3_SCAN_SLOW_MAX_US)))
+    {
+        g_bar_slow = false;
+    }
+
+    if (g_bar_slow)
     {
         base_speed =
             B3_SCAN_SPEED_MM_S;
@@ -508,6 +555,22 @@ static void service_once(void)
 
         g_motion_good =
             true;
+    }
+
+
+    /*
+     * Measured car speed, used to rescale bar widths while the car slows
+     * over a barcode (0 = unknown, widths left in raw time).
+     */
+    {
+        int32_t avg =
+            ((int32_t)context.left_measured_mm_s +
+             context.right_measured_mm_s) / 2;
+
+        scan_speed =
+            (fresh && context.motion_valid && (avg > 0)) ?
+                (uint16_t)((avg > UINT16_MAX) ? UINT16_MAX : avg) :
+                0U;
     }
 
 
@@ -580,6 +643,18 @@ static void service_once(void)
              * Feed the valid edge into the
              * barcode state machine.
              */
+            edge.speed_mm_s =
+                scan_speed;
+
+            /* A thin bar can start and end between two task passes, so
+             * queued edges also drive the slowdown: a black edge starts it,
+             * the white edge that ends a bar restarts the white timer. */
+            if ((edge.black || g_bar_slow) &&
+                !(sample.left_black && sample.right_black))
+            {
+                bar_slow_black(edge.time_us);
+            }
+
             if (b3_barcode_edge(
                     &g_scan,
                     edge,
@@ -605,6 +680,9 @@ static void service_once(void)
                 &sample
             ))
         {
+            sample.barcode.speed_mm_s =
+                scan_speed;
+
             if (b3_barcode_poll(
                     &g_scan,
                     sample.barcode,
@@ -755,6 +833,21 @@ static void service_once(void)
 
     output.rejected_scans =
         g_scan.rejected;
+
+    output.reject_reason =
+        g_scan.reject_reason;
+
+    output.reject_edges =
+        g_scan.reject_count;
+
+    output.reject_element_us =
+        g_scan.reject_element_us;
+
+    for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+    {
+        output.reject_widths[i] =
+            g_scan.reject_widths[i];
+    }
 
 
     output.dropped_events =
@@ -950,6 +1043,9 @@ ER buddy3_start(
 
 
     g_side_black =
+        false;
+
+    g_bar_slow =
         false;
 
 

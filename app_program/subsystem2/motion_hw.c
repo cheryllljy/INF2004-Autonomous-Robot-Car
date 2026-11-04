@@ -30,6 +30,10 @@
 
 #define MH_IO_BANK0_BASE        (0x40014000U)
 #define MH_GPIO_CTRL(pin)       MH_REG32(MH_IO_BANK0_BASE + (8U * (pin)) + 4U)
+#define MH_PAD_GPIO(pin)        MH_REG32(0x4001C000U + 4U + (4U * (pin)))   /* PADS_BANK0 GPIOn */
+#define MH_PAD_IE               (1U << 6)
+#define MH_PAD_PUE              (1U << 3)
+#define MH_PAD_PDE              (1U << 2)
 #define MH_INTR0                MH_REG32(MH_IO_BANK0_BASE + 0x0F0U)   /* GPIO 0-7 raw/latched events */
 #define MH_PROC0_INTE0          MH_REG32(MH_IO_BANK0_BASE + 0x100U)   /* GPIO 0-7 enable, core 0     */
 #define MH_PROC0_INTS0          MH_REG32(MH_IO_BANK0_BASE + 0x120U)   /* GPIO 0-7 status, core 0     */
@@ -232,6 +236,12 @@ bool motion_hw_init(void)
 
     MH_GPIO_CTRL(PIN_ENC_L) = MH_FUNCSEL_SIO;
     MH_GPIO_CTRL(PIN_ENC_R) = MH_FUNCSEL_SIO;
+    /* Buddy 3 (nyx, 2026-11-04): the right encoder gave 0 ticks while its
+     * wheel was spinning. RP2040 pads default to a pull-down, which an
+     * open-collector encoder output cannot lift. Use the pull-up instead
+     * (harmless for a push-pull output) and make sure input is enabled. */
+    MH_PAD_GPIO(PIN_ENC_L) = (MH_PAD_GPIO(PIN_ENC_L) & ~MH_PAD_PDE) | MH_PAD_PUE | MH_PAD_IE;
+    MH_PAD_GPIO(PIN_ENC_R) = (MH_PAD_GPIO(PIN_ENC_R) & ~MH_PAD_PDE) | MH_PAD_PUE | MH_PAD_IE;
     (void)gpio_dispatch_register(PIN_ENC_L, GPIO_DISPATCH_EDGE_BOTH, motion_encoder_isr);
     (void)gpio_dispatch_register(PIN_ENC_R, GPIO_DISPATCH_EDGE_BOTH, motion_encoder_isr);
     return gpio_dispatch_start();       /* false if another handler already owns the interrupt */

@@ -130,7 +130,7 @@ static bool decode_symbol(const uint32_t raw[9], char *p_symbol,
     * The supplied school barcode is approximately 3:1.
     */
     if (((uint64_t)sorted[6] * 100U < (uint64_t)sorted[5] * 150U) ||
-        ((uint64_t)sorted[5] * 100U > (uint64_t)sorted[0] * 180U) ||
+        ((uint64_t)sorted[5] * 100U > (uint64_t)sorted[0] * B3_NARROW_SPREAD_MAX_PCT) ||
         ((uint64_t)sorted[8] * 100U > (uint64_t)sorted[6] * 180U) ||
         (wide_sum * 200U <
             narrow_sum * B3_WIDE_NARROW_RATIO_MIN_PCT) ||
@@ -174,23 +174,45 @@ static bool decode_forward(const uint32_t widths[B3_BARCODE_RUNS],
     int64_t s_last;
     int64_t gap;
     int64_t gap_reference;
-    if (!decode_symbol(&widths[0], &first, &n_first, &s_first) ||
-        !decode_symbol(&widths[10], &middle, &n_middle, &s_middle) ||
-        !decode_symbol(&widths[20], &last, &n_last, &s_last) ||
-        ('*' != first) || ('*' != last) || ('*' == middle))
+    bool first_ok;
+    bool last_ok;
+    if (!decode_symbol(&widths[10], &middle, &n_middle, &s_middle) ||
+        ('*' == middle))
     {
         return false;
+    }
+    first_ok = decode_symbol(&widths[0], &first, &n_first, &s_first) &&
+               ('*' == first);
+    last_ok = decode_symbol(&widths[20], &last, &n_last, &s_last) &&
+              ('*' == last);
+    /* B3_NEED_BOTH_STARS 0 (nyx, 2026-11-04): the car's speed wobble can
+     * spoil one '*'; the letter is still fully checked and the other '*'
+     * must be valid. A spoiled side borrows the letter's narrow/skew. */
+    if (!(first_ok && last_ok) &&
+        (B3_NEED_BOTH_STARS || !(first_ok || last_ok)))
+    {
+        return false;
+    }
+    if (!first_ok)
+    {
+        n_first = n_middle;
+        s_first = s_middle;
+    }
+    if (!last_ok)
+    {
+        n_last = n_middle;
+        s_last = s_middle;
     }
     /* Gaps are spaces, so they carry the same skew as their neighbours. */
     gap = (int64_t)widths[9] - (s_first + s_middle) / 2;
     gap_reference = ((int64_t)n_first + n_middle) / 2;
-    if ((gap * 2 < gap_reference) || (gap > gap_reference * 2))
+    if (first_ok && ((gap * 2 < gap_reference) || (gap > gap_reference * 2)))
     {
         return false;
     }
     gap = (int64_t)widths[19] - (s_middle + s_last) / 2;
     gap_reference = ((int64_t)n_middle + n_last) / 2;
-    if ((gap * 2 < gap_reference) || (gap > gap_reference * 2))
+    if (last_ok && ((gap * 2 < gap_reference) || (gap > gap_reference * 2)))
     {
         return false;
     }

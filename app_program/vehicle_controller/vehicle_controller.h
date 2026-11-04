@@ -29,7 +29,7 @@
    the B3-H08/H09 tests drive the motors themselves, and two tasks
    commanding Buddy 2 at once would fight. */
 #ifndef VC_ENABLE
-#define VC_ENABLE		1
+#define VC_ENABLE		1	/* 1: START/STOP over MQTT (robot.ps1 go/stop). 0 for the B3-H08/H09 tests */
 #endif
 
 /* 1 = bench test without Buddy 1: START by itself VC_BENCH_START_S after

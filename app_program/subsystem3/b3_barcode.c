@@ -3,6 +3,28 @@
 
 
 /*
+ * Convert a time width to "time at B3_BASE_SPEED_MM_S" using the measured
+ * speed, so slowing down during a scan does not stretch the later bars.
+ * Speed 0 (unknown) leaves the width as it is.
+ */
+static uint32_t at_base_speed(
+    uint32_t us,
+    uint16_t speed_mm_s)
+{
+#if B3_SCAN_SPEED_COMPENSATE
+    if (speed_mm_s > 0U)
+    {
+        return (uint32_t)(((uint64_t)us * speed_mm_s) /
+                          (uint64_t)B3_BASE_SPEED_MM_S);
+    }
+#else
+    (void)speed_mm_s;
+#endif
+    return us;
+}
+
+
+/*
  * Initialise barcode decoder.
  */
 void b3_barcode_init(
@@ -48,6 +70,12 @@ void b3_barcode_abort(
 
     p_scan->positions_valid =
         false;
+
+    p_scan->prev_valid =
+        false;
+
+    p_scan->glitch =
+        false;
 }
 
 
@@ -67,11 +95,46 @@ bool b3_barcode_active(
 /*
  * Reject the current barcode attempt.
  */
-static void reject(
+static void note_reject(
     b3_barcode_t *p_scan,
-    b3_edge_t edge)
+    b3_reject_reason_t reason,
+    uint32_t element_us)
 {
     ++p_scan->rejected;
+
+    p_scan->reject_reason =
+        (uint8_t)reason;
+
+    p_scan->reject_count =
+        p_scan->count;
+
+    p_scan->reject_element_us =
+        element_us;
+
+    if (B3_REJECT_DECODE == reason)
+    {
+        size_t k;
+
+        for (k = 0U; k < B3_BARCODE_RUNS; ++k)
+        {
+            p_scan->reject_widths[k] =
+                p_scan->time_widths[k];
+        }
+    }
+}
+
+
+static void reject(
+    b3_barcode_t *p_scan,
+    b3_edge_t edge,
+    b3_reject_reason_t reason,
+    uint32_t element_us)
+{
+    note_reject(
+        p_scan,
+        reason,
+        element_us
+    );
 
 
     b3_barcode_abort(
@@ -129,8 +192,11 @@ static bool finish(
     else
     {
         quiet =
-            current.time_us -
-            p_scan->last.time_us;
+            at_base_speed(
+                current.time_us -
+                p_scan->last.time_us,
+                current.speed_mm_s
+            );
     }
 
 
@@ -175,7 +241,7 @@ static bool finish(
  * Once all B3_BARCODE_RUNS widths have been
  * collected, try to decode Code 39.
  */
-static bool prepare_result(
+static b3_reject_reason_t prepare_result(
     b3_barcode_t *p_scan)
 {
     bool enough_ticks;
@@ -225,7 +291,47 @@ static bool prepare_result(
                 p_scan->time_widths,
             &p_scan->decoded))
     {
-        return false;
+#if B3_TRIM_OUTER_BARS
+        /*
+         * Retry (nyx, 2026-11-04): on the car the first and last bars read
+         * 3-4x too long while every other element was fine (B278 ... B237
+         * with narrow bars ~60 ms). In the start/stop '*' the first, ninth,
+         * 21st and last elements are narrow bars whichever way the car
+         * drives, so the outer bar is trimmed to its partner and decoded
+         * again. The middle letter is still checked in full.
+         */
+        uint32_t trimmed[B3_BARCODE_RUNS];
+        const uint32_t *p_src =
+            enough_ticks ?
+                p_scan->tick_widths :
+                p_scan->time_widths;
+
+        for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+        {
+            trimmed[i] = p_src[i];
+        }
+
+        if (trimmed[0] > trimmed[8])
+        {
+            trimmed[0] = trimmed[8];
+        }
+
+        if (trimmed[B3_BARCODE_RUNS - 1U] > trimmed[B3_BARCODE_RUNS - 9U])
+        {
+            trimmed[B3_BARCODE_RUNS - 1U] = trimmed[B3_BARCODE_RUNS - 9U];
+        }
+
+        if (!b3_code39_decode(
+                trimmed,
+                &p_scan->decoded))
+        {
+            return B3_REJECT_DECODE;
+        }
+
+        ++p_scan->trimmed;
+#else
+        return B3_REJECT_DECODE;
+#endif
     }
 
 
@@ -243,7 +349,7 @@ static bool prepare_result(
         p_scan->decoded.first_narrow *
         B3_QUIET_NARROW_MULTIPLE)
     {
-        return false;
+        return B3_REJECT_LEADING_QUIET;
     }
 
 
@@ -263,7 +369,7 @@ static bool prepare_result(
         false;
 
 
-    return true;
+    return B3_REJECT_NONE;
 }
 
 
@@ -308,6 +414,102 @@ bool b3_barcode_edge(
 
 
     /*
+     * Sensor chatter (nyx, 2026-11-04): the DO comparator can flick for tens
+     * of microseconds as a bar edge passes (41 us seen on the car). A blip
+     * shorter than B3_MIN_EDGE_US is removed, so the element around it
+     * carries on, instead of rejecting the whole scan.
+     */
+    if (p_scan->glitch)
+    {
+        /*
+         * A black edge came during the trailing white. If white is back
+         * within B3_MIN_EDGE_US it was a blip: ignore both edges and keep
+         * waiting for the quiet zone. Otherwise the black was real.
+         */
+        p_scan->glitch =
+            false;
+
+        if (!edge.black &&
+            ((edge.time_us - p_scan->glitch_us) <
+             B3_MIN_EDGE_US))
+        {
+            ++p_scan->glitches;
+
+            return false;
+        }
+
+        if (p_scan->pending)
+        {
+            note_reject(
+                p_scan,
+                B3_REJECT_TRAILING_QUIET,
+                p_scan->glitch_us -
+                p_scan->last.time_us
+            );
+
+            p_scan->pending =
+                false;
+        }
+
+        /* Real black from glitch_us (a poll may already have finished). */
+        p_scan->last.time_us =
+            p_scan->glitch_us;
+
+        p_scan->last.black =
+            true;
+
+        elapsed =
+            edge.time_us -
+            p_scan->last.time_us;
+    }
+
+    if (p_scan->collecting &&
+        (elapsed < B3_MIN_EDGE_US))
+    {
+        size_t k;
+
+        ++p_scan->glitches;
+
+        if ((0U == p_scan->count) ||
+            !p_scan->prev_valid ||
+            (edge.black != p_scan->prev.black))
+        {
+            /* Blip on the first bar: start again from this edge. */
+            b3_barcode_abort(
+                p_scan,
+                edge
+            );
+
+            return false;
+        }
+
+        /* Drop the blip's two edges: the element before it continues. */
+        --p_scan->count;
+
+        p_scan->last =
+            p_scan->prev;
+
+        p_scan->prev_valid =
+            false;
+
+        p_scan->min_time_width =
+            UINT32_MAX;
+
+        for (k = 0U; k < p_scan->count; ++k)
+        {
+            if (p_scan->time_widths[k] <
+                p_scan->min_time_width)
+            {
+                p_scan->min_time_width =
+                    p_scan->time_widths[k];
+            }
+        }
+
+        return false;
+    }
+
+
+    /*
      * Consecutive edges should alternate:
      *
      * BLACK -> WHITE -> BLACK -> WHITE ...
@@ -321,7 +523,9 @@ bool b3_barcode_edge(
     {
         reject(
             p_scan,
-            edge
+            edge,
+            B3_REJECT_SAME_LEVEL,
+            elapsed
         );
 
         return false;
@@ -353,9 +557,32 @@ bool b3_barcode_edge(
         }
 
 
+        if (!emitted &&
+            ((edge.time_us -
+              p_scan->started_us) <=
+             B3_MAX_SCAN_US))
+        {
+            /* Wait for the next edge to tell a blip from real black. */
+            p_scan->glitch =
+                true;
+
+            p_scan->glitch_us =
+                edge.time_us;
+
+            return false;
+        }
+
         if (!emitted)
         {
-            ++p_scan->rejected;
+            note_reject(
+                p_scan,
+                ((edge.time_us -
+                  p_scan->started_us) >
+                 B3_MAX_SCAN_US) ?
+                    B3_REJECT_SCAN_TIMEOUT :
+                    B3_REJECT_TRAILING_QUIET,
+                elapsed
+            );
         }
 
 
@@ -380,24 +607,39 @@ bool b3_barcode_edge(
         /*
          * Reject impossible/noisy timing.
          */
-        if ((elapsed <
-             B3_MIN_EDGE_US) ||
+        b3_reject_reason_t reason =
+            B3_REJECT_NONE;
 
-            (elapsed >
-             B3_MAX_ELEMENT_US) ||
+        if (elapsed <
+            B3_MIN_EDGE_US)
+        {
+            reason = B3_REJECT_TOO_SHORT;
+        }
+        else if (elapsed >
+                 B3_MAX_ELEMENT_US)
+        {
+            reason = B3_REJECT_TOO_LONG;
+        }
+        else if ((edge.time_us -
+                  p_scan->started_us) >
+                 B3_MAX_SCAN_US)
+        {
+            reason = B3_REJECT_SCAN_TIMEOUT;
+        }
+        else if (too_long_for_scan(
+                     p_scan,
+                     elapsed))
+        {
+            reason = B3_REJECT_RATIO;
+        }
 
-            ((edge.time_us -
-              p_scan->started_us) >
-             B3_MAX_SCAN_US) ||
-
-            too_long_for_scan(
-                p_scan,
-                elapsed
-            ))
+        if (B3_REJECT_NONE != reason)
         {
             reject(
                 p_scan,
-                edge
+                edge,
+                reason,
+                elapsed
             );
 
             return emitted;
@@ -418,7 +660,10 @@ bool b3_barcode_edge(
         p_scan->time_widths[
             p_scan->count
         ] =
-            elapsed;
+            at_base_speed(
+                elapsed,
+                edge.speed_mm_s
+            );
 
 
         p_scan->tick_widths[
@@ -441,6 +686,12 @@ bool b3_barcode_edge(
         ++p_scan->count;
 
 
+        p_scan->prev =
+            p_scan->last;
+
+        p_scan->prev_valid =
+            true;
+
         p_scan->last =
             edge;
 
@@ -451,12 +702,17 @@ bool b3_barcode_edge(
         if (B3_BARCODE_RUNS ==
             p_scan->count)
         {
-            if (!prepare_result(
-                    p_scan))
+            b3_reject_reason_t why =
+                prepare_result(
+                    p_scan);
+
+            if (B3_REJECT_NONE != why)
             {
                 reject(
                     p_scan,
-                    edge
+                    edge,
+                    why,
+                    elapsed
                 );
             }
         }
@@ -493,7 +749,10 @@ bool b3_barcode_edge(
 
 
         p_scan->leading_us =
-            elapsed;
+            at_base_speed(
+                elapsed,
+                edge.speed_mm_s
+            );
 
 
         p_scan->leading_ticks =
@@ -550,7 +809,10 @@ bool b3_barcode_poll(
     {
         reject(
             p_scan,
-            current
+            current,
+            B3_REJECT_SCAN_TIMEOUT,
+            current.time_us -
+            p_scan->last.time_us
         );
 
         return false;
@@ -585,9 +847,17 @@ bool b3_barcode_poll(
              current.time_us -
              p_scan->last.time_us)))
     {
+        uint32_t held =
+            current.time_us -
+            p_scan->last.time_us;
+
         reject(
             p_scan,
-            current
+            current,
+            (held > B3_MAX_ELEMENT_US) ?
+                B3_REJECT_TOO_LONG :
+                B3_REJECT_RATIO,
+            held
         );
     }
 
