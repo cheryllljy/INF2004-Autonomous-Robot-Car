@@ -6,7 +6,8 @@
 
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 check
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 broker   (window 1, leave open)
-      powershell -ExecutionPolicy Bypass -File .\robot.ps1 watch    (window 2, optional)
+      powershell -ExecutionPolicy Bypass -File .\robot.ps1 test     (window 2: [TEST]/[VC] lines from the car)
+      powershell -ExecutionPolicy Bypass -File .\robot.ps1 watch    (window 3, optional)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 go       (reset + start)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 stop
 
@@ -14,6 +15,9 @@
       check   is mosquitto installed, which IP is this laptop, does it
               match MQTT_BROKER_IP in config\wifi_secrets.h
       broker  start the broker with broker_port.conf
+      test    print the car's test and VehicleController log lines
+              (topic inf2004/robot/test: barcode scans, rejects, junctions,
+              E-stops). Start it before powering the car (QoS 0, not kept).
       watch   print everything the robot publishes (inf2004/#)
       start | stop | reset    send one command
       go      reset, wait 2 s, start (use this after every power-up)
@@ -27,7 +31,7 @@
 #>
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('check', 'broker', 'watch', 'start', 'stop', 'reset', 'go')]
+    [ValidateSet('check', 'broker', 'test', 'watch', 'start', 'stop', 'reset', 'go')]
     [string]$Cmd = 'check',
     [string]$Broker = '',
     [int]$Port = 1883,
@@ -36,6 +40,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $Topic   = 'inf2004/robot/command'
+$TestTopic = 'inf2004/robot/test'
 $SeqFile = Join-Path $env:TEMP 'inf2004_seq.txt'
 $Repo    = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 $Secrets = Join-Path $Repo 'config\wifi_secrets.h'
@@ -45,7 +50,8 @@ $Exe     = Join-Path $Mosquitto 'mosquitto.exe'
 
 function Get-FirmwareBroker {
     if (Test-Path $Secrets) {
-        $m = Select-String -Path $Secrets -Pattern 'MQTT_BROKER_IP\s+"([0-9.]+)"' | Select-Object -First 1
+        # Only the live #define line: a commented-out old IP above it was being picked up.
+        $m = Select-String -Path $Secrets -Pattern '^\s*#define\s+MQTT_BROKER_IP\s+"([0-9.]+)"' | Select-Object -First 1
         if ($m) { return $m.Matches[0].Groups[1].Value }
     }
     return ''
@@ -103,6 +109,13 @@ switch ($Cmd) {
         if (-not (Test-Path $conf)) { throw "broker_port.conf not found in $Repo" }
         Write-Host "broker on port $Port - leave this window open (Ctrl+C to stop)"
         & $Exe -c $conf -v
+    }
+    'test' {
+        if (-not (Test-Path $Sub)) { throw "mosquitto_sub not found in $Mosquitto (winget install -e --id EclipseFoundation.Mosquitto)" }
+        $ip = Get-BrokerIp
+        Write-Host "car test log on ${ip}:$Port topic $TestTopic (Ctrl+C to stop)"
+        Write-Host "start this before powering the car; lines are not stored by the broker"
+        & $Sub -h $ip -p $Port -t $TestTopic
     }
     'watch' {
         $ip = Get-BrokerIp

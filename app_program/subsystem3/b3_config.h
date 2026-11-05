@@ -48,7 +48,7 @@
  * sensor, and the car steers back towards it (left black: turn left). */
 #define B3_LINE_DEBOUNCE_US           2000U
 #define B3_LINE_LOST_GRACE_US         50000U /* unused since the straddle layout */
-#define B3_BASE_SPEED_MM_S            60
+#define B3_BASE_SPEED_MM_S            30
 #define B3_MAX_REQUEST_MM_S           400
 #define B3_CORRECTION_MM_S            25  /* was 40: smaller kick when a sensor just touches the line, less weaving on straights (2026-11-04) */
 /* Sharp turns / U-turns (2026-11-04). If the same side sensor stays black
@@ -76,7 +76,7 @@
  * is also rescaled by the measured wheel speed (B3_SCAN_SPEED_COMPENSATE).
  * Safety: the slow speed lasts at most B3_SCAN_SLOW_MAX_US, and a crossing
  * (both line sensors black) ends it so junctions (>= 80 mm/s) still fire. */
-#define B3_SCAN_SPEED_MM_S            60
+#define B3_SCAN_SPEED_MM_S            30
 #define B3_SCAN_SLOW_WHITE_US         800000U  /* 30 mm of white at 50 mm/s */
 #define B3_SCAN_SLOW_MAX_US           6000000U
 /* Retry a failed decode with the first/last bar trimmed to the other narrow

@@ -1,0 +1,572 @@
+diff --git a/app_program/subsystem2/motion_config.h b/app_program/subsystem2/motion_config.h
+index 5e21e82..9c4d197 100644
+--- a/app_program/subsystem2/motion_config.h
++++ b/app_program/subsystem2/motion_config.h
+@@ -59,8 +59,13 @@
+ #define MOTION_HEADING_KP           (2.0f)  /* mm/s of correction per mm of left/right error TODO tune */
+ 
+ /* ---------- Faults ---------- */
+-#define MOTION_STALL_TIMEOUT_MS     (300U)  /* high PWM + no ticks for this long    */
+-#define MOTION_STALL_MIN_PWM_PM     (300)   /* "high PWM" threshold for stall check */
++/* Buddy 3 / Codex, 2026-11-05: watch missing feedback whenever a wheel is
++ * driven; limit the startup/dropout power until encoder ticks return. */
++#define MOTION_STALL_TIMEOUT_MS     (300U)  /* nonzero drive + no ticks for this long */
++#define MOTION_NO_FEEDBACK_MAX_PWM_PM (MOTOR_BREAKAWAY_PM)
++#if (MOTION_NO_FEEDBACK_MAX_PWM_PM <= 0) || (MOTION_NO_FEEDBACK_MAX_PWM_PM > MOTION_DUTY_MAX_PM)
++#error "No-feedback PWM cap must be positive and within the motion duty limit"
++#endif
+ #define MOTION_LINE_STALE_MS        (50U)   /* TODO: reject line data older than this */
+ #define LINE_STEER_DRIFT_PCT        (20)    /* TODO: steer applied on LINE_DRIFT_*  */
+ 
+@@ -79,4 +84,4 @@
+ // #define MOTION_HW_IRQ_NUMBER    (13U)       /* RP2040 IO_IRQ_BANK0                  */
+ // #define MOTION_HW_IRQ_LEVEL     (1)         /* TODO: check the template's EnableInt() levels */
+ 
+-#endif /* MOTION_CONFIG_H */
+\ No newline at end of file
++#endif /* MOTION_CONFIG_H */
+diff --git a/app_program/subsystem2/motion_control.c b/app_program/subsystem2/motion_control.c
+index 864ce03..e684509 100644
+--- a/app_program/subsystem2/motion_control.c
++++ b/app_program/subsystem2/motion_control.c
+@@ -324,7 +324,10 @@ static void mc_check_stall(void)
+     {
+         const int32_t mag = (s_duty[side] < 0) ? -s_duty[side] : s_duty[side];
+ 
+-        if ((mag >= MOTION_STALL_MIN_PWM_PM) && (s_delta[side] == 0U))
++        /* Buddy 3 / Codex, 2026-11-05: lost feedback must time out even
++         * below 30% PWM. An intentionally stopped/pivot wheel is exempt. */
++        if ((mag > 0) && (mc_absf(s_set[side]) >= MC_ZERO_SPEED) &&
++            (s_delta[side] == 0U))
+         {
+             s_stall_ms[side] += s_dt_ms;
+         }
+@@ -380,7 +383,10 @@ static int32_t mc_speed_control(uint32_t side)
+     u = (float)MOTOR_FF_OFFSET_PM + (mag_set / (MM_PER_TICK * MOTOR_FF_TICKS_PER_PM)) +
+         (MOTION_SPEED_KP * err) + integ;
+ 
+-    if (!(((u > (float)MOTION_DUTY_MAX_PM) && (err > 0.0f)) || ((u < 0.0f) && (err < 0.0f))))
++    /* Buddy 3 / Codex, 2026-11-05: freeze integral accumulation on a
++     * missing-tick cycle so a disconnected encoder cannot wind up power. */
++    if ((s_delta[side] != 0U) &&
++        !(((u > (float)MOTION_DUTY_MAX_PM) && (err > 0.0f)) || ((u < 0.0f) && (err < 0.0f))))
+     {
+         s_integ[side] = integ;                  /* hold the integrator while saturated */
+     }
+@@ -389,6 +395,12 @@ static int32_t mc_speed_control(uint32_t side)
+         u = (float)MOTOR_BREAKAWAY_PM;          /* kick a stopped wheel past static friction */
+     }
+     u = mc_clampf(u * gain, 0.0f, (float)MOTION_DUTY_MAX_PM);
++    /* Buddy 3 / Codex, 2026-11-05: allow only the configured breakaway
++     * power until ticks arrive (also applies to an encoder dropout). */
++    if ((s_delta[side] == 0U) && (u > (float)MOTION_NO_FEEDBACK_MAX_PWM_PM))
++    {
++        u = (float)MOTION_NO_FEEDBACK_MAX_PWM_PM;
++    }
+     return (int32_t)(sgn * u);
+ }
+ 
+diff --git a/app_program/subsystem2/motion_hw.c b/app_program/subsystem2/motion_hw.c
+index 68b6a14..1d247f4 100644
+--- a/app_program/subsystem2/motion_hw.c
++++ b/app_program/subsystem2/motion_hw.c
+@@ -17,6 +17,7 @@
+ #include "../subsystem3/gpio_dispatch.h"   /* shared dispatcher, owned by Buddy 3 */
+ 
+ #include <tk/tkernel.h>
++#include <tm/tmonitor.h>
+ 
+ /* MH_ prefix: the kernel's sysdef.h already uses the plain register names. */
+ #define MH_REG32(addr)          (*(volatile uint32_t *)(addr))
+@@ -242,7 +243,22 @@ bool motion_hw_init(void)
+      * (harmless for a push-pull output) and make sure input is enabled. */
+     MH_PAD_GPIO(PIN_ENC_L) = (MH_PAD_GPIO(PIN_ENC_L) & ~MH_PAD_PDE) | MH_PAD_PUE | MH_PAD_IE;
+     MH_PAD_GPIO(PIN_ENC_R) = (MH_PAD_GPIO(PIN_ENC_R) & ~MH_PAD_PDE) | MH_PAD_PUE | MH_PAD_IE;
+-    (void)gpio_dispatch_register(PIN_ENC_L, GPIO_DISPATCH_EDGE_BOTH, motion_encoder_isr);
+-    (void)gpio_dispatch_register(PIN_ENC_R, GPIO_DISPATCH_EDGE_BOTH, motion_encoder_isr);
+-    return gpio_dispatch_start();       /* false if another handler already owns the interrupt */
++    /* Buddy 3 / Codex, 2026-11-05: do not start with an unregistered
++     * encoder. PWM is still zero on every failure path below. */
++    if (!gpio_dispatch_register(PIN_ENC_L, GPIO_DISPATCH_EDGE_BOTH, motion_encoder_isr))
++    {
++        tm_printf((UB*)"[VC] motion init failed: left encoder GP%u IRQ registration\n", (unsigned)PIN_ENC_L);
++        return false;
++    }
++    if (!gpio_dispatch_register(PIN_ENC_R, GPIO_DISPATCH_EDGE_BOTH, motion_encoder_isr))
++    {
++        tm_printf((UB*)"[VC] motion init failed: right encoder GP%u IRQ registration\n", (unsigned)PIN_ENC_R);
++        return false;
++    }
++    if (!gpio_dispatch_start())
++    {
++        tm_printf((UB*)"[VC] motion init failed: shared encoder IRQ startup\n");
++        return false;
++    }
++    return true;
+ }
+diff --git a/app_program/subsystem2/subsystem2.c b/app_program/subsystem2/subsystem2.c
+index d6d40b2..98e5407 100644
+--- a/app_program/subsystem2/subsystem2.c
++++ b/app_program/subsystem2/subsystem2.c
+@@ -18,7 +18,11 @@ EXPORT ER subsystem2_init(void)
+ #if MOTION_CALIBRATION_BUILD  
+ 	motion_cal_init();  
+ #else
+-	motion_init();
++	/* Buddy 3 / Codex, 2026-11-05: propagate encoder/controller init
++	   failures to usermain instead of continuing with missing feedback. */
++	if (!motion_init()) {
++		return E_SYS;
++	}
+ #if MOTION_DEMO
+ 	motion_demo_init();
+ #endif
+@@ -55,7 +59,10 @@ EXPORT ER subsystem2_start(void)
+ #if MOTION_CALIBRATION_BUILD  
+ 	motion_cal_start(); 
+ #else
+-	motion_start();
++	/* Buddy 3 / Codex, 2026-11-05: report a failed motion task startup. */
++	if (!motion_start()) {
++		return E_SYS;
++	}
+ #if MOTION_DEMO
+ 	motion_demo_start();
+ #endif
+diff --git a/app_program/subsystem3/b3_barcode.c b/app_program/subsystem3/b3_barcode.c
+index 5c9edda..fdb1ee9 100644
+--- a/app_program/subsystem3/b3_barcode.c
++++ b/app_program/subsystem3/b3_barcode.c
+@@ -111,16 +111,6 @@ static void note_reject(
+     p_scan->reject_element_us =
+         element_us;
+ 
+-    if (B3_REJECT_DECODE == reason)
+-    {
+-        size_t k;
+-
+-        for (k = 0U; k < B3_BARCODE_RUNS; ++k)
+-        {
+-            p_scan->reject_widths[k] =
+-                p_scan->time_widths[k];
+-        }
+-    }
+ }
+ 
+ 
+@@ -241,6 +231,24 @@ static bool finish(
+  * Once all B3_BARCODE_RUNS widths have been
+  * collected, try to decode Code 39.
+  */
++/* Buddy 3 / Codex, 2026-11-05: preserve the actual failed decoder input,
++ * including the outer-bar retry, rather than always reporting time widths. */
++static void capture_decode_reject(
++    b3_barcode_t *p_scan,
++    const uint32_t widths[B3_BARCODE_RUNS],
++    bool trimmed)
++{
++    size_t i;
++
++    p_scan->reject_used_encoder = p_scan->used_encoder;
++    p_scan->reject_trimmed = trimmed;
++    for (i = 0U; i < B3_BARCODE_RUNS; ++i)
++    {
++        p_scan->reject_widths[i] = widths[i];
++        p_scan->reject_time_widths[i] = p_scan->time_widths[i];
++    }
++}
++
+ static b3_reject_reason_t prepare_result(
+     b3_barcode_t *p_scan)
+ {
+@@ -325,11 +333,16 @@ static b3_reject_reason_t prepare_result(
+                 trimmed,
+                 &p_scan->decoded))
+         {
++            capture_decode_reject(p_scan, trimmed, true);
+             return B3_REJECT_DECODE;
+         }
+ 
+         ++p_scan->trimmed;
+ #else
++        capture_decode_reject(
++            p_scan,
++            enough_ticks ? p_scan->tick_widths : p_scan->time_widths,
++            false);
+         return B3_REJECT_DECODE;
+ #endif
+     }
+@@ -863,4 +876,4 @@ bool b3_barcode_poll(
+ 
+ 
+     return false;
+-}
+\ No newline at end of file
++}
+diff --git a/app_program/subsystem3/b3_barcode.h b/app_program/subsystem3/b3_barcode.h
+index aff3bf4..b9c963a 100644
+--- a/app_program/subsystem3/b3_barcode.h
++++ b/app_program/subsystem3/b3_barcode.h
+@@ -56,7 +56,10 @@ typedef struct
+     uint32_t reject_element_us; /* duration of the element that caused the last reject */
+     uint8_t reject_reason;      /* b3_reject_reason_t of the last reject */
+     uint8_t reject_count;       /* elements measured (of B3_BARCODE_RUNS) at the last reject */
+-    uint32_t reject_widths[B3_BARCODE_RUNS]; /* widths (us) of the last DECODE reject */
++    uint32_t reject_widths[B3_BARCODE_RUNS]; /* final decode input: ticks or time-mode us */
++    uint32_t reject_time_widths[B3_BARCODE_RUNS]; /* original time-mode widths for comparison */
++    bool reject_used_encoder;  /* units of reject_widths, captured at rejection */
++    bool reject_trimmed;       /* final decode input had the outer-bar retry applied */
+     uint8_t count;
+     bool collecting;
+     bool pending;
+diff --git a/app_program/subsystem3/buddy3.c b/app_program/subsystem3/buddy3.c
+index 1806100..8f288d2 100644
+--- a/app_program/subsystem3/buddy3.c
++++ b/app_program/subsystem3/buddy3.c
+@@ -843,10 +843,15 @@ static void service_once(void)
+     output.reject_element_us =
+         g_scan.reject_element_us;
+ 
++    output.reject_used_encoder = g_scan.reject_used_encoder;
++    output.reject_trimmed = g_scan.reject_trimmed;
++
+     for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+     {
+         output.reject_widths[i] =
+             g_scan.reject_widths[i];
++        output.reject_time_widths[i] =
++            g_scan.reject_time_widths[i];
+     }
+ 
+ 
+@@ -1182,4 +1187,4 @@ ER buddy3_start(
+ 
+ 
+     return status;
+-}
+\ No newline at end of file
++}
+diff --git a/app_program/subsystem3/buddy3.h b/app_program/subsystem3/buddy3.h
+index 568c2c7..9055662 100644
+--- a/app_program/subsystem3/buddy3.h
++++ b/app_program/subsystem3/buddy3.h
+@@ -47,7 +47,10 @@ typedef struct
+     uint32_t reject_element_us; /* element duration that caused the last reject */
+     uint8_t reject_reason;      /* b3_reject_reason_t of the last reject */
+     uint8_t reject_edges;       /* elements measured (of B3_BARCODE_RUNS) at the last reject */
+-    uint32_t reject_widths[B3_BARCODE_RUNS]; /* widths (us) of the last "not Code 39" reject */
++    uint32_t reject_widths[B3_BARCODE_RUNS]; /* final decode input: ticks or time-mode us */
++    uint32_t reject_time_widths[B3_BARCODE_RUNS]; /* original time-mode widths for comparison */
++    bool reject_used_encoder;
++    bool reject_trimmed;
+     uint32_t dropped_events;
+     uint32_t max_service_gap_us;
+     int32_t task_error;
+diff --git a/app_program/vehicle_controller/vehicle_controller.c b/app_program/vehicle_controller/vehicle_controller.c
+index b304257..3a98d24 100644
+--- a/app_program/vehicle_controller/vehicle_controller.c
++++ b/app_program/vehicle_controller/vehicle_controller.c
+@@ -101,6 +101,39 @@ EXPORT void vc_fill_telemetry(B1_Telemetry *p_out)
+ /*  Helpers                                                           */
+ /* ------------------------------------------------------------------ */
+ 
++/* Buddy 3 / Codex, 2026-11-05: print encoder ticks as integers and time
++ * widths in ms. Labels identify the exact decoder input and timing evidence. */
++LOCAL void print_barcode_widths(const char *label,
++                               const uint32_t widths[B3_BARCODE_RUNS],
++                               bool ticks)
++{
++	for (unsigned c = 0U; c < 3U; ++c) {
++		char line[120];
++		unsigned n = 0U;
++		for (unsigned k = c * 10U;
++		     (k < (c + 1U) * 10U) && (k < B3_BARCODE_RUNS); ++k) {
++			unsigned value = ticks ? (unsigned)widths[k] :
++				(unsigned)(((uint64_t)widths[k] + 50U) / 100U);
++			char digits[12];
++			unsigned d = 0U;
++			if (!ticks) {
++				digits[d++] = (char)('0' + value % 10U);
++				digits[d++] = '.';
++				value /= 10U;
++			}
++			do { digits[d++] = (char)('0' + value % 10U); value /= 10U; } while (value > 0U);
++			if (n + d + 2U >= sizeof line) break;
++			line[n++] = ' ';
++			line[n++] = (k & 1U) ? 'w' : 'B';
++			while (d > 0U) line[n++] = digits[--d];
++		}
++		line[n] = '\0';
++		tm_printf((UB*)"[VC]   %s %u-%u:%s\n", label, c * 10U,
++			  (c * 10U + 9U < B3_BARCODE_RUNS) ? c * 10U + 9U :
++				  B3_BARCODE_RUNS - 1U, line);
++	}
++}
++
+ LOCAL void enter(vc_state_t next)
+ {
+ 	if (next != vc.state) {
+@@ -403,8 +436,9 @@ LOCAL void read_motion(void)
+ 	if (vc.motion.state == MOTION_STATE_FAULT) {
+ 		if (vc.motion.fault != reported) {
+ 			static const char *const names[] = {
+-				"none", "STALL_L (left wheel: high PWM, no encoder ticks 300 ms)",
+-				"STALL_R (right wheel: high PWM, no encoder ticks 300 ms)",
++				/* Buddy 3 / Codex, 2026-11-05: stall now covers any nonzero drive. */
++				"none", "STALL_L (left wheel: drive applied, no encoder ticks 300 ms)",
++				"STALL_R (right wheel: drive applied, no encoder ticks 300 ms)",
+ 				"ENCODER_TIMEOUT (full PWM, wheel far slower than asked)",
+ 				"LINE_STALE",
+ 			};
+@@ -636,29 +670,17 @@ LOCAL void exchange_line(void)
+ 			  (unsigned)vc.line.reject_element_us, why,
+ 			  (why < sizeof reject_names / sizeof reject_names[0]) ?
+ 				reject_names[why] : "?");
+-		if (why == 6U) {	/* not Code 39: show the widths, B = bar, w = gap */
+-			for (unsigned c = 0U; c < 3U; ++c) {
+-				char line[120];
+-				unsigned n = 0U;
+-				for (unsigned k = c * 10U;
+-				     (k < (c + 1U) * 10U) && (k < B3_BARCODE_RUNS); ++k) {
+-					unsigned ms10 = (unsigned)((vc.line.reject_widths[k] + 50U) / 100U);
+-					char digits[8];
+-					unsigned d = 0U;
+-					if (ms10 > 99999U) ms10 = 99999U;
+-					digits[d++] = (char)('0' + ms10 % 10U);	/* tenths */
+-					digits[d++] = '.';
+-					ms10 /= 10U;
+-					do { digits[d++] = (char)('0' + ms10 % 10U); ms10 /= 10U; } while (ms10 > 0U);
+-					if (n + d + 2U >= sizeof line) break;
+-					line[n++] = ' ';
+-					line[n++] = (k & 1U) ? 'w' : 'B';
+-					while (d > 0U) line[n++] = digits[--d];
+-				}
+-				line[n] = '\0';
+-				tm_printf((UB*)"[VC]   widths ms %u-%u:%s\n", c * 10U,
+-					  (c * 10U + 9U < B3_BARCODE_RUNS) ? c * 10U + 9U :
+-					  B3_BARCODE_RUNS - 1U, line);
++		/* Buddy 3 / Codex, 2026-11-05: log the selected measurement mode
++		 * and the final retry input; time widths alone can hide encoder errors. */
++		if (why == B3_REJECT_DECODE) {
++			tm_printf((UB*)"[VC]   decode input: %s, outer-bar retry %s\n",
++				  vc.line.reject_used_encoder ? "encoder ticks" : "time widths",
++				  vc.line.reject_trimmed ? "yes" : "no");
++			print_barcode_widths(vc.line.reject_used_encoder ? "widths ticks" : "widths ms",
++					     vc.line.reject_widths, vc.line.reject_used_encoder);
++			if (vc.line.reject_used_encoder || vc.line.reject_trimmed) {
++				print_barcode_widths("original time widths ms",
++						     vc.line.reject_time_widths, false);
+ 			}
+ 		}
+ 	}
+diff --git a/testing/subsystem2/TEST_LOG.md b/testing/subsystem2/TEST_LOG.md
+index 568b00f..2a02c0b 100644
+--- a/testing/subsystem2/TEST_LOG.md
++++ b/testing/subsystem2/TEST_LOG.md
+@@ -14,6 +14,13 @@ Define a test here before running it. Test IDs never change.
+ | eg S2-U02 | free slots and free blocks within pool size | IF-02 | auto | `subsystem2_test.c` | `[TEST] S2-U02 PASS` |
+ | S2-U01 | Test cyclic handler is 20ms ± 2 ms | NFR5 | | auto | 'cyc_check.c' check with 1 & 2 cores | '[TEST] S2-UO1 PASS' |
+ 
++| S2-HOST-01 | Either encoder registration or shared IRQ startup failure aborts initialization with PWM zero | feedback startup | host auto | `python3 testing/subsystem2/motion_host/run_tests.py` in WSL; register memory and dispatcher are simulated | initialization fails with a side-specific diagnostic |
++| S2-HOST-02 | Missing ticks fault at low requested speed, forward/reverse and either wheel | feedback loss | host auto | same runner; real controller, simulated ticks and motor outputs | both outputs zero within 320 ms at a 20 ms cycle; command refresh cannot delay fault |
++| S2-HOST-03 | Missing feedback cannot wind up integral or raise PWM above breakaway cap | feedback loss | host auto | same runner; zero ticks at 40/300 mm/s, then a dropout with existing integral | output magnitude <= configured no-feedback cap and integral held |
++| S2-HOST-04 | Healthy/intermittent ticks and an intentionally stopped pivot wheel | normal driving | host auto | same runner | no false stall, stopped wheel output zero |
++| S2-HOST-05 | Tick recovery, latched faults, explicit reset and immediate E-stop | recovery and NFR21 | host auto | same runner | recovery clears timeout; refresh cannot clear fault; reset does; E-stop cuts both outputs |
++| S2-HOST-06 | Subsystem init/start propagates failed motion startup | startup | host auto | same runner; actual subsystem wrapper with simulated lifecycle calls | returns E_SYS on failure |
++
+ *Method:* **auto** = `TEST_CHECK` in code, result printed on the console;
+ **manual** = a person observes the result (LED, scope, meter, phone app…).
+ 
+@@ -24,3 +31,12 @@ Add a new row for every run. Never edit or delete old rows.
+ | Date | Test ID | Commit | Tester | Result | Log / evidence | Notes |
+ |---|---|---|---|---|---|---|
+ | 2026-10-23 | S2-U01 | `abc1234` | | PASS | `logs/2026-10-23_S2-UO1.txt` | |
++
++| 2026-11-05 | S2-HOST-01 | `d0b5d52` + uncommitted encoder edits | Codex | PASS | [software log](logs/2026-11-05_encoder_feedback_host.txt) | Simulated hardware only; no physical-car result claimed. |
++| 2026-11-05 | S2-HOST-02 | `d0b5d52` + uncommitted encoder edits | Codex | PASS | [software log](logs/2026-11-05_encoder_feedback_host.txt) | Simulated hardware only; no physical-car result claimed. |
++| 2026-11-05 | S2-HOST-03 | `d0b5d52` + uncommitted encoder edits | Codex | PASS | [software log](logs/2026-11-05_encoder_feedback_host.txt) | Simulated hardware only; no physical-car result claimed. |
++| 2026-11-05 | S2-HOST-04 | `d0b5d52` + uncommitted encoder edits | Codex | PASS | [software log](logs/2026-11-05_encoder_feedback_host.txt) | Simulated hardware only; no physical-car result claimed. |
++| 2026-11-05 | S2-HOST-05 | `d0b5d52` + uncommitted encoder edits | Codex | PASS | [software log](logs/2026-11-05_encoder_feedback_host.txt) | Simulated hardware only; no physical-car result claimed. |
++| 2026-11-05 | S2-HOST-06 | `d0b5d52` + uncommitted encoder edits | Codex | PASS | [software log](logs/2026-11-05_encoder_feedback_host.txt) | Simulated hardware only; no physical-car result claimed. |
++
++Normal MQTT firmware verification: `make WIFI=cyw43 NET=lwip MQTT=1 -j12` passed with `APP_TEST=0`; see [build log](logs/2026-11-05_encoder_feedback_build.txt). Firmware: `build_make/mtk3pico_smp1_usb_cdc_wifi_lwip_mqtt.uf2`. Changes remain uncommitted at the user's request.
+diff --git a/testing/subsystem3/buddy3_host/test_adapters.c b/testing/subsystem3/buddy3_host/test_adapters.c
+index 3443fb9..78a5440 100644
+--- a/testing/subsystem3/buddy3_host/test_adapters.c
++++ b/testing/subsystem3/buddy3_host/test_adapters.c
+@@ -321,10 +321,99 @@ static void test_task_boundary(void)
+     (void)puts("PASS: micro T-Kernel adapter startup, bounded task pass and stale-context stop");
+ }
+ 
++static uint32_t g_reject_ticks;
++
++static bool reject_position_reader(uint32_t *p_ticks)
++{
++    *p_ticks = g_reject_ticks;
++    return true;
++}
++
++/* Exercise the same rejection snapshot consumed by the normal MQTT VC. */
++static void test_reject_snapshot(void)
++{
++    size_t mode;
++    for (mode = 0U; mode < 2U; ++mode)
++    {
++        b3_context_t context = {0};
++        b3_snapshot_t snapshot;
++        uint32_t times[B3_BARCODE_RUNS];
++        uint32_t ticks[B3_BARCODE_RUNS];
++        uint32_t before;
++        size_t out = 0U;
++        size_t c;
++        size_t i;
++        const char frame[3] = {'*', 'A', '*'};
++        for (c = 0U; c < 3U; ++c)
++        {
++            uint16_t pattern;
++            CHECK(b3_code39_pattern(frame[c], &pattern));
++            for (i = 0U; i < 9U; ++i)
++            {
++                bool wide = (pattern & (1U << (8U - i))) != 0U;
++                times[out] = wide ? 30000U : 10000U;
++                ticks[out++] = wide ? 30U : 10U;
++            }
++            if (c < 2U)
++            {
++                times[out] = 10000U;
++                ticks[out++] = 10U;
++            }
++        }
++        for (i = 10U; i < 19U; ++i)
++        {
++            if (mode == 0U) times[i] = 10000U;
++            else ticks[i] = 10U;
++        }
++        /* White sensor inputs before resetting the queue/decoder. */
++        g_pins = 0U;
++        g_reject_ticks = 0U;
++        CHECK(E_OK == b3_ir_init((mode == 0U) ? NULL : reject_position_reader));
++        b3_ir_enable_barcode_irq(true);
++        context.time_us = g_now;
++        buddy3_set_context(&context);
++        one_task_pass();
++        buddy3_get_snapshot(&snapshot);
++        before = snapshot.rejected_scans;
++        g_now += 200000U;
++        g_reject_ticks = 1000U;
++        emit(true);
++        context.scan_enabled = true;
++        context.motion_valid = true;
++        context.left_measured_mm_s = B3_BASE_SPEED_MM_S;
++        context.right_measured_mm_s = B3_BASE_SPEED_MM_S;
++        context.time_us = g_now;
++        buddy3_set_context(&context);
++        one_task_pass();
++        for (i = 0U; i < B3_BARCODE_RUNS; ++i)
++        {
++            g_now += times[i] - 1000U; /* emit adds the last 1000 us */
++            g_reject_ticks += ticks[i];
++            emit((i & 1U) != 0U);
++            context.time_us = g_now;
++            buddy3_set_context(&context);
++            one_task_pass();
++        }
++        buddy3_get_snapshot(&snapshot);
++        CHECK(before + 1U == snapshot.rejected_scans);
++        CHECK(B3_REJECT_DECODE == snapshot.reject_reason);
++        CHECK(B3_BARCODE_RUNS == snapshot.reject_edges);
++        CHECK(snapshot.reject_used_encoder == (mode == 1U));
++        CHECK(snapshot.reject_trimmed == (B3_TRIM_OUTER_BARS != 0));
++        for (i = 0U; i < B3_BARCODE_RUNS; ++i)
++        {
++            CHECK(((mode == 0U) ? times[i] : ticks[i]) == snapshot.reject_widths[i]);
++            CHECK(times[i] == snapshot.reject_time_widths[i]);
++        }
++    }
++    (void)puts("PASS: rejected measurement units and widths reach the MQTT-facing snapshot");
++}
++
+ int main(void)
+ {
+     test_driver();
+     test_task_boundary();
++    test_reject_snapshot();
+     (void)printf("All %u adapter checks passed using test doubles.\n", g_checks);
+     return EXIT_SUCCESS;
+ }
+diff --git a/testing/subsystem3/buddy3_host/test_core.c b/testing/subsystem3/buddy3_host/test_core.c
+index e0f1b11..50c6d49 100644
+--- a/testing/subsystem3/buddy3_host/test_core.c
++++ b/testing/subsystem3/buddy3_host/test_core.c
+@@ -247,6 +247,63 @@ static void test_encoder_widths(void)
+     (void)puts("PASS: encoder width fusion and low-resolution encoder fallback");
+ }
+ 
++/* A valid timing capture can accompany corrupt encoder widths. Diagnostics
++ * must preserve the failed input, its units, and the final outer-bar retry. */
++static void test_reject_measurements(void)
++{
++    uint32_t times[B3_BARCODE_RUNS];
++    uint32_t ticks[B3_BARCODE_RUNS];
++    uint32_t expected[B3_BARCODE_RUNS];
++    b3_barcode_t scan;
++    b3_code39_result_t decoded;
++    b3_edge_t edge;
++    size_t mode;
++    size_t i;
++
++    for (mode = 0U; mode < 3U; ++mode)
++    {
++        uint32_t *selected;
++        uint32_t narrow;
++        make_frame('A', 10000U, 30000U, times);
++        make_frame('A', (mode == 2U) ? 1U : 10U,
++                   (mode == 2U) ? 3U : 30U, ticks);
++        selected = (mode == 1U) ? ticks : times;
++        narrow = (mode == 1U) ? 10U : 10000U;
++        for (i = 10U; i < 19U; ++i)
++        {
++            selected[i] = narrow; /* not a Code 39 data character */
++        }
++        selected[0] = narrow * 4U;
++        selected[28] = narrow * 4U;
++        if (mode == 1U)
++        {
++            CHECK(b3_code39_decode(times, &decoded));
++        }
++        (void)memcpy(expected, selected, sizeof(expected));
++#if B3_TRIM_OUTER_BARS
++        expected[0] = expected[8];
++        expected[28] = expected[20];
++#endif
++        edge = feed_frame(&scan, 500000U, times,
++                          (mode == 0U) ? NULL : ticks, 200000U);
++        CHECK(B3_REJECT_DECODE == scan.reject_reason);
++        CHECK(1U == scan.rejected);
++        CHECK(B3_BARCODE_RUNS == scan.reject_count);
++        CHECK(scan.reject_used_encoder == (mode == 1U));
++        CHECK(scan.reject_trimmed == (B3_TRIM_OUTER_BARS != 0));
++        CHECK(!b3_code39_decode(scan.reject_widths, &decoded));
++        for (i = 0U; i < B3_BARCODE_RUNS; ++i)
++        {
++            CHECK(expected[i] == scan.reject_widths[i]);
++            CHECK(times[i] == scan.reject_time_widths[i]);
++        }
++        b3_barcode_abort(&scan, edge);
++        CHECK(expected[0] == scan.reject_widths[0]);
++        CHECK(scan.reject_used_encoder == (mode == 1U));
++    }
++    (void)puts("PASS: rejected encoder/time inputs, retry widths and original timing are preserved");
++}
++
+ static void test_any_size(void)
+ {
+     static const uint32_t narrow[] = {300U, 5000U, 30000U, 150000U, 250000U};
+@@ -554,6 +611,7 @@ int main(void)
+     test_invalid_frames();
+     test_stream_and_quiet();
+     test_encoder_widths();
++    test_reject_measurements();
+     test_timeout_noise_wrap();
+     test_any_size();
+     test_slowdown_compensation();
