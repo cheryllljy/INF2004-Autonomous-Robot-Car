@@ -18,6 +18,7 @@
 #include "../subsystem2/motion_control.h"
 #include "../subsystem3/b3_port.h"
 #include "../subsystem5/subsystem5.h"
+#include "../subsystem4/subsystem4.h"
 #include "../subsystem1/buddy1_fr2.h"
 #include "../subsystem1/buddy1_mapping.h"
 #if defined(APP_MQTT) && APP_MQTT
@@ -421,13 +422,40 @@ LOCAL void read_motion(void)
 	}
 }
 
-/* OWNER: Buddy 4 -- IMU yaw rate / terrain for Buddy 3, IMU fault.
-   Fill the fields and call vc_raise_fault(VC_FAULT_IMU) on a fault. */
+/* Use Subsystem 4's cached sample; the controller never accesses I2C. */
 LOCAL void read_imu(b3_context_t *p_ctx)
 {
-	p_ctx->imu_valid        = false;	/* TODO Buddy 4 */
+	s4_imu_snapshot_t snapshot;
+	SYSTIM now;
+
+	p_ctx->accel_valid      = false;
+	p_ctx->accel_x_lsb      = 0;
+	p_ctx->accel_y_lsb      = 0;
+	p_ctx->accel_z_lsb      = 0;
+	/* LSM303D has no gyroscope, so yaw rate is not available. */
+	p_ctx->imu_valid        = false;
 	p_ctx->yaw_rate_mdeg_s  = 0;
+	/* Terrain classification is a separate, not-yet-implemented step. */
 	p_ctx->terrain_unstable = false;
+
+	if (subsystem4_get_imu_snapshot(&snapshot) < E_OK) {
+		vc_raise_fault(VC_FAULT_IMU);
+		return;
+	}
+	if (!snapshot.has_sample) {
+		return;
+	}
+	if ((tk_get_tim(&now) < E_OK) ||
+	    ((uint32_t)(now.lo - snapshot.timestamp_ms) > S4_IMU_MAX_AGE_MS) ||
+	    (snapshot.accel_status != IMU_OK)) {
+		vc_raise_fault(VC_FAULT_IMU);
+		return;
+	}
+
+	p_ctx->accel_valid = true;
+	p_ctx->accel_x_lsb = snapshot.accel.x;
+	p_ctx->accel_y_lsb = snapshot.accel.y;
+	p_ctx->accel_z_lsb = snapshot.accel.z;
 }
 
 /* OWNER: Buddy 5 -- obstacle events (IF-S5-1, IF-S5-7). The manoeuvre

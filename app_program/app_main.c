@@ -122,7 +122,7 @@ EXPORT INT usermain(void)
 	CHECK(subsystem1_init(), "subsystem1_init");	/* Buddy 1 barcode mapping store, used by the VC */
 	CHECK(subsystem2_init(), "subsystem2_init");
 	CHECK(subsystem3_init(), "subsystem3_init");
-	//CHECK(subsystem4_init(), "subsystem4_init");
+	CHECK(subsystem4_init(), "subsystem4_init");
 	CHECK(subsystem5_init(), "subsystem5_init");	/* Buddy 5 v3.0: on again */
 #if VC_ENABLE
 	CHECK(vc_init(), "vc_init");	/* after the subsystems it reads */
@@ -132,7 +132,7 @@ EXPORT INT usermain(void)
 	// CHECK(subsystem1_start(), "subsystem1_start");
 	CHECK(subsystem2_start(), "subsystem2_start");
 	CHECK(subsystem3_start(), "subsystem3_start");
-	//CHECK(subsystem4_start(), "subsystem4_start");
+	CHECK(subsystem4_start(), "subsystem4_start");
 	CHECK(subsystem5_start(), "subsystem5_start");
 #if VC_ENABLE
 	CHECK(vc_start(), "vc_start");

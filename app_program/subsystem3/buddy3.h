@@ -24,6 +24,10 @@ typedef struct
     bool motion_valid;
     int16_t left_measured_mm_s;
     int16_t right_measured_mm_s;
+    bool accel_valid;
+    int16_t accel_x_lsb;
+    int16_t accel_y_lsb;
+    int16_t accel_z_lsb;
     bool imu_valid;
     int32_t yaw_rate_mdeg_s;
     bool terrain_unstable;

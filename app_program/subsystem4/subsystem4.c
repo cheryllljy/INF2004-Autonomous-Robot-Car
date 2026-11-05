@@ -1,6 +1,6 @@
 /*
  *	subsystem4.c
- *	Subsystem 4 -- Monitor: creates its objects and starts its task.
+ *	Subsystem 4 -- IMU and monitor: creates objects and starts its tasks.
  *
  *	APIs shown: tk_cre_flg, tk_cre_mbf, tk_cre_alm
  */
@@ -10,12 +10,22 @@
 EXPORT ID	mbf_summary;	/* IF-03 */
 EXPORT ID	flg_events;	/* IF-03 */
 EXPORT ID	alm_monitor;
+EXPORT ID	mtx_imu;
+
+LOCAL s4_imu_snapshot_t s4_imu_snapshot;
 
 EXPORT ER subsystem4_init(void)
 {
 	T_CFLG	cflg = {0};
 	T_CMBF	cmbf = {0};
 	T_CALM	calm = {0};
+	T_CMTX	cmtx = {0};
+
+	cmtx.mtxatr = TA_INHERIT;
+	mtx_imu = tk_cre_mtx(&cmtx);
+	if (mtx_imu < E_OK) {
+		return mtx_imu;
+	}
 
 	/* Event flag: a 32-bit pattern of bits.  Tasks wait for a bit (or a
 	   combination of bits) to be set. */
@@ -44,9 +54,44 @@ EXPORT ER subsystem4_init(void)
 	return (alm_monitor < E_OK) ? alm_monitor : E_OK;
 }
 
+EXPORT ER subsystem4_publish_imu_snapshot(
+	const s4_imu_snapshot_t *p_snapshot)
+{
+	ER er;
+
+	if (p_snapshot == NULL) {
+		return E_PAR;
+	}
+	er = tk_loc_mtx(mtx_imu, TMO_FEVR);
+	if (er < E_OK) {
+		return er;
+	}
+	s4_imu_snapshot = *p_snapshot;
+	return tk_unl_mtx(mtx_imu);
+}
+
+EXPORT ER subsystem4_get_imu_snapshot(s4_imu_snapshot_t *p_snapshot)
+{
+	ER er;
+
+	if (p_snapshot == NULL) {
+		return E_PAR;
+	}
+	er = tk_loc_mtx(mtx_imu, TMO_FEVR);
+	if (er < E_OK) {
+		return er;
+	}
+	*p_snapshot = s4_imu_snapshot;
+	return tk_unl_mtx(mtx_imu);
+}
+
 EXPORT ER subsystem4_start(void)
 {
-	/* No affinity: the scheduler may run it on either core */
-	ID tid = app_start_task(monitor_task, S4_PRI_MONITOR, 0, "monitor_task");
+	ID tid = app_start_task(imu_task, S4_PRI_IMU, 0, "imu_task");
+	if (tid < E_OK) {
+		return tid;
+	}
+	/* No affinity: the scheduler may run it on either core. */
+	tid = app_start_task(monitor_task, S4_PRI_MONITOR, 0, "monitor_task");
 	return (tid < E_OK) ? tid : E_OK;
 }
