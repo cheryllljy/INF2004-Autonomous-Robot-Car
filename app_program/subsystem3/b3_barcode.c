@@ -359,7 +359,7 @@ static b3_reject_reason_t prepare_result(
      */
     p_scan->required_trailing =
         p_scan->decoded.last_narrow *
-        B3_QUIET_NARROW_MULTIPLE;
+        B3_TRAILING_NARROW_MULTIPLE;   /* was B3_QUIET_NARROW_MULTIPLE (2026-11-05) */
 
 
     p_scan->pending =

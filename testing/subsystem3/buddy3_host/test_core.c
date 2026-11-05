@@ -178,7 +178,7 @@ static void test_stream_and_quiet(void)
     make_frame('A', 10000U, 30000U, times);
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
     CHECK(scan.pending);
-    edge.time_us += 99999U;
+    edge.time_us += (10000U * B3_TRAILING_NARROW_MULTIPLE) - 1U; /* trailing quiet now B3_TRAILING_NARROW_MULTIPLE x narrow (2026-11-05) */
     CHECK(!b3_barcode_poll(&scan, edge, &result));
     ++edge.time_us;
     CHECK(b3_barcode_poll(&scan, edge, &result));
@@ -190,7 +190,7 @@ static void test_stream_and_quiet(void)
     CHECK(!b3_barcode_poll(&scan, edge, &result));
     CHECK(1U == scan.rejected);
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
-    edge.time_us += 90000U;
+    edge.time_us += (10000U * B3_TRAILING_NARROW_MULTIPLE) - 10000U;
     edge.black = true;
     CHECK(!b3_barcode_edge(&scan, edge, &result));
     /* Black inside the trailing white is only a reject once it outlasts a

@@ -48,7 +48,7 @@
  * sensor, and the car steers back towards it (left black: turn left). */
 #define B3_LINE_DEBOUNCE_US           2000U
 #define B3_LINE_LOST_GRACE_US         50000U /* unused since the straddle layout */
-#define B3_BASE_SPEED_MM_S            30
+#define B3_BASE_SPEED_MM_S            25
 #define B3_MAX_REQUEST_MM_S           400
 #define B3_CORRECTION_MM_S            25  /* was 40: smaller kick when a sensor just touches the line, less weaving on straights (2026-11-04) */
 /* Sharp turns / U-turns (2026-11-04). If the same side sensor stays black
@@ -76,7 +76,7 @@
  * is also rescaled by the measured wheel speed (B3_SCAN_SPEED_COMPENSATE).
  * Safety: the slow speed lasts at most B3_SCAN_SLOW_MAX_US, and a crossing
  * (both line sensors black) ends it so junctions (>= 80 mm/s) still fire. */
-#define B3_SCAN_SPEED_MM_S            30
+#define B3_SCAN_SPEED_MM_S            25
 #define B3_SCAN_SLOW_WHITE_US         800000U  /* 30 mm of white at 50 mm/s */
 #define B3_SCAN_SLOW_MAX_US           6000000U
 /* Retry a failed decode with the first/last bar trimmed to the other narrow
@@ -100,6 +100,13 @@
 #define B3_MAX_SCAN_US                30000000U
 #define B3_MIN_START_WHITE_US         2000U  /* real check: leading quiet >= 10 narrow */
 #define B3_QUIET_NARROW_MULTIPLE      10U
+/* Trailing white needed after a full 29-element decode (nyx, 2026-11-05).
+ * Was the same 10 x narrow as the leading zone, but on the car the next black
+ * came back 667 ms (20 mm at 30 mm/s) after a good decode and every scan was
+ * rejected with reason 8. Once all 29 elements decoded, the only thing that
+ * could follow is an inter-character gap (about 1 narrow), so 4 x narrow
+ * already proves the barcode has ended. */
+#define B3_TRAILING_NARROW_MULTIPLE   4U
 #define B3_MIN_NARROW_ENCODER_TICKS   5U
 #define B3_MAX_ENCODER_RUN_TICKS      1000000U
 #define B3_MAX_TIMED_SPEED_RATIO_PCT  120U
