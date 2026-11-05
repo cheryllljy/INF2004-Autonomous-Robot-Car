@@ -204,19 +204,29 @@ void imu_calibrate(void)
 
 imu_status_t imu_read_accel(imu_vector_t *p_sample)
 {
+    imu_vector_t raw_sample;
+    return imu_read_accel_with_raw(p_sample, &raw_sample);
+}
+
+imu_status_t imu_read_accel_with_raw(imu_vector_t *p_sample,
+                                     imu_vector_t *p_raw_sample)
+{
     UB bytes[6];
-    if (p_sample == NULL) return IMU_BAD_PARAM;
+    if (p_sample == NULL || p_raw_sample == NULL) return IMU_BAD_PARAM;
     if (!g_ready) return IMU_NOT_READY;
     if (!imu_read_regs(g_accel_address, REG_OUT_X_L_A, bytes, sizeof(bytes), true))
         return IMU_I2C_ERROR;
 
-    int16_t raw_x = (int16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8U));
-    int16_t raw_y = (int16_t)((uint16_t)bytes[2] | ((uint16_t)bytes[3] << 8U));
-    int16_t raw_z = (int16_t)((uint16_t)bytes[4] | ((uint16_t)bytes[5] << 8U));
+    p_raw_sample->x = (int16_t)((uint16_t)bytes[0] |
+                                ((uint16_t)bytes[1] << 8U));
+    p_raw_sample->y = (int16_t)((uint16_t)bytes[2] |
+                                ((uint16_t)bytes[3] << 8U));
+    p_raw_sample->z = (int16_t)((uint16_t)bytes[4] |
+                                ((uint16_t)bytes[5] << 8U));
 
-    p_sample->x = (int16_t)((int32_t)raw_x - g_offset_x);
-    p_sample->y = (int16_t)((int32_t)raw_y - g_offset_y);
-    p_sample->z = (int16_t)((int32_t)raw_z - g_offset_z);
+    p_sample->x = (int16_t)((int32_t)p_raw_sample->x - g_offset_x);
+    p_sample->y = (int16_t)((int32_t)p_raw_sample->y - g_offset_y);
+    p_sample->z = (int16_t)((int32_t)p_raw_sample->z - g_offset_z);
 
     return IMU_OK;
 }

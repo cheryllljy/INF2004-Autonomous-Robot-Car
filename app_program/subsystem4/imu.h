@@ -51,6 +51,10 @@ void imu_scan_bus(void);
 /** Read one XYZ accelerometer sample (raw unless imu_calibrate() was called). */
 imu_status_t imu_read_accel(imu_vector_t *p_sample);
 
+/** Read calibrated and raw XYZ samples from one accelerometer transaction. */
+imu_status_t imu_read_accel_with_raw(imu_vector_t *p_sample,
+                                     imu_vector_t *p_raw_sample);
+
 /** Read one XYZ magnetometer sample (raw). */
 imu_status_t imu_read_mag(imu_vector_t *p_sample);
 

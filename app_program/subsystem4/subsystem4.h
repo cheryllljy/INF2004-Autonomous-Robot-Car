@@ -11,6 +11,7 @@
 
 #include "../app.h"
 #include "imu.h"
+#include "s4_hump_config.h"
 
 #define S4_PRI_MONITOR		18	/* priority band 18-19 (TEAM.md) */
 #define S4_PRI_IMU		18

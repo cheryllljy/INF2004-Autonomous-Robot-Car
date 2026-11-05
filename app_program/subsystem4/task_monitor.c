@@ -14,6 +14,180 @@
 
 EXPORT UW	s4_lines_received;
 
+typedef struct {
+	int64_t		sum_lateral;
+	int64_t		sum_vertical;
+	uint64_t	sum_total;
+	uint8_t		cal_samples;
+	int32_t		base_lateral;
+	int32_t		base_vertical;
+	uint32_t	base_total;
+	int32_t		filtered_sin_q15;
+	uint8_t		level_samples;
+	uint8_t		hump_sequence;
+	uint8_t		peak_height_mm;
+	bool		calibrated;
+	bool		filter_ready;
+	bool		hump_active;
+} s4_hump_state_t;
+
+LOCAL s4_hump_state_t s4_hump_state;
+
+LOCAL uint32_t s4_isqrt(uint64_t value)
+{
+	uint64_t result = 0U;
+	uint64_t bit = 1ULL << 62;
+
+	while (bit > value) {
+		bit >>= 2;
+	}
+	while (bit != 0U) {
+		if (value >= result + bit) {
+			value -= result + bit;
+			result = (result >> 1) + bit;
+		} else {
+			result >>= 1;
+		}
+		bit >>= 2;
+	}
+	return (uint32_t)result;
+}
+
+LOCAL int32_t s4_axis_value(const imu_vector_t *p_sample, uint32_t axis)
+{
+	switch (axis) {
+	case 0U:	return p_sample->x;
+	case 1U:	return p_sample->y;
+	default:	return p_sample->z;
+	}
+}
+
+LOCAL uint32_t s4_abs_i32(int32_t value)
+{
+	return (uint32_t)((value < 0) ? -value : value);
+}
+
+LOCAL void s4_hump_step(const imu_vector_t *p_raw)
+{
+	int32_t lateral = s4_axis_value(p_raw, S4_HUMP_LATERAL_AXIS);
+	int32_t vertical = s4_axis_value(p_raw, S4_HUMP_VERTICAL_AXIS);
+	uint64_t total_sq = (uint64_t)((int64_t)p_raw->x * p_raw->x) +
+			    (uint64_t)((int64_t)p_raw->y * p_raw->y) +
+			    (uint64_t)((int64_t)p_raw->z * p_raw->z);
+	uint32_t total = s4_isqrt(total_sq);
+	uint32_t plane = s4_isqrt(
+		(uint64_t)((int64_t)lateral * lateral) +
+		(uint64_t)((int64_t)vertical * vertical));
+	uint32_t base_plane;
+	uint64_t denominator;
+	int64_t cross;
+	int32_t sin_q15;
+	uint32_t height_mm;
+
+	if (!s4_hump_state.calibrated) {
+		s4_hump_state.sum_lateral += lateral;
+		s4_hump_state.sum_vertical += vertical;
+		s4_hump_state.sum_total += total;
+		if (++s4_hump_state.cal_samples >= S4_HUMP_CAL_SAMPLES) {
+			s4_hump_state.base_lateral =
+				(int32_t)(s4_hump_state.sum_lateral /
+					  S4_HUMP_CAL_SAMPLES);
+			s4_hump_state.base_vertical =
+				(int32_t)(s4_hump_state.sum_vertical /
+					  S4_HUMP_CAL_SAMPLES);
+			s4_hump_state.base_total =
+				(uint32_t)(s4_hump_state.sum_total /
+					   S4_HUMP_CAL_SAMPLES);
+			s4_hump_state.calibrated =
+				(s4_hump_state.base_total != 0U);
+			tm_printf((UB*)"S4: roll baseline %s; axes L=%u V=%u\n",
+				  s4_hump_state.calibrated ? "ready" : "invalid",
+				  (UINT)S4_HUMP_LATERAL_AXIS,
+				  (UINT)S4_HUMP_VERTICAL_AXIS);
+			if (!s4_hump_state.calibrated) {
+				s4_hump_state.sum_lateral = 0;
+				s4_hump_state.sum_vertical = 0;
+				s4_hump_state.sum_total = 0U;
+				s4_hump_state.cal_samples = 0U;
+			}
+		}
+		return;
+	}
+
+	if ((plane == 0U) || (s4_hump_state.base_total == 0U) ||
+	    ((uint64_t)s4_abs_i32((int32_t)total -
+				 (int32_t)s4_hump_state.base_total) * 100U >
+	     (uint64_t)s4_hump_state.base_total *
+				 S4_HUMP_ACCEL_TOLERANCE_PCT)) {
+		return;
+	}
+
+	base_plane = s4_isqrt(
+		(uint64_t)((int64_t)s4_hump_state.base_lateral *
+			   s4_hump_state.base_lateral) +
+		(uint64_t)((int64_t)s4_hump_state.base_vertical *
+			   s4_hump_state.base_vertical));
+	if (base_plane == 0U) {
+		return;
+	}
+
+	/* sin(delta roll) = cross(baseline, sample) / (|baseline|*|sample|). */
+	cross = (int64_t)s4_hump_state.base_vertical * lateral -
+		(int64_t)s4_hump_state.base_lateral * vertical;
+	cross *= S4_HUMP_ROLL_SIGN;
+	denominator = (uint64_t)base_plane * plane;
+	sin_q15 = (int32_t)((cross * 32768) / (int64_t)denominator);
+	if (sin_q15 > 32767) {
+		sin_q15 = 32767;
+	} else if (sin_q15 < -32768) {
+		sin_q15 = -32768;
+	}
+
+	if (!s4_hump_state.filter_ready) {
+		s4_hump_state.filtered_sin_q15 = sin_q15;
+		s4_hump_state.filter_ready = true;
+	} else {
+		s4_hump_state.filtered_sin_q15 +=
+			(sin_q15 - s4_hump_state.filtered_sin_q15) /
+			(1 << S4_HUMP_FILTER_SHIFT);
+	}
+
+	/* Opposite wheel-side height = track width * |sin(roll)|. */
+	height_mm = (S4_HUMP_TRACK_WIDTH_MM *
+		     s4_abs_i32(s4_hump_state.filtered_sin_q15) + 16384U) /
+		    32768U;
+	if (!s4_hump_state.hump_active) {
+		if (height_mm < S4_HUMP_START_HEIGHT_MM) {
+			return;
+		}
+		s4_hump_state.hump_active = true;
+		s4_hump_state.peak_height_mm =
+			(uint8_t)((height_mm > 255U) ? 255U : height_mm);
+		s4_hump_state.level_samples = 0U;
+	} else if (height_mm > s4_hump_state.peak_height_mm) {
+		s4_hump_state.peak_height_mm =
+			(uint8_t)((height_mm > 255U) ? 255U : height_mm);
+	}
+
+	if (height_mm <= S4_HUMP_LEVEL_HEIGHT_MM) {
+		if (++s4_hump_state.level_samples >= S4_HUMP_LEVEL_SAMPLES) {
+			if (s4_hump_state.peak_height_mm >=
+			    S4_HUMP_MIN_PEAK_HEIGHT_MM) {
+				s4_hump_state.hump_sequence++;
+				tm_printf((UB*)"[VC] HUMP_DONE peak side-height=%u mm "
+					  "(seq %u)\n",
+					  (UINT)s4_hump_state.peak_height_mm,
+					  (UINT)s4_hump_state.hump_sequence);
+			}
+			s4_hump_state.peak_height_mm = 0U;
+			s4_hump_state.level_samples = 0U;
+			s4_hump_state.hump_active = false;
+		}
+	} else {
+		s4_hump_state.level_samples = 0U;
+	}
+}
+
 /*
  * Alarm handler: one-shot, interrupt context (same rules as a cyclic
  * handler: keep it short, never wait).
@@ -61,6 +235,7 @@ LOCAL ER publish_imu_sample(const imu_vector_t *p_accel,
 EXPORT void imu_task(INT stacd, void *exinf)
 {
 	imu_vector_t accel = {0};
+	imu_vector_t accel_raw = {0};
 	imu_vector_t mag = {0};
 	imu_status_t init_status;
 	imu_status_t accel_status;
@@ -70,16 +245,13 @@ EXPORT void imu_task(INT stacd, void *exinf)
 	(void)stacd;
 	(void)exinf;
 
-#if APP_TEST
-	/* Keep I2C idle while the hardware barcode tests are running. */
-	tk_dly_tsk(30000);
-#endif
-
 	init_status = imu_init();
 	if (init_status == IMU_OK) {
 		tm_printf((UB*)"monitor: IMU ready at 0x%02X\n",
 			  (UINT)imu_accel_address());
 		imu_calibrate();
+		s4_hump_state = (s4_hump_state_t){0};
+		tm_printf((UB*)"S4: keep car level and still for roll calibration\n");
 	} else {
 		tm_printf((UB*)"monitor: IMU init failed, status=%d\n",
 			  (INT)init_status);
@@ -94,6 +266,8 @@ EXPORT void imu_task(INT stacd, void *exinf)
 				tm_printf((UB*)"monitor: IMU recovered at 0x%02X\n",
 					  (UINT)imu_accel_address());
 				imu_calibrate();
+				s4_hump_state = (s4_hump_state_t){0};
+				tm_printf((UB*)"S4: keep car level and still for roll calibration\n");
 				consecutive_fails = 0;
 			} else {
 				(void)publish_imu_sample(NULL, init_status,
@@ -102,8 +276,11 @@ EXPORT void imu_task(INT stacd, void *exinf)
 			}
 		}
 
-		accel_status = imu_read_accel(&accel);
+		accel_status = imu_read_accel_with_raw(&accel, &accel_raw);
 		mag_status = imu_read_mag(&mag);
+		if (accel_status == IMU_OK) {
+			s4_hump_step(&accel_raw);
+		}
 		(void)publish_imu_sample(&accel, accel_status, &mag, mag_status);
 
 		if ((accel_status == IMU_OK) && (mag_status == IMU_OK)) {
@@ -114,6 +291,8 @@ EXPORT void imu_task(INT stacd, void *exinf)
 			consecutive_fails = 0;
 			if (init_status == IMU_OK) {
 				imu_calibrate();
+				s4_hump_state = (s4_hump_state_t){0};
+				tm_printf((UB*)"S4: keep car level and still for roll calibration\n");
 			}
 		}
 
