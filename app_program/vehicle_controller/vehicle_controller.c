@@ -422,11 +422,26 @@ LOCAL void read_motion(void)
 	}
 }
 
-/* Use Subsystem 4's cached sample; the controller never accesses I2C. */
+/* Use Subsystem 4's cached sample; the controller never accesses I2C.
+ *
+ * Buddy 3 change (2026-11-05): the IMU fault is no longer raised on the
+ * first bad pass. Subsystem 4 publishes nothing while it calibrates
+ * (about 0.4 s after boot and after every imu_reset), and it publishes
+ * a failed status if the first imu_init try fails, so the old check
+ * latched an E-stop 0x04 at every start. Now the sample has to be bad
+ * or stale for VC_IMU_FAULT_MS in a row before VC_FAULT_IMU is raised.
+ * The reason is printed once per bad spell.
+ */
+#define VC_IMU_FAULT_MS		1000
+
 LOCAL void read_imu(b3_context_t *p_ctx)
 {
+	static UINT	bad_ms;		/* how long the IMU has been bad */
+	static BOOL	reported;
 	s4_imu_snapshot_t snapshot;
 	SYSTIM now;
+	INT reason = 0;			/* 0 = good sample */
+	uint32_t age = 0U;
 
 	p_ctx->accel_valid      = false;
 	p_ctx->accel_x_lsb      = 0;
@@ -439,18 +454,37 @@ LOCAL void read_imu(b3_context_t *p_ctx)
 	p_ctx->terrain_unstable = false;
 
 	if (subsystem4_get_imu_snapshot(&snapshot) < E_OK) {
-		vc_raise_fault(VC_FAULT_IMU);
+		reason = 1;
+	} else if (!snapshot.has_sample) {
+		reason = 2;			/* still starting up */
+	} else if (tk_get_tim(&now) < E_OK) {
+		reason = 3;
+	} else if ((age = (uint32_t)(now.lo - snapshot.timestamp_ms)) >
+		   S4_IMU_MAX_AGE_MS) {
+		reason = 4;			/* stale (calibrating or stuck) */
+	} else if (snapshot.accel_status != IMU_OK) {
+		reason = 5;
+	}
+
+	if (reason != 0) {
+		bad_ms += VC_PERIOD_MS;
+		if (bad_ms >= VC_IMU_FAULT_MS) {
+			if (!reported) {
+				reported = TRUE;
+				tm_printf((UB*)"[VC] IMU fault: %s (status %d, age %u ms)\n",
+					  (reason == 1) ? "snapshot call failed" :
+					  (reason == 2) ? "no sample yet" :
+					  (reason == 3) ? "no clock" :
+					  (reason == 4) ? "sample too old" :
+					  "accel read failed",
+					  (INT)snapshot.accel_status, (UINT)age);
+			}
+			vc_raise_fault(VC_FAULT_IMU);
+		}
 		return;
 	}
-	if (!snapshot.has_sample) {
-		return;
-	}
-	if ((tk_get_tim(&now) < E_OK) ||
-	    ((uint32_t)(now.lo - snapshot.timestamp_ms) > S4_IMU_MAX_AGE_MS) ||
-	    (snapshot.accel_status != IMU_OK)) {
-		vc_raise_fault(VC_FAULT_IMU);
-		return;
-	}
+	bad_ms = 0U;
+	reported = FALSE;
 
 	p_ctx->accel_valid = true;
 	p_ctx->accel_x_lsb = snapshot.accel.x;
