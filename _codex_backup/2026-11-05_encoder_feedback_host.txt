@@ -1,0 +1,6 @@
+PASS S2-HOST-01: either registration/shared IRQ failure aborts initialization with PWM zero
+PASS S2-HOST-02/03: lost feedback cuts both wheels within 320 ms, caps power and freezes integral
+PASS S2-HOST-04: healthy/intermittent feedback and a stationary pivot wheel remain usable
+PASS S2-HOST-05: recovery clears the timer; faults latch; E-stop still cuts immediately
+PASS S2-HOST-06: motion init/start failures propagate to usermain
+PASS: all motion feedback and startup regressions (software only)
