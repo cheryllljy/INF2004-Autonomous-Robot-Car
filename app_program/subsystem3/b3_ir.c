@@ -3,10 +3,7 @@
 #include "b3_port.h"
 
 
-_Static_assert(
-    B3_EDGE_QUEUE_SIZE > 2U,
-    "Edge queue is too small"
-);
+_Static_assert(B3_EDGE_QUEUE_SIZE > 2U, "Edge queue is too small");
 
 
 static volatile b3_edge_t g_edges[B3_EDGE_QUEUE_SIZE];
@@ -34,16 +31,11 @@ static volatile uint32_t g_log_count;
 #endif
 
 
-
-
 /*
  * Return true when the selected GPIO is currently
  * at the configured electrical level representing black.
  */
-static bool black_level(
-    uint32_t pins,
-    unsigned int pin,
-    unsigned int level)
+static bool black_level(uint32_t pins, uint32_t pin, uint32_t level)
 {
     return (((pins >> pin) & 1U) == level);
 }
@@ -54,27 +46,18 @@ static bool black_level(
  */
 static b3_edge_t sample_barcode(uint32_t pins)
 {
-    b3_edge_t edge = {0};
+    b3_edge_t edge = { 0 };
 
 
-    edge.time_us =
-        b3_port_time_us();
+    edge.time_us = b3_port_time_us();
 
 
-    edge.black =
-        black_level(
-            pins,
-            B3_IR_B_GPIO,
-            B3_IR_B_BLACK_LEVEL
-        );
+    edge.black = black_level(pins, B3_IR_B_GPIO, B3_IR_B_BLACK_LEVEL);
 
 
     if (0 != g_position_reader)
     {
-        edge.position_valid =
-            g_position_reader(
-                &edge.position_ticks
-            );
+        edge.position_valid = g_position_reader(&edge.position_ticks);
     }
 
 
@@ -85,28 +68,16 @@ static b3_edge_t sample_barcode(uint32_t pins)
 /*
  * Fill a sample from one GPIO snapshot.
  */
-static void sample_all(
-    uint32_t pins,
-    b3_ir_sample_t *p_sample)
+static void sample_all(uint32_t pins, b3_ir_sample_t *p_sample)
 {
-    p_sample->left_black =
-        black_level(
-            pins,
-            B3_IR_L_GPIO,
-            B3_IR_L_BLACK_LEVEL
-        );
+    p_sample->left_black = black_level(pins, B3_IR_L_GPIO, B3_IR_L_BLACK_LEVEL);
 
 
     p_sample->right_black =
-        black_level(
-            pins,
-            B3_IR_R_GPIO,
-            B3_IR_R_BLACK_LEVEL
-        );
+        black_level(pins, B3_IR_R_GPIO, B3_IR_R_BLACK_LEVEL);
 
 
-    p_sample->barcode =
-        sample_barcode(pins);
+    p_sample->barcode = sample_barcode(pins);
 }
 
 
@@ -117,9 +88,7 @@ static void sample_all(
  */
 static void push_edge_locked(const b3_edge_t *p_edge)
 {
-    uint32_t next =
-        (g_head + 1U) %
-        B3_EDGE_QUEUE_SIZE;
+    uint32_t next = (g_head + 1U) % B3_EDGE_QUEUE_SIZE;
 
 
     if (next == g_tail)
@@ -127,20 +96,17 @@ static void push_edge_locked(const b3_edge_t *p_edge)
         ++g_fault_count;
 
 
-        g_discontinuity =
-            true;
+        g_discontinuity = true;
 
 
         return;
     }
 
 
-    g_edges[g_head] =
-        *p_edge;
+    g_edges[g_head] = *p_edge;
 
 
-    g_head =
-        next;
+    g_head = next;
 }
 
 
@@ -149,28 +115,20 @@ static void push_edge_locked(const b3_edge_t *p_edge)
  * Test build only: add one entry to the raw edge log. Caller holds the
  * port lock.
  */
-static void log_entry_locked(
-    uint32_t time_us,
-    uint8_t events,
-    uint32_t peak)
+static void log_entry_locked(uint32_t time_us, uint8_t events, uint32_t peak)
 {
     if (g_log_count < B3_EDGE_LOG_SIZE)
     {
-        g_log_time_us[g_log_count] =
-            time_us;
+        g_log_time_us[g_log_count] = time_us;
 
-        g_log_events[g_log_count] =
-            events;
+        g_log_events[g_log_count] = events;
 
-        g_log_peak[g_log_count] =
-            (uint16_t)peak;
+        g_log_peak[g_log_count] = (uint16_t)peak;
     }
 
     ++g_log_count;
 }
 #endif
-
-
 
 
 /*
@@ -180,23 +138,16 @@ static void log_entry_locked(
  */
 ER b3_ir_init(b3_position_reader_t reader)
 {
-    static const unsigned int pins[] =
-    {
-        B3_IR_R_GPIO,
-        B3_IR_L_GPIO,
-        B3_IR_B_GPIO
-    };
+    static const uint32_t pins[] = { B3_IR_R_GPIO, B3_IR_L_GPIO, B3_IR_B_GPIO };
 
     ER status;
 
     b3_irq_state_t saved;
 
-    unsigned int i;
+    uint32_t i;
 
 
-
-    status =
-        b3_port_init();
+    status = b3_port_init();
 
 
     if (E_OK != status)
@@ -216,11 +167,7 @@ ER b3_ir_init(b3_position_reader_t reader)
      */
     for (i = 0U; i < (sizeof(pins) / sizeof(pins[0])); ++i)
     {
-        status =
-            b3_port_gpio_input_init(
-                pins[i],
-                B3_INPUT_PULL_UP != 0U
-            );
+        status = b3_port_gpio_input_init(pins[i], B3_INPUT_PULL_UP != 0U);
 
 
         if (E_OK != status)
@@ -230,38 +177,25 @@ ER b3_ir_init(b3_position_reader_t reader)
     }
 
 
-
-
     /*
      * Reset barcode edge queue.
      */
     b3_port_lock(&saved);
 
 
-    g_head =
-        0U;
+    g_head = 0U;
 
-    g_tail =
-        0U;
+    g_tail = 0U;
 
-    g_fault_count =
-        0U;
+    g_fault_count = 0U;
 
-    g_discontinuity =
-        false;
+    g_discontinuity = false;
 
-    g_position_reader =
-        reader;
+    g_position_reader = reader;
 
-    g_b_black =
-        sample_barcode(
-            b3_port_gpio_get_all()
-        ).black;
+    g_b_black = sample_barcode(b3_port_gpio_get_all()).black;
 
-    g_glitch_count =
-        0U;
-
-
+    g_glitch_count = 0U;
 
 
     b3_port_unlock(saved);
@@ -270,15 +204,12 @@ ER b3_ir_init(b3_position_reader_t reader)
     /*
      * Clear stale barcode interrupt flags.
      */
-    b3_port_barcode_irq_ack(
-        B3_GPIO_EDGE_BOTH
-    );
+    b3_port_barcode_irq_ack(B3_GPIO_EDGE_BOTH);
 
 
 #if B3_INSTALL_IO_BANK0_HANDLER
 
-    status =
-        b3_port_install_barcode_irq();
+    status = b3_port_install_barcode_irq();
 
 
     if (E_OK != status)
@@ -305,9 +236,7 @@ void b3_ir_enable_barcode_irq(bool enabled)
 /*
  * IR_B (barcode) GPIO interrupt callback.
  */
-void b3_ir_gpio_irq(
-    unsigned int gpio,
-    uint32_t events)
+void b3_ir_gpio_irq(uint32_t gpio, uint32_t events)
 {
     uint32_t edge_events;
 
@@ -316,15 +245,13 @@ void b3_ir_gpio_irq(
     b3_edge_t edge;
 
 
-    edge_events =
-        events & B3_GPIO_EDGE_BOTH;
+    edge_events = events & B3_GPIO_EDGE_BOTH;
 
 
     /*
      * Ignore unrelated GPIO interrupts.
      */
-    if ((B3_IR_B_GPIO != gpio) ||
-        (0U == edge_events))
+    if ((B3_IR_B_GPIO != gpio) || (0U == edge_events))
     {
         return;
     }
@@ -337,11 +264,7 @@ void b3_ir_gpio_irq(
     /*
      * Test build only: log every interrupt before any filtering.
      */
-    log_entry_locked(
-        b3_port_time_us(),
-        (uint8_t)edge_events,
-        0U
-    );
+    log_entry_locked(b3_port_time_us(), (uint8_t)edge_events, 0U);
 #endif
 
 
@@ -354,13 +277,9 @@ void b3_ir_gpio_irq(
      * (Previously this was FAULT TYPE 1 and aborted the scan; changed
      * 2026-10-30 after chatter at the tuned threshold broke every scan.)
      */
-    if (edge_events ==
-        B3_GPIO_EDGE_BOTH)
+    if (B3_GPIO_EDGE_BOTH == edge_events)
     {
-        edge =
-            sample_barcode(
-                b3_port_gpio_get_all()
-            );
+        edge = sample_barcode(b3_port_gpio_get_all());
 
 
         if (edge.black == g_b_black)
@@ -369,12 +288,9 @@ void b3_ir_gpio_irq(
         }
         else
         {
-            g_b_black =
-                edge.black;
+            g_b_black = edge.black;
 
-            push_edge_locked(
-                &edge
-            );
+            push_edge_locked(&edge);
         }
     }
 
@@ -384,15 +300,13 @@ void b3_ir_gpio_irq(
      */
     else
     {
-        edge =
-            (b3_edge_t){0};
+        edge = (b3_edge_t){ 0 };
 
 
         /*
          * Timestamp this edge.
          */
-        edge.time_us =
-            b3_port_time_us();
+        edge.time_us = b3_port_time_us();
 
 
         /*
@@ -402,15 +316,13 @@ void b3_ir_gpio_irq(
          * Do NOT read GPIO again here because the
          * physical pin may already have changed.
          */
-        if (edge_events ==
-            B3_GPIO_EDGE_RISE)
+        if (B3_GPIO_EDGE_RISE == edge_events)
         {
             /*
              * Rising:
              * LOW -> HIGH
              */
-            edge.black =
-                (B3_IR_B_BLACK_LEVEL != 0U);
+            edge.black = (B3_IR_B_BLACK_LEVEL != 0U);
         }
         else
         {
@@ -418,8 +330,7 @@ void b3_ir_gpio_irq(
              * Falling:
              * HIGH -> LOW
              */
-            edge.black =
-                (B3_IR_B_BLACK_LEVEL == 0U);
+            edge.black = (B3_IR_B_BLACK_LEVEL == 0U);
         }
 
 
@@ -428,19 +339,13 @@ void b3_ir_gpio_irq(
          */
         if (0 != g_position_reader)
         {
-            edge.position_valid =
-                g_position_reader(
-                    &edge.position_ticks
-                );
+            edge.position_valid = g_position_reader(&edge.position_ticks);
         }
 
 
-        g_b_black =
-            edge.black;
+        g_b_black = edge.black;
 
-        push_edge_locked(
-            &edge
-        );
+        push_edge_locked(&edge);
     }
 
 
@@ -462,18 +367,14 @@ void b3_ir_edge_log_reset(void)
 
     b3_port_lock(&saved);
 
-    g_log_count =
-        0U;
+    g_log_count = 0U;
 
     b3_port_unlock(saved);
 }
 
 
-uint32_t b3_ir_edge_log_read(
-    uint32_t *p_time_us,
-    uint8_t *p_events,
-    uint16_t *p_peak,
-    uint32_t max)
+uint32_t b3_ir_edge_log_read(uint32_t *p_time_us, uint8_t *p_events,
+                             uint16_t *p_peak, uint32_t max)
 {
     b3_irq_state_t saved;
 
@@ -484,21 +385,17 @@ uint32_t b3_ir_edge_log_read(
 
     b3_port_lock(&saved);
 
-    total =
-        g_log_count;
+    total = g_log_count;
 
     for (i = 0U; (i < max) && (i < total) && (i < B3_EDGE_LOG_SIZE); ++i)
     {
-        p_time_us[i] =
-            g_log_time_us[i];
+        p_time_us[i] = g_log_time_us[i];
 
-        p_events[i] =
-            g_log_events[i];
+        p_events[i] = g_log_events[i];
 
         if (0 != p_peak)
         {
-            p_peak[i] =
-                g_log_peak[i];
+            p_peak[i] = g_log_peak[i];
         }
     }
 
@@ -513,16 +410,14 @@ uint32_t b3_ir_edge_log_read(
 /*
  * Remove one edge from the barcode edge queue.
  */
-b3_ir_pop_status_t b3_ir_pop(
-    b3_edge_t *p_edge)
+b3_ir_pop_status_t b3_ir_pop(b3_edge_t *p_edge)
 {
     b3_ir_pop_status_t status;
 
     b3_irq_state_t saved;
 
 
-    status =
-        B3_IR_EMPTY;
+    status = B3_IR_EMPTY;
 
 
     b3_port_lock(&saved);
@@ -534,16 +429,13 @@ b3_ir_pop_status_t b3_ir_pop(
      */
     if (g_discontinuity)
     {
-        g_tail =
-            g_head;
+        g_tail = g_head;
 
 
-        g_discontinuity =
-            false;
+        g_discontinuity = false;
 
 
-        status =
-            B3_IR_DISCONTINUITY;
+        status = B3_IR_DISCONTINUITY;
     }
 
 
@@ -552,17 +444,13 @@ b3_ir_pop_status_t b3_ir_pop(
      */
     else if (g_tail != g_head)
     {
-        *p_edge =
-            g_edges[g_tail];
+        *p_edge = g_edges[g_tail];
 
 
-        g_tail =
-            (g_tail + 1U) %
-            B3_EDGE_QUEUE_SIZE;
+        g_tail = (g_tail + 1U) % B3_EDGE_QUEUE_SIZE;
 
 
-        status =
-            B3_IR_EDGE;
+        status = B3_IR_EDGE;
     }
 
 
@@ -575,24 +463,33 @@ b3_ir_pop_status_t b3_ir_pop(
 
 /*
  * Clear barcode edge queue.
+ *
+ * nyx, 2026-11-06: returns true if anything was thrown away (an edge or a
+ * lost-edge mark).
  */
-void b3_ir_flush(void)
+bool b3_ir_flush(void)
 {
     b3_irq_state_t saved;
+
+    bool discarded;
 
 
     b3_port_lock(&saved);
 
 
-    g_tail =
-        g_head;
+    discarded = (g_tail != g_head) || g_discontinuity;
 
 
-    g_discontinuity =
-        false;
+    g_tail = g_head;
+
+
+    g_discontinuity = false;
 
 
     b3_port_unlock(saved);
+
+
+    return discarded;
 }
 
 
@@ -609,10 +506,7 @@ b3_ir_sample_t b3_ir_read(void)
     b3_port_lock(&saved);
 
 
-    sample_all(
-        b3_port_gpio_get_all(),
-        &sample
-    );
+    sample_all(b3_port_gpio_get_all(), &sample);
 
 
     b3_port_unlock(saved);
@@ -626,35 +520,26 @@ b3_ir_sample_t b3_ir_read(void)
  * Poll sensors only when barcode edge processing
  * is idle.
  */
-bool b3_ir_read_when_idle(
-    b3_ir_sample_t *p_sample)
+bool b3_ir_read_when_idle(b3_ir_sample_t *p_sample)
 {
     bool ready;
 
     b3_irq_state_t saved;
 
 
-    ready =
-        false;
+    ready = false;
 
 
     b3_port_lock(&saved);
 
 
-    if ((g_head == g_tail) &&
-        !g_discontinuity &&
-        (0U ==
-         b3_port_barcode_irq_pending()))
+    if ((g_head == g_tail) && !g_discontinuity &&
+        (0U == b3_port_barcode_irq_pending()))
     {
-        sample_all(
-            b3_port_gpio_get_all(),
-            p_sample
-        );
+        sample_all(b3_port_gpio_get_all(), p_sample);
 
 
-        ready =
-            (0U ==
-             b3_port_barcode_irq_pending());
+        ready = (0U == b3_port_barcode_irq_pending());
     }
 
 
@@ -678,8 +563,7 @@ uint32_t b3_ir_fault_count(void)
     b3_port_lock(&saved);
 
 
-    result =
-        g_fault_count;
+    result = g_fault_count;
 
 
     b3_port_unlock(saved);

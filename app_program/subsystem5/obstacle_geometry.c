@@ -16,69 +16,67 @@
  */
 
 #include "obstacle_model.h"
-#include "s5_config.h"  /* v3.0: remeasure and watch constants (macros only) */
+#include "s5_config.h" /* v3.0: remeasure and watch constants (macros only) */
 
-#include <stddef.h>     /* NULL; this file never includes the kernel */
+#include <stddef.h> /* NULL; this file never includes the kernel */
 
 /*=====================================================================*/
 /* Tunable model constants                                             */
 /*=====================================================================*/
 
 /** A sample belongs to the same object if within this of the nearest. */
-#define OBS_DEPTH_TOL_MM        (120)
+#define OBS_DEPTH_TOL_MM (120)
 
 /** Returns further than this are background, not object. */
-#define OBS_BACKGROUND_MM       (900)
+#define OBS_BACKGROUND_MM (900)
 
 /** Range jump between neighbours that marks an object edge. */
-#define OBS_EDGE_STEP_MM        (100)
+#define OBS_EDGE_STEP_MM (100)
 
 /**
  * The HC-SR04 beam is ~15 deg wide, so an object looks wider by about
  * 2 * d * tan(7.5 deg) = 0.264 * d. Q10: 0.264 * 1024 = 270.
  * Calibrate with bench test G3 / sim scenario 6.
  */
-#define OBS_BEAM_CORR_Q10       (270)
+#define OBS_BEAM_CORR_Q10 (270)
 
-#define OBS_MIN_WIDTH_MM        (30)
+#define OBS_MIN_WIDTH_MM (30)
 
 /** Lateral corridor the chassis needs to pass an object. */
-#define OBS_CORRIDOR_MM         (((int32_t)OBSTACLE_HALF_WIDTH_MM * 2) + \
-                                 (int32_t)OBSTACLE_SAFETY_MARGIN_MM)
+#define OBS_CORRIDOR_MM \
+    (((int32_t)OBSTACLE_HALF_WIDTH_MM * 2) + (int32_t)OBSTACLE_SAFETY_MARGIN_MM)
 
 /** Half-width of the band the car drives through. Only a return inside
  *  it can be "the obstacle"; anything outside is scenery. */
-#define OBS_PATH_HALF_MM        ((int32_t)OBSTACLE_HALF_WIDTH_MM + \
-                                 (int32_t)OBSTACLE_SAFETY_MARGIN_MM)
+#define OBS_PATH_HALF_MM \
+    ((int32_t)OBSTACLE_HALF_WIDTH_MM + (int32_t)OBSTACLE_SAFETY_MARGIN_MM)
 
 /** A sweep with no obstacle is only trusted as clear at or above this. */
-#define OBS_CLEAR_MIN_CONF      (80)
+#define OBS_CLEAR_MIN_CONF (80)
 
 /** Bearings looking down the driving path: atan(135 / 300) = 24 deg,
  *  rounded up. A silent bearing here is a blind spot exactly where an
  *  obstacle would be, so the sweep cannot be called clear. */
-#define OBS_PATH_CONE_DEG       (25)
+#define OBS_PATH_CONE_DEG (25)
 
 /*=====================================================================*/
 /* Fixed-point trigonometry                                            */
 /*=====================================================================*/
 
-#define SIN_STEP_DEG            (5)
-#define SIN_ONE_Q15             (32768)
+#define SIN_STEP_DEG (5)
+#define SIN_ONE_Q15  (32768)
 
 /** sin(x) in Q15 for x = 0, 5 ... 90 degrees. 38 bytes of flash. */
-static const uint16_t g_sin_q15[19] =
-{
-        0U,  2856U,  5690U,  8481U, 11207U, 13848U, 16384U,
-    18795U, 21062U, 23170U, 25100U, 26842U, 28378U, 29697U,
-    30792U, 31651U, 32270U, 32643U, 32768U
-};
+static const uint16_t g_sin_q15[19] = { 0U,     2856U,  5690U,  8481U,  11207U,
+                                        13848U, 16384U, 18795U, 21062U, 23170U,
+                                        25100U, 26842U, 28378U, 29697U, 30792U,
+                                        31651U, 32270U, 32643U, 32768U };
 
 /** sin(deg) in Q15, linear between table steps. Error < 0.05 %. */
 static int32_t obs_sin_q15(int16_t deg)
 {
     int32_t sign = 1;
-    int32_t a    = (int32_t)deg;
+    int32_t a = (int32_t)deg;
     int32_t idx;
     int32_t frac;
     int32_t lo;
@@ -86,7 +84,7 @@ static int32_t obs_sin_q15(int16_t deg)
 
     if (a < 0)
     {
-        a    = -a;
+        a = -a;
         sign = -1;
     }
 
@@ -100,10 +98,10 @@ static int32_t obs_sin_q15(int16_t deg)
         a = 180 - a;
     }
 
-    idx  = a / SIN_STEP_DEG;
+    idx = a / SIN_STEP_DEG;
     frac = a % SIN_STEP_DEG;
-    lo   = (int32_t)g_sin_q15[idx];
-    hi   = (frac == 0) ? lo : (int32_t)g_sin_q15[idx + 1];
+    lo = (int32_t)g_sin_q15[idx];
+    hi = (0 == frac) ? lo : (int32_t)g_sin_q15[idx + 1];
 
     return sign * (lo + (((hi - lo) * frac) / SIN_STEP_DEG));
 }
@@ -117,8 +115,8 @@ static int32_t obs_lateral_mm(int16_t bearing_deg, uint16_t range_mm)
 /** True if this range carries a usable distance. */
 static bool obs_is_valid(uint16_t range_mm)
 {
-    return ((range_mm != OBSTACLE_RANGE_UNKNOWN) &&
-            (range_mm != OBSTACLE_RANGE_CLEAR));
+    return ((OBSTACLE_RANGE_UNKNOWN != range_mm) &&
+            (OBSTACLE_RANGE_CLEAR != range_mm));
 }
 
 bool obstacle_in_path(int16_t bearing_deg, uint16_t range_mm)
@@ -146,20 +144,20 @@ bool obstacle_in_path(int16_t bearing_deg, uint16_t range_mm)
 
 static void obs_profile_reset(obstacle_profile_t *p_out)
 {
-    p_out->valid           = false;
-    p_out->nearest_mm      = OBSTACLE_RANGE_UNKNOWN;
-    p_out->bearing_deg     = 0;
-    p_out->width_mm        = 0U;
-    p_out->left_edge_deg   = 0;
-    p_out->right_edge_deg  = 0;
-    p_out->gap_left_mm     = 0U;
-    p_out->gap_right_mm    = 0U;
-    p_out->swing_left_mm   = 0U;
-    p_out->swing_right_mm  = 0U;
-    p_out->confidence_pct  = 0U;
-    p_out->sample_count    = 0U;
-    p_out->timestamp_ms    = 0U;
-    p_out->action          = OBSTACLE_ACT_STOP;
+    p_out->valid = false;
+    p_out->nearest_mm = OBSTACLE_RANGE_UNKNOWN;
+    p_out->bearing_deg = 0;
+    p_out->width_mm = 0U;
+    p_out->left_edge_deg = 0;
+    p_out->right_edge_deg = 0;
+    p_out->gap_left_mm = 0U;
+    p_out->gap_right_mm = 0U;
+    p_out->swing_left_mm = 0U;
+    p_out->swing_right_mm = 0U;
+    p_out->confidence_pct = 0U;
+    p_out->sample_count = 0U;
+    p_out->timestamp_ms = 0U;
+    p_out->action = OBSTACLE_ACT_STOP;
 }
 
 /**
@@ -170,13 +168,12 @@ static void obs_profile_reset(obstacle_profile_t *p_out)
  * the side is closer than a box 177 mm dead ahead, but only the box is
  * in the way (bench sweep E1, test G9).
  */
-static uint8_t obs_find_nearest(const s5_sample_t *p_samples,
-                                uint8_t count,
+static uint8_t obs_find_nearest(const s5_sample_t *p_samples, uint8_t count,
                                 uint16_t *p_nearest_mm)
 {
-    uint8_t  best_idx = count;
-    uint16_t best_mm  = 0U;
-    uint8_t  i;
+    uint8_t best_idx = count;
+    uint16_t best_mm = 0U;
+    uint8_t i;
 
     for (i = 0U; i < count; i++)
     {
@@ -185,7 +182,7 @@ static uint8_t obs_find_nearest(const s5_sample_t *p_samples,
         if (obstacle_in_path(s5_sample_bearing(p_samples[i]), r) &&
             ((best_idx == count) || (r < best_mm)))
         {
-            best_mm  = r;
+            best_mm = r;
             best_idx = i;
         }
     }
@@ -202,14 +199,12 @@ static uint8_t obs_find_nearest(const s5_sample_t *p_samples,
  * stops a long shallow slope growing the object forever. A silent
  * bearing fails both, so the object never grows across missing data.
  */
-static bool obs_same_object(uint16_t range_mm,
-                            uint16_t prev_mm,
+static bool obs_same_object(uint16_t range_mm, uint16_t prev_mm,
                             uint16_t nearest_mm)
 {
     bool same = false;
 
-    if (obs_is_valid(range_mm) &&
-        (range_mm < (uint16_t)OBS_BACKGROUND_MM) &&
+    if (obs_is_valid(range_mm) && (range_mm < (uint16_t)OBS_BACKGROUND_MM) &&
         (range_mm <= (uint16_t)(nearest_mm + OBS_DEPTH_TOL_MM)))
     {
         const int32_t step = (int32_t)range_mm - (int32_t)prev_mm;
@@ -225,39 +220,44 @@ static uint8_t obs_confidence(int32_t base, uint8_t unknowns, uint8_t count)
 {
     int32_t c = base - (((int32_t)unknowns * 100) / (int32_t)count);
 
-    if (c < 0)   { c = 0; }
-    if (c > 100) { c = 100; }
+    if (c < 0)
+    {
+        c = 0;
+    }
+    if (c > 100)
+    {
+        c = 100;
+    }
 
     return (uint8_t)c;
 }
 
-void obstacle_profile_build(const s5_sample_t *p_samples,
-                            uint8_t count,
+void obstacle_profile_build(const s5_sample_t *p_samples, uint8_t count,
                             obstacle_profile_t *p_out)
 {
     /* Reset first so a rejected call still leaves the safe default. */
-    if (p_out != NULL)
+    if (NULL != p_out)
     {
         obs_profile_reset(p_out);
     }
 
-    if ((p_samples != NULL) && (p_out != NULL) &&
-        (count > 0U) && (count <= (uint8_t)OBSTACLE_MAX_SAMPLES))
+    if ((NULL != p_samples) && (NULL != p_out) && (count > 0U) &&
+        (count <= (uint8_t)OBSTACLE_MAX_SAMPLES))
     {
-        uint16_t nearest     = 0U;
-        uint8_t  unknowns    = 0U;
-        bool     blind_ahead = false;
-        uint8_t  centre;
-        uint8_t  i;
+        uint16_t nearest = 0U;
+        uint8_t unknowns = 0U;
+        bool blind_ahead = false;
+        uint8_t centre;
+        uint8_t i;
 
         p_out->sample_count = count;
 
         for (i = 0U; i < count; i++)
         {
-            const int16_t  b = s5_sample_bearing(p_samples[i]);
+            const int16_t b = s5_sample_bearing(p_samples[i]);
             const uint16_t r = s5_sample_range(p_samples[i]);
 
-            if (r == OBSTACLE_RANGE_UNKNOWN)
+            if (OBSTACLE_RANGE_UNKNOWN == r)
             {
                 unknowns++;
 
@@ -281,32 +281,32 @@ void obstacle_profile_build(const s5_sample_t *p_samples,
         {
             /* Nothing in the driving path. Only as trustworthy as the
              * share of bearings that answered. */
-            p_out->valid          = true;
-            p_out->nearest_mm     = OBSTACLE_RANGE_CLEAR;
-            p_out->gap_left_mm    = (uint16_t)OBSTACLE_GAP_OPEN_MM;
-            p_out->gap_right_mm   = (uint16_t)OBSTACLE_GAP_OPEN_MM;
+            p_out->valid = true;
+            p_out->nearest_mm = OBSTACLE_RANGE_CLEAR;
+            p_out->gap_left_mm = (uint16_t)OBSTACLE_GAP_OPEN_MM;
+            p_out->gap_right_mm = (uint16_t)OBSTACLE_GAP_OPEN_MM;
             p_out->confidence_pct = obs_confidence(100, unknowns, count);
         }
         else
         {
-            uint8_t  lo_idx = centre;
-            uint8_t  hi_idx = centre;
-            uint16_t prev   = nearest;
-            bool     grow;
-            bool     left_unknown  = false;
-            bool     right_unknown = false;
-            int32_t  min_x       = 0;
-            int32_t  max_x       = 0;
-            int32_t  bearing_sum = 0;
-            int32_t  block_left  = (int32_t)OBSTACLE_GAP_OPEN_MM;
-            int32_t  block_right = -(int32_t)OBSTACLE_GAP_OPEN_MM;
-            int32_t  gap_l;
-            int32_t  gap_r;
-            int32_t  width;
-            int32_t  swing_l;
-            int32_t  swing_r;
-            int32_t  conf = 100;
-            uint8_t  hits;
+            uint8_t lo_idx = centre;
+            uint8_t hi_idx = centre;
+            uint16_t prev = nearest;
+            bool grow;
+            bool left_unknown = false;
+            bool right_unknown = false;
+            int32_t min_x = 0;
+            int32_t max_x = 0;
+            int32_t bearing_sum = 0;
+            int32_t block_left = (int32_t)OBSTACLE_GAP_OPEN_MM;
+            int32_t block_right = -(int32_t)OBSTACLE_GAP_OPEN_MM;
+            int32_t gap_l;
+            int32_t gap_r;
+            int32_t width;
+            int32_t swing_l;
+            int32_t swing_r;
+            int32_t conf = 100;
+            uint8_t hits;
 
             /* Grow outwards from the closest in-path point until the
              * surface breaks. */
@@ -349,9 +349,9 @@ void obstacle_profile_build(const s5_sample_t *p_samples,
              * reached a return closer than the seed). */
             for (i = lo_idx; i <= hi_idx; i++)
             {
-                const int16_t  b = s5_sample_bearing(p_samples[i]);
+                const int16_t b = s5_sample_bearing(p_samples[i]);
                 const uint16_t r = s5_sample_range(p_samples[i]);
-                const int32_t  x = obs_lateral_mm(b, r);
+                const int32_t x = obs_lateral_mm(b, r);
 
                 if (i == lo_idx)
                 {
@@ -360,8 +360,14 @@ void obstacle_profile_build(const s5_sample_t *p_samples,
                 }
                 else
                 {
-                    if (x < min_x) { min_x = x; }
-                    if (x > max_x) { max_x = x; }
+                    if (x < min_x)
+                    {
+                        min_x = x;
+                    }
+                    if (x > max_x)
+                    {
+                        max_x = x;
+                    }
                 }
 
                 if (r < nearest)
@@ -381,7 +387,7 @@ void obstacle_profile_build(const s5_sample_t *p_samples,
                 {
                     const uint16_t r = s5_sample_range(p_samples[i]);
 
-                    if (r == OBSTACLE_RANGE_UNKNOWN)
+                    if (OBSTACLE_RANGE_UNKNOWN == r)
                     {
                         if (i > hi_idx)
                         {
@@ -395,8 +401,7 @@ void obstacle_profile_build(const s5_sample_t *p_samples,
                     else if (obs_is_valid(r))
                     {
                         const int32_t x =
-                            obs_lateral_mm(s5_sample_bearing(p_samples[i]),
-                                           r);
+                            obs_lateral_mm(s5_sample_bearing(p_samples[i]), r);
 
                         if ((x > max_x) && (x < block_left))
                         {
@@ -425,11 +430,23 @@ void obstacle_profile_build(const s5_sample_t *p_samples,
             gap_l = block_left - max_x;
             gap_r = min_x - block_right;
 
-            if (left_unknown)  { gap_l = 0; }
-            if (right_unknown) { gap_r = 0; }
+            if (left_unknown)
+            {
+                gap_l = 0;
+            }
+            if (right_unknown)
+            {
+                gap_r = 0;
+            }
 
-            if (gap_l < 0) { gap_l = 0; }
-            if (gap_r < 0) { gap_r = 0; }
+            if (gap_l < 0)
+            {
+                gap_l = 0;
+            }
+            if (gap_r < 0)
+            {
+                gap_r = 0;
+            }
             if (gap_l > (int32_t)OBSTACLE_GAP_OPEN_MM)
             {
                 gap_l = (int32_t)OBSTACLE_GAP_OPEN_MM;
@@ -442,24 +459,39 @@ void obstacle_profile_build(const s5_sample_t *p_samples,
             swing_l = max_x + OBS_PATH_HALF_MM;
             swing_r = -min_x + OBS_PATH_HALF_MM;
 
-            if (swing_l < 0) { swing_l = 0; }
-            if (swing_r < 0) { swing_r = 0; }
+            if (swing_l < 0)
+            {
+                swing_l = 0;
+            }
+            if (swing_r < 0)
+            {
+                swing_r = 0;
+            }
 
             /* An object running off the end of the sweep has an edge we
              * never saw. */
-            if (hi_idx == (count - 1U)) { conf -= 25; }
-            if (lo_idx == 0U)           { conf -= 25; }
-            if (hits < 2U)              { conf -= 20; }
+            if (hi_idx == (count - 1U))
+            {
+                conf -= 25;
+            }
+            if (0U == lo_idx)
+            {
+                conf -= 25;
+            }
+            if (hits < 2U)
+            {
+                conf -= 20;
+            }
 
-            p_out->valid          = true;
-            p_out->nearest_mm     = nearest;
-            p_out->bearing_deg    = (int16_t)(bearing_sum / (int32_t)hits);
-            p_out->width_mm       = (uint16_t)width;
-            p_out->left_edge_deg  = s5_sample_bearing(p_samples[hi_idx]);
+            p_out->valid = true;
+            p_out->nearest_mm = nearest;
+            p_out->bearing_deg = (int16_t)(bearing_sum / (int32_t)hits);
+            p_out->width_mm = (uint16_t)width;
+            p_out->left_edge_deg = s5_sample_bearing(p_samples[hi_idx]);
             p_out->right_edge_deg = s5_sample_bearing(p_samples[lo_idx]);
-            p_out->gap_left_mm    = (uint16_t)gap_l;
-            p_out->gap_right_mm   = (uint16_t)gap_r;
-            p_out->swing_left_mm  = (uint16_t)swing_l;
+            p_out->gap_left_mm = (uint16_t)gap_l;
+            p_out->gap_right_mm = (uint16_t)gap_r;
+            p_out->swing_left_mm = (uint16_t)swing_l;
             p_out->swing_right_mm = (uint16_t)swing_r;
             p_out->confidence_pct = obs_confidence(conf, unknowns, count);
         }
@@ -482,9 +514,9 @@ obstacle_action_t obstacle_plan_within(const obstacle_profile_t *p_profile,
 {
     obstacle_action_t action = OBSTACLE_ACT_STOP;
 
-    if ((p_profile != NULL) && p_profile->valid)
+    if ((NULL != p_profile) && p_profile->valid)
     {
-        if (p_profile->nearest_mm == OBSTACLE_RANGE_CLEAR)
+        if (OBSTACLE_RANGE_CLEAR == p_profile->nearest_mm)
         {
             /* "Nothing seen" only counts if enough of the sweep
              * answered. */
@@ -551,7 +583,7 @@ uint16_t obstacle_pass_distance_mm(const obstacle_profile_t *p_profile)
 {
     uint32_t pass = 0U;
 
-    if ((p_profile != NULL) && p_profile->valid &&
+    if ((NULL != p_profile) && p_profile->valid &&
         obs_is_valid(p_profile->nearest_mm))
     {
         pass = (uint32_t)p_profile->nearest_mm +
@@ -575,7 +607,7 @@ uint16_t obstacle_pass_distance_mm(const obstacle_profile_t *p_profile)
 int32_t obstacle_sin_q15_ddeg(int32_t ddeg)
 {
     int32_t sign = 1;
-    int32_t a    = ddeg;
+    int32_t a = ddeg;
     int32_t idx;
     int32_t frac;
     int32_t lo;
@@ -593,7 +625,7 @@ int32_t obstacle_sin_q15_ddeg(int32_t ddeg)
 
     if (a < 0)
     {
-        a    = -a;
+        a = -a;
         sign = -1;
     }
 
@@ -602,10 +634,10 @@ int32_t obstacle_sin_q15_ddeg(int32_t ddeg)
         a = 1800 - a;
     }
 
-    idx  = a / (SIN_STEP_DEG * 10);
+    idx = a / (SIN_STEP_DEG * 10);
     frac = a % (SIN_STEP_DEG * 10);
-    lo   = (int32_t)g_sin_q15[idx];
-    hi   = (frac == 0) ? lo : (int32_t)g_sin_q15[idx + 1];
+    lo = (int32_t)g_sin_q15[idx];
+    hi = (0 == frac) ? lo : (int32_t)g_sin_q15[idx + 1];
 
     return sign * (lo + (((hi - lo) * frac) / (SIN_STEP_DEG * 10)));
 }
@@ -640,7 +672,8 @@ static int16_t obs_atan_deg(int32_t x_mm, int32_t y_mm)
     {
         const int32_t mid = (lo + hi) / 2;
 
-        if (obs_tan_mm((uint16_t)((y_mm > 0xFFFF) ? 0xFFFF : y_mm), mid * 10) <= x_mm)
+        if (obs_tan_mm((uint16_t)((y_mm > 0xFFFF) ? 0xFFFF : y_mm), mid * 10) <=
+            x_mm)
         {
             lo = mid;
         }
@@ -663,31 +696,63 @@ static int16_t obs_atan_deg(int32_t x_mm, int32_t y_mm)
  * Edge angle in 0.1 deg from a hit/miss interval. Left edge (towards
  * +): the beam hears it h early, so subtract h; right edge: add h.
  */
-static int32_t obs_edge_ddeg(const s5_edge_probe_t *p_probe,
-                             int16_t sample_deg, int32_t step_ddeg,
-                             int32_t beam_ddeg, int32_t towards_left)
+static int32_t obs_edge_ddeg(const s5_edge_probe_t *p_probe, int16_t sample_deg,
+                             int32_t step_ddeg, int32_t beam_ddeg,
+                             int32_t towards_left)
 {
-    int32_t hit  = (int32_t)sample_deg * 10;
+    int32_t hit = (int32_t)sample_deg * 10;
     int32_t miss = hit + (towards_left * step_ddeg);
 
-    if ((p_probe != NULL) && p_probe->valid)
+    if ((NULL != p_probe) && p_probe->valid)
     {
-        hit  = (int32_t)p_probe->hit_ddeg;
+        hit = (int32_t)p_probe->hit_ddeg;
         miss = (int32_t)p_probe->miss_ddeg;
     }
 
     return ((hit + miss) / 2) - (towards_left * beam_ddeg);
 }
 
+/**
+ * nyx, 2026-11-06: when both sides fit and the detours are about the
+ * same, go to the side with more room (the clearer side), not always
+ * left. With the narrower 130 mm car a 185 mm gap next to a wall now
+ * "fits", and the tie used to send the car squeezing along the wall.
+ */
+#define OBS_SWING_TIE_MM (20)
+
+static obstacle_action_t obs_prefer_clearer(const obstacle_profile_t *p,
+                                            obstacle_action_t action)
+{
+    obstacle_action_t out = action;
+
+    if (((OBSTACLE_ACT_BYPASS_LEFT == action) ||
+         (OBSTACLE_ACT_BYPASS_RIGHT == action)) &&
+        ((int32_t)p->gap_left_mm >= OBS_CORRIDOR_MM) &&
+        ((int32_t)p->gap_right_mm >= OBS_CORRIDOR_MM))
+    {
+        const int32_t d =
+            (int32_t)p->swing_left_mm - (int32_t)p->swing_right_mm;
+
+        if ((d <= OBS_SWING_TIE_MM) && (d >= -OBS_SWING_TIE_MM))
+        {
+            out = (p->gap_left_mm >= p->gap_right_mm)
+                      ? OBSTACLE_ACT_BYPASS_LEFT
+                      : OBSTACLE_ACT_BYPASS_RIGHT;
+        }
+    }
+
+    return out;
+}
+
 void obstacle_profile_refine(obstacle_profile_t *p_profile,
                              const s5_geom_cal_t *p_cal,
                              const s5_edge_probes_t *p_probes)
 {
-    if ((p_profile != NULL) && (p_cal != NULL) && p_profile->valid &&
+    if ((NULL != p_profile) && (NULL != p_cal) && p_profile->valid &&
         obs_is_valid(p_profile->nearest_mm))
     {
         obstacle_profile_t *p = p_profile;
-        const bool left_seen  = (p->left_edge_deg < p_cal->sweep_limit_deg);
+        const bool left_seen = (p->left_edge_deg < p_cal->sweep_limit_deg);
         const bool right_seen = (p->right_edge_deg > -p_cal->sweep_limit_deg);
         const int32_t step_ddeg = (int32_t)p_cal->step_deg * 10;
         const int32_t beam_ddeg = (int32_t)p_cal->beam_half_ddeg;
@@ -695,12 +760,12 @@ void obstacle_profile_refine(obstacle_profile_t *p_profile,
          * so the swings were never clamped and this is exact. */
         const int32_t raw_max = (int32_t)p->swing_left_mm - OBS_PATH_HALF_MM;
         const int32_t raw_min = OBS_PATH_HALF_MM - (int32_t)p->swing_right_mm;
-        int32_t    max_x = raw_max;
-        int32_t    min_x = raw_min;
-        int32_t    width;
-        int32_t    centre;
-        int32_t    gap_l = (int32_t)p->gap_left_mm;
-        int32_t    gap_r = (int32_t)p->gap_right_mm;
+        int32_t max_x = raw_max;
+        int32_t min_x = raw_min;
+        int32_t width;
+        int32_t centre;
+        int32_t gap_l = (int32_t)p->gap_left_mm;
+        int32_t gap_r = (int32_t)p->gap_right_mm;
 
         /* The course's obstacles are boxes and posts with a face square
          * to the car, so an edge at angle e sits nearest * tan(e) to the
@@ -708,9 +773,9 @@ void obstacle_profile_refine(obstacle_profile_t *p_profile,
          * (that would only come from a wrong calibration). */
         if (left_seen)
         {
-            const int32_t e = obs_edge_ddeg(
-                (p_probes != NULL) ? &p_probes->left : NULL,
-                p->left_edge_deg, step_ddeg, beam_ddeg, 1);
+            const int32_t e =
+                obs_edge_ddeg((NULL != p_probes) ? &p_probes->left : NULL,
+                              p->left_edge_deg, step_ddeg, beam_ddeg, 1);
             const int32_t x = obs_tan_mm(p->nearest_mm, e);
 
             max_x = (x < raw_max) ? x : raw_max;
@@ -718,9 +783,9 @@ void obstacle_profile_refine(obstacle_profile_t *p_profile,
 
         if (right_seen)
         {
-            const int32_t e = obs_edge_ddeg(
-                (p_probes != NULL) ? &p_probes->right : NULL,
-                p->right_edge_deg, step_ddeg, beam_ddeg, -1);
+            const int32_t e =
+                obs_edge_ddeg((NULL != p_probes) ? &p_probes->right : NULL,
+                              p->right_edge_deg, step_ddeg, beam_ddeg, -1);
             const int32_t x = obs_tan_mm(p->nearest_mm, e);
 
             min_x = (x > raw_min) ? x : raw_min;
@@ -743,13 +808,13 @@ void obstacle_profile_refine(obstacle_profile_t *p_profile,
 
             max_x += grow;
             min_x -= grow;
-            width  = max_x - min_x;
+            width = max_x - min_x;
         }
 
         centre = (max_x + min_x) / 2;
 
-        p->width_mm       = (uint16_t)width;
-        p->bearing_deg    = obs_atan_deg(centre, (int32_t)p->nearest_mm);
+        p->width_mm = (uint16_t)width;
+        p->bearing_deg = obs_atan_deg(centre, (int32_t)p->nearest_mm);
         if (left_seen)
         {
             p->left_edge_deg = obs_atan_deg(max_x, (int32_t)p->nearest_mm);
@@ -758,10 +823,12 @@ void obstacle_profile_refine(obstacle_profile_t *p_profile,
         {
             p->right_edge_deg = obs_atan_deg(min_x, (int32_t)p->nearest_mm);
         }
-        p->swing_left_mm  = (uint16_t)((max_x + OBS_PATH_HALF_MM > 0) ?
-                                       (max_x + OBS_PATH_HALF_MM) : 0);
-        p->swing_right_mm = (uint16_t)((OBS_PATH_HALF_MM - min_x > 0) ?
-                                       (OBS_PATH_HALF_MM - min_x) : 0);
+        p->swing_left_mm = (uint16_t)((max_x + OBS_PATH_HALF_MM > 0)
+                                          ? (max_x + OBS_PATH_HALF_MM)
+                                          : 0);
+        p->swing_right_mm = (uint16_t)((OBS_PATH_HALF_MM - min_x > 0)
+                                           ? (OBS_PATH_HALF_MM - min_x)
+                                           : 0);
 
         /* An unseen edge means an unseen corridor: never plan through
          * it. A seen one widens by what the object shrank. */
@@ -800,11 +867,12 @@ void obstacle_profile_refine(obstacle_profile_t *p_profile,
             gap_r = (int32_t)OBSTACLE_GAP_OPEN_MM;
         }
 
-        p->gap_left_mm  = (uint16_t)gap_l;
+        p->gap_left_mm = (uint16_t)gap_l;
         p->gap_right_mm = (uint16_t)gap_r;
-        p->action       = obstacle_plan_within(
-            p, (p_cal->trigger_mm != 0U) ? p_cal->trigger_mm
+        p->action = obstacle_plan_within(
+            p, (0U != p_cal->trigger_mm) ? p_cal->trigger_mm
                                          : (uint16_t)OBSTACLE_TRIGGER_MM);
+        p->action = obs_prefer_clearer(p, p->action);
     }
 }
 
@@ -812,7 +880,7 @@ uint16_t obstacle_reverse_mm(const obstacle_profile_t *p_profile)
 {
     uint32_t rev = 0U;
 
-    if ((p_profile != NULL) && (p_profile->action == OBSTACLE_ACT_REVERSE))
+    if ((NULL != p_profile) && (OBSTACLE_ACT_REVERSE == p_profile->action))
     {
         uint32_t target = (uint32_t)S5_REMEASURE_FAR_MM;
         uint32_t near_mm = 0U;
@@ -872,23 +940,23 @@ uint16_t obstacle_watch_remaining_mm(uint16_t lateral_mm, int16_t watch_deg,
 
     if (a < 50)
     {
-        a = 50;     /* 5 deg: a near-forward look would see "forever" */
+        a = 50; /* 5 deg: a near-forward look would see "forever" */
     }
     if (a > 900)
     {
-        a = 900;    /* past sideways: the ray clears level with us */
+        a = 900; /* past sideways: the ray clears level with us */
     }
 
     if (a < 900)
     {
         /* cot(a) = sin(90 - a) / sin(a) */
-        ahead = (int32_t)(((int64_t)lateral_mm *
-                           obstacle_sin_q15_ddeg(900 - a)) /
-                          obstacle_sin_q15_ddeg(a));
+        ahead =
+            (int32_t)(((int64_t)lateral_mm * obstacle_sin_q15_ddeg(900 - a)) /
+                      obstacle_sin_q15_ddeg(a));
     }
 
-    total = ahead + (int32_t)S5_REAR_FROM_SENSOR_MM +
-            (int32_t)S5_PASS_MARGIN_MM;
+    total =
+        ahead + (int32_t)S5_REAR_FROM_SENSOR_MM + (int32_t)S5_PASS_MARGIN_MM;
 
     if (total > 0xFFFF)
     {

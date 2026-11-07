@@ -161,7 +161,10 @@ static void g6_bad_input(void)
 
 static void g7_least_deviation(void)
 {
-    static const vec_t v[7] = { {-60,CLR}, {-30,CLR}, {0,CLR}, {20,320U},
+    /* nyx, 2026-11-06: the 20 deg return was 320 mm (x = 109 mm); the
+     * 130 mm car's driving band is +/-105 mm now (was +/-135), so it
+     * would no longer be in the path. 300 mm puts it at x = 103. */
+    static const vec_t v[7] = { {-60,CLR}, {-30,CLR}, {0,CLR}, {20,300U},
                                 {30,300U}, {40,318U}, {60,CLR} };
     obstacle_profile_t p;
 
@@ -298,7 +301,7 @@ static void g15_pass_distance(void)
 /* G16 (v2): in-path filter used to centre the fine scan. */
 static void g16_in_path(void)
 {
-    printf("G16 in-path band is +/-135 mm\n");
+    printf("G16 in-path band is +/-105 mm (65 half-width + 40 margin)\n");
     check(obstacle_in_path(0, 250U), "dead ahead is in the path");
     check(!obstacle_in_path(-60, 170U), "side wall at -60 deg, 170 mm is not");
     check(!obstacle_in_path(0, OBSTACLE_RANGE_CLEAR), "CLEAR is not an object");

@@ -4,16 +4,15 @@
 
 /* const data is linked into the Pico firmware image, normally flash .rodata. */
 static const char g_symbols[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%*";
-static const uint16_t g_patterns[] =
-{
-    0x034U, 0x121U, 0x061U, 0x160U, 0x031U, 0x130U, 0x070U, 0x025U,
-    0x124U, 0x064U, 0x109U, 0x049U, 0x148U, 0x019U, 0x118U, 0x058U,
-    0x00DU, 0x10CU, 0x04CU, 0x01CU, 0x103U, 0x043U, 0x142U, 0x013U,
-    0x112U, 0x052U, 0x007U, 0x106U, 0x046U, 0x016U, 0x181U, 0x0C1U,
-    0x1C0U, 0x091U, 0x190U, 0x0D0U, 0x085U, 0x184U, 0x0C4U, 0x0A8U,
-    0x0A2U, 0x08AU, 0x02AU, 0x094U
+static const uint16_t g_patterns[] = {
+    0x034U, 0x121U, 0x061U, 0x160U, 0x031U, 0x130U, 0x070U, 0x025U, 0x124U,
+    0x064U, 0x109U, 0x049U, 0x148U, 0x019U, 0x118U, 0x058U, 0x00DU, 0x10CU,
+    0x04CU, 0x01CU, 0x103U, 0x043U, 0x142U, 0x013U, 0x112U, 0x052U, 0x007U,
+    0x106U, 0x046U, 0x016U, 0x181U, 0x0C1U, 0x1C0U, 0x091U, 0x190U, 0x0D0U,
+    0x085U, 0x184U, 0x0C4U, 0x0A8U, 0x0A2U, 0x08AU, 0x02AU, 0x094U
 };
-_Static_assert(sizeof(g_patterns) / sizeof(g_patterns[0]) == sizeof(g_symbols) - 1U,
+_Static_assert(sizeof(g_patterns) / sizeof(g_patterns[0]) ==
+                   sizeof(g_symbols) - 1U,
                "Code 39 table lengths must agree");
 
 bool b3_code39_pattern(char symbol, uint16_t *p_pattern)
@@ -115,7 +114,7 @@ static bool decode_symbol(const uint32_t raw[9], char *p_symbol,
     {
         wide_sum += sorted[i];
     }
-    
+
     /* Require two clearly separated width groups.
     *
     * A Code 39 character contains:
@@ -130,12 +129,11 @@ static bool decode_symbol(const uint32_t raw[9], char *p_symbol,
     * The supplied school barcode is approximately 3:1.
     */
     if (((uint64_t)sorted[6] * 100U < (uint64_t)sorted[5] * 150U) ||
-        ((uint64_t)sorted[5] * 100U > (uint64_t)sorted[0] * B3_NARROW_SPREAD_MAX_PCT) ||
+        ((uint64_t)sorted[5] * 100U >
+         (uint64_t)sorted[0] * B3_NARROW_SPREAD_MAX_PCT) ||
         ((uint64_t)sorted[8] * 100U > (uint64_t)sorted[6] * 180U) ||
-        (wide_sum * 200U <
-            narrow_sum * B3_WIDE_NARROW_RATIO_MIN_PCT) ||
-        (wide_sum * 200U >
-            narrow_sum * B3_WIDE_NARROW_RATIO_MAX_PCT))
+        (wide_sum * 200U < narrow_sum * B3_WIDE_NARROW_RATIO_MIN_PCT) ||
+        (wide_sum * 200U > narrow_sum * B3_WIDE_NARROW_RATIO_MAX_PCT))
     {
         return false;
     }
@@ -181,10 +179,10 @@ static bool decode_forward(const uint32_t widths[B3_BARCODE_RUNS],
     {
         return false;
     }
-    first_ok = decode_symbol(&widths[0], &first, &n_first, &s_first) &&
-               ('*' == first);
-    last_ok = decode_symbol(&widths[20], &last, &n_last, &s_last) &&
-              ('*' == last);
+    first_ok =
+        decode_symbol(&widths[0], &first, &n_first, &s_first) && ('*' == first);
+    last_ok =
+        decode_symbol(&widths[20], &last, &n_last, &s_last) && ('*' == last);
     /* B3_NEED_BOTH_STARS 0 (nyx, 2026-11-04): the car's speed wobble can
      * spoil one '*'; the letter is still fully checked and the other '*'
      * must be valid. A spoiled side borrows the letter's narrow/skew. */

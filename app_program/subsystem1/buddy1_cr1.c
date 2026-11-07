@@ -32,32 +32,27 @@
  * the team's final telemetry specification is agreed.
  */
 
-int b1_telemetry_pack(
-    const B1_Telemetry *input,
-    uint8_t output[B1_TELEMETRY_BYTES]
-)
+int32_t b1_telemetry_pack(const B1_Telemetry *input,
+                          uint8_t output[B1_TELEMETRY_BYTES])
 {
     uint32_t packed;
 
-    if (input == 0 || output == 0)
+    if (0 == input || 0 == output)
     {
         return -1;
     }
 
-    if (input->controller_state > 7u ||
-        input->wifi_connected > 1u ||
-        input->mqtt_connected > 1u ||
-        input->metric_0_100 > 100u)
+    if (input->controller_state > 7u || input->wifi_connected > 1u ||
+        input->mqtt_connected > 1u || input->metric_0_100 > 100u)
     {
         return -1;
     }
 
-    packed =
-        ((uint32_t)input->controller_state) |
-        ((uint32_t)input->wifi_connected << 3) |
-        ((uint32_t)input->mqtt_connected << 4) |
-        ((uint32_t)input->fault_flags << 5) |
-        ((uint32_t)input->metric_0_100 << 13);
+    packed = ((uint32_t)input->controller_state) |
+             ((uint32_t)input->wifi_connected << 3) |
+             ((uint32_t)input->mqtt_connected << 4) |
+             ((uint32_t)input->fault_flags << 5) |
+             ((uint32_t)input->metric_0_100 << 13);
 
     output[0] = (uint8_t)(packed & 0xFFu);
     output[1] = (uint8_t)((packed >> 8) & 0xFFu);
@@ -66,42 +61,33 @@ int b1_telemetry_pack(
     return 0;
 }
 
-int b1_telemetry_unpack(
-    const uint8_t input[B1_TELEMETRY_BYTES],
-    B1_Telemetry *output
-)
+int32_t b1_telemetry_unpack(const uint8_t input[B1_TELEMETRY_BYTES],
+                            B1_Telemetry *output)
 {
     uint32_t packed;
 
-    if (input == 0 || output == 0)
+    if (0 == input || 0 == output)
     {
         return -1;
     }
 
-    packed =
-        ((uint32_t)input[0]) |
-        ((uint32_t)input[1] << 8) |
-        ((uint32_t)input[2] << 16);
+    packed = ((uint32_t)input[0]) | ((uint32_t)input[1] << 8) |
+             ((uint32_t)input[2] << 16);
 
     if ((packed & 0xF00000u) != 0u)
     {
         return -1;
     }
 
-    output->controller_state =
-        (uint8_t)(packed & 0x07u);
+    output->controller_state = (uint8_t)(packed & 0x07u);
 
-    output->wifi_connected =
-        (uint8_t)((packed >> 3) & 0x01u);
+    output->wifi_connected = (uint8_t)((packed >> 3) & 0x01u);
 
-    output->mqtt_connected =
-        (uint8_t)((packed >> 4) & 0x01u);
+    output->mqtt_connected = (uint8_t)((packed >> 4) & 0x01u);
 
-    output->fault_flags =
-        (uint8_t)((packed >> 5) & 0xFFu);
+    output->fault_flags = (uint8_t)((packed >> 5) & 0xFFu);
 
-    output->metric_0_100 =
-        (uint8_t)((packed >> 13) & 0x7Fu);
+    output->metric_0_100 = (uint8_t)((packed >> 13) & 0x7Fu);
 
     if (output->metric_0_100 > 100u)
     {
@@ -117,12 +103,9 @@ int b1_telemetry_unpack(
  * FR2 network commands use their separate
  * versioned three-byte format.
  */
-int b1_command_pack(
-    uint8_t command,
-    uint8_t *output
-)
+int32_t b1_command_pack(uint8_t command, uint8_t *output)
 {
-    if (output == 0 || command > 7u)
+    if (0 == output || command > 7u)
     {
         return -1;
     }
@@ -132,13 +115,9 @@ int b1_command_pack(
     return 0;
 }
 
-int b1_command_unpack(
-    uint8_t input,
-    uint8_t *command
-)
+int32_t b1_command_unpack(uint8_t input, uint8_t *command)
 {
-    if (command == 0 ||
-        (input & 0xF8u) != 0u)
+    if (0 == command || (input & 0xF8u) != 0u)
     {
         return -1;
     }
@@ -154,18 +133,13 @@ int b1_command_unpack(
  * Prepare a three-byte CR1 payload for MQTT.
  * The MQTT network task performs the publish.
  */
-int buddy1_mqtt_prepare_telemetry(
-    const B1_Telemetry *telemetry,
-    uint8_t payload[B1_TELEMETRY_BYTES]
-)
+int32_t buddy1_mqtt_prepare_telemetry(const B1_Telemetry *telemetry,
+                                      uint8_t payload[B1_TELEMETRY_BYTES])
 {
-    if (telemetry == 0 || payload == 0)
+    if (0 == telemetry || 0 == payload)
     {
         return -1;
     }
 
-    return b1_telemetry_pack(
-        telemetry,
-        payload
-    );
+    return b1_telemetry_pack(telemetry, payload);
 }

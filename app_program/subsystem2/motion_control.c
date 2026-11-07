@@ -24,14 +24,17 @@
 
 #include <tk/tkernel.h>
 
-#define MC_SIDES            (2U)
-#define MC_DT_NOMINAL_S     ((float)MOTION_CONTROL_PERIOD_MS / 1000.0f)
-#define MC_HIST_LEN         (SPEED_WINDOW_PERIODS + 1U)
-#define MC_ESTOP_ALL        (MOTION_ESTOP_IMU | MOTION_ESTOP_OBSTACLE | MOTION_ESTOP_VEHICLE)
-#define MC_INTEG_MAX_PM     (300.0f)
-#define MC_ZERO_SPEED       (5.0f)      /* mm/s: below this a goal counts as zero */
-#define MC_STILL_CYCLES     (3U)        /* cycles at rest before STOPPING is finished */
-#define MC_RAD_PER_DEG      (MC_PI / 180.0f)
+#define MC_SIDES        (2U)
+#define MC_DT_NOMINAL_S ((float)MOTION_CONTROL_PERIOD_MS / 1000.0f)
+#define MC_HIST_LEN     (SPEED_WINDOW_PERIODS + 1U)
+#define MC_ESTOP_ALL \
+    (MOTION_ESTOP_IMU | MOTION_ESTOP_OBSTACLE | MOTION_ESTOP_VEHICLE)
+#define MC_INTEG_MAX_PM (300.0f)
+/* mm/s: below this a goal counts as zero */
+#define MC_ZERO_SPEED (5.0f)
+/* cycles at rest before STOPPING is finished */
+#define MC_STILL_CYCLES (3U)
+#define MC_RAD_PER_DEG  (MC_PI / 180.0f)
 
 /* ---------- Kernel objects ---------- */
 static ID s_task_id;
@@ -39,12 +42,13 @@ static ID s_cyc_id;
 static ID s_cmd_mbf;
 static ID s_estop_flg;
 static ID s_status_mtx;
-static ID s_evt_flg;                    /* VehicleController's vehicle_evt, if attached */
+/* VehicleController's vehicle_evt, if attached */
+static ID s_evt_flg;
 static uint32_t s_evt_shift;
 
 /* ---------- Task-owned state ---------- */
-static motion_state_t  s_state = MOTION_STATE_INIT;
-static motion_fault_t  s_fault = MOTION_FAULT_NONE;
+static motion_state_t s_state = MOTION_STATE_INIT;
+static motion_fault_t s_fault = MOTION_FAULT_NONE;
 static motion_result_t s_result = MOTION_RESULT_NONE;
 static motion_result_t s_pending_result = MOTION_RESULT_NONE;
 static uint32_t s_estop_src;
@@ -54,32 +58,37 @@ static uint32_t s_overrun_count;
 
 static uint32_t s_raw_last[MC_SIDES];
 static uint32_t s_delta[MC_SIDES];
-static int32_t  s_pos_ticks[MC_SIDES];  /* signed odometry ticks, forward = + */
-static int32_t  s_dir[MC_SIDES] = { 1, 1 };
-static int32_t  s_hist[MC_SIDES][MC_HIST_LEN];
+static int32_t s_pos_ticks[MC_SIDES]; /* signed odometry ticks, forward = + */
+static int32_t s_dir[MC_SIDES] = { 1, 1 };
+static int32_t s_hist[MC_SIDES][MC_HIST_LEN];
 static uint32_t s_hist_idx;
-static uint32_t s_hist_t_ms[MC_HIST_LEN];   /* time stamp of every history sample using monotonic kernel time */
+/* time stamp of every history sample using monotonic kernel time */
+static uint32_t s_hist_t_ms[MC_HIST_LEN];
 static uint32_t s_t_last_ms;
 static uint32_t s_edge_clock_last_raw;
-static bool     s_edge_clock_valid;          /* compare is timings valid */
-static float    s_dt_s = MC_DT_NOMINAL_S;   /* ACTUAL time since the last cycle, from the hardware timer */
+static bool s_edge_clock_valid; /* compare is timings valid */
+/* ACTUAL time since the last cycle, from the hardware timer */
+static float s_dt_s = MC_DT_NOMINAL_S;
 static uint32_t s_dt_ms = MOTION_CONTROL_PERIOD_MS;
-static float    s_speed[MC_SIDES];      /* measured mm/s, signed */
-static float    s_goal[MC_SIDES];       /* wanted mm/s */
-static float    s_set[MC_SIDES];        /* ramped setpoint mm/s */
-static float    s_integ[MC_SIDES];
-static int32_t  s_duty[MC_SIDES];       /* last duty written, permille */
+static float s_speed[MC_SIDES]; /* measured mm/s, signed */
+static float s_goal[MC_SIDES];  /* wanted mm/s */
+static float s_set[MC_SIDES];   /* ramped setpoint mm/s */
+static float s_integ[MC_SIDES];
+static int32_t s_duty[MC_SIDES]; /* last duty written, permille */
 static uint32_t s_stall_ms[MC_SIDES];
 static uint32_t s_runaway_ms[MC_SIDES];
 static uint32_t s_still;
 
-static float    s_target_mm;            /* MOVE: distance. TURN: arc per wheel (+ = left turn) */
-static float    s_orig_mm[MC_SIDES];     /* wheel positions when the command started */
-static float    s_cruise;               /* mm/s magnitude for MOVE / TURN */
-static bool     s_vel_mode;
-static int32_t  s_trip_origin_ticks;
+/* MOVE: distance. TURN: arc per wheel (+ = left turn) */
+static float s_target_mm;
+/* wheel positions when the command started */
+static float s_orig_mm[MC_SIDES];
+static float s_cruise; /* mm/s magnitude for MOVE / TURN */
+static bool s_vel_mode;
+static int32_t s_trip_origin_ticks;
 
-static motion_status_t s_shared;        /* published copy, guarded by s_status_mtx */
+/* published copy, guarded by s_status_mtx */
+static motion_status_t s_shared;
 
 /* ---------- Small helpers ---------- */
 
@@ -156,7 +165,7 @@ static float mc_speed_avg(void)
 
 static bool mc_latched(void)
 {
-    return (s_state == MOTION_STATE_ESTOP) || (s_state == MOTION_STATE_FAULT);
+    return (MOTION_STATE_ESTOP == s_state) || (MOTION_STATE_FAULT == s_state);
 }
 
 static uint32_t mc_read_estop(void)
@@ -172,7 +181,7 @@ static uint32_t mc_read_estop(void)
 
 static void mc_notify(uint32_t bits)
 {
-    if ((bits != 0U) && (s_evt_flg > 0))
+    if ((0U != bits) && (s_evt_flg > 0))
     {
         (void)tk_set_flg(s_evt_flg, bits << s_evt_shift);
     }
@@ -198,9 +207,10 @@ static void mc_cut_outputs(void)
 
 static void mc_enter_estop(uint32_t bits)
 {
-    mc_cut_outputs();                           /* first thing: no ramp (NFR21) */
+    /* first thing: no ramp (NFR21) */
+    mc_cut_outputs();
     s_estop_src |= bits;
-    if (s_state != MOTION_STATE_ESTOP)
+    if (MOTION_STATE_ESTOP != s_state)
     {
         s_state = MOTION_STATE_ESTOP;
         s_result = MOTION_RESULT_ESTOP;
@@ -223,10 +233,10 @@ static void mc_enter_fault(motion_fault_t fault)
  * 20 ms (clock set-up differences), so speed and the PID use this, not 20 ms. */
 static void mc_update_time(void)
 {
-    SYSTIM now_tim = {0};
-    uint32_t    now;
-    uint32_t    dt_us;
-    uint32_t    raw_now;    
+    SYSTIM now_tim = { 0 };
+    uint32_t now;
+    uint32_t dt_us;
+    uint32_t raw_now;
 
     /* The RP2040 raw timer is used by the encoder ISR, but its rate is not
      * trusted for control timing: the power-cycle log showed it advancing
@@ -241,16 +251,18 @@ static void mc_update_time(void)
         now = s_t_last_ms + MOTION_CONTROL_PERIOD_MS;
     }
 
-    dt_us = (s_t_last_ms == 0U) ? (MOTION_CONTROL_PERIOD_MS * 1000U)
+    dt_us = (0U == s_t_last_ms) ? (MOTION_CONTROL_PERIOD_MS * 1000U)
                                 : ((now - s_t_last_ms) * 1000U);
 
     // const uint32_t now = motion_hw_time_us();
     // uint32_t dt_us = (s_t_last_us == 0U) ? (MOTION_CONTROL_PERIOD_MS * 1000U) : (now - s_t_last_us);
 
     s_t_last_ms = now;
-    if (dt_us > ((MOTION_CONTROL_PERIOD_MS + 2U) * 1000U) || (dt_us + 2000U) < (MOTION_CONTROL_PERIOD_MS * 1000U))
+    if (dt_us > ((MOTION_CONTROL_PERIOD_MS + 2U) * 1000U) ||
+        (dt_us + 2000U) < (MOTION_CONTROL_PERIOD_MS * 1000U))
     {
-        s_overrun_count++;                      /* outside the +/-2 ms jitter allowed by NFR5 */
+        /* outside the +/-2 ms jitter allowed by NFR5 */
+        s_overrun_count++;
     }
     if (dt_us < 1000U)
     {
@@ -266,12 +278,13 @@ static void mc_update_time(void)
     /* Keep the encoder's physical 100 us debounce interval when TIMERAWL's
      * rate differs from 1 MHz. The ISR only reads this single aligned word. */
     raw_now = motion_hw_time_us();
-    if (s_edge_clock_valid && (s_dt_ms != 0U))
+    if (s_edge_clock_valid && (0U != s_dt_ms))
     {
         const uint32_t raw_elapsed = raw_now - s_edge_clock_last_raw;
-        uint32_t min_edge_ticks = (ENCODER_MIN_EDGE_US * raw_elapsed) / (s_dt_ms * 1000U);
+        uint32_t min_edge_ticks =
+            (ENCODER_MIN_EDGE_US * raw_elapsed) / (s_dt_ms * 1000U);
 
-        if (min_edge_ticks == 0U)
+        if (0U == min_edge_ticks)
         {
             min_edge_ticks = 1U;
         }
@@ -310,9 +323,12 @@ static void mc_update_odometry(void)
         const uint32_t window_us = (s_t_last_ms - s_hist_t_ms[oldest]) * 1000U;
 
         s_hist[side][newest] = s_pos_ticks[side];
-        s_speed[side] = (window_us < 1000U) ? 0.0f
-                      : (((float)(s_pos_ticks[side] - s_hist[side][oldest]) * MM_PER_TICK) /
-                         ((float)window_us / 1000000.0f));
+        s_speed[side] =
+            (window_us < 1000U)
+                ? 0.0f
+                : (((float)(s_pos_ticks[side] - s_hist[side][oldest]) *
+                    MM_PER_TICK) /
+                   ((float)window_us / 1000000.0f));
     }
 }
 
@@ -324,7 +340,7 @@ static void mc_check_stall(void)
     {
         const int32_t mag = (s_duty[side] < 0) ? -s_duty[side] : s_duty[side];
 
-        if ((mag >= MOTION_STALL_MIN_PWM_PM) && (s_delta[side] == 0U))
+        if ((mag >= MOTION_STALL_MIN_PWM_PM) && (0U == s_delta[side]))
         {
             s_stall_ms[side] += s_dt_ms;
         }
@@ -334,13 +350,15 @@ static void mc_check_stall(void)
         }
         if (s_stall_ms[side] >= MOTION_STALL_TIMEOUT_MS)
         {
-            mc_enter_fault((side == 0U) ? MOTION_FAULT_STALL_L : MOTION_FAULT_STALL_R);
+            mc_enter_fault((0U == side) ? MOTION_FAULT_STALL_L
+                                        : MOTION_FAULT_STALL_R);
             return;
         }
 
         /* Feedback sanity: full allowed duty but the wheel is far slower than wanted.
          * Means the encoder is not telling the truth (or the wheel is jammed). */
-        if ((mag >= (MOTION_DUTY_MAX_PM - 5)) && (mc_absf(s_speed[side]) < (0.5f * mc_absf(s_set[side]))))
+        if ((mag >= (MOTION_DUTY_MAX_PM - 5)) &&
+            (mc_absf(s_speed[side]) < (0.5f * mc_absf(s_set[side]))))
         {
             s_runaway_ms[side] += s_dt_ms;
         }
@@ -363,7 +381,7 @@ static int32_t mc_speed_control(uint32_t side)
     const float set = s_set[side];
     const float mag_set = mc_absf(set);
     const float sgn = (set >= 0.0f) ? 1.0f : -1.0f;
-    const float gain = (side == 0U) ? MOTOR_L_GAIN : MOTOR_R_GAIN;
+    const float gain = (0U == side) ? MOTOR_L_GAIN : MOTOR_R_GAIN;
     float err;
     float integ;
     float u;
@@ -377,16 +395,21 @@ static int32_t mc_speed_control(uint32_t side)
     err = mag_set - (s_speed[side] * sgn);
     integ = mc_clampf(s_integ[side] + (MOTION_SPEED_KI * err * s_dt_s),
                       -MC_INTEG_MAX_PM, MC_INTEG_MAX_PM);
-    u = (float)MOTOR_FF_OFFSET_PM + (mag_set / (MM_PER_TICK * MOTOR_FF_TICKS_PER_PM)) +
+    u = (float)MOTOR_FF_OFFSET_PM +
+        (mag_set / (MM_PER_TICK * MOTOR_FF_TICKS_PER_PM)) +
         (MOTION_SPEED_KP * err) + integ;
 
-    if (!(((u > (float)MOTION_DUTY_MAX_PM) && (err > 0.0f)) || ((u < 0.0f) && (err < 0.0f))))
+    if (!(((u > (float)MOTION_DUTY_MAX_PM) && (err > 0.0f)) ||
+          ((u < 0.0f) && (err < 0.0f))))
     {
-        s_integ[side] = integ;                  /* hold the integrator while saturated */
+        /* hold the integrator while saturated */
+        s_integ[side] = integ;
     }
-    if ((mc_absf(s_speed[side]) < (float)MOTION_STOPPED_SPEED_MMPS) && (u < (float)MOTOR_BREAKAWAY_PM))
+    if ((mc_absf(s_speed[side]) < (float)MOTION_STOPPED_SPEED_MMPS) &&
+        (u < (float)MOTOR_BREAKAWAY_PM))
     {
-        u = (float)MOTOR_BREAKAWAY_PM;          /* kick a stopped wheel past static friction */
+        /* kick a stopped wheel past static friction */
+        u = (float)MOTOR_BREAKAWAY_PM;
     }
     u = mc_clampf(u * gain, 0.0f, (float)MOTION_DUTY_MAX_PM);
     return (int32_t)(sgn * u);
@@ -411,7 +434,7 @@ static void mc_apply_outputs(void)
 
         /* Single-channel encoders cannot sense direction: only flip the counting
          * direction while the wheel is (nearly) stopped, never mid-reversal. */
-        if ((want != 0) && (want != s_dir[side]))
+        if ((0 != want) && (want != s_dir[side]))
         {
             if (mc_absf(s_speed[side]) > (float)MOTION_STOPPED_SPEED_MMPS)
             {
@@ -424,7 +447,7 @@ static void mc_apply_outputs(void)
             }
         }
 
-        s_duty[side] = (want == 0) ? 0 : mc_speed_control(side);
+        s_duty[side] = (0 == want) ? 0 : mc_speed_control(side);
         motion_hw_motor_set(side, s_duty[side]);
     }
 }
@@ -448,7 +471,7 @@ static void mc_finish_now(motion_result_t result)
 
 static void mc_start_move(int32_t distance_mm, int32_t speed_mmps)
 {
-    if (distance_mm == 0)
+    if (0 == distance_mm)
     {
         mc_finish_now(MOTION_RESULT_DONE);
         return;
@@ -456,7 +479,8 @@ static void mc_start_move(int32_t distance_mm, int32_t speed_mmps)
     s_target_mm = (float)distance_mm;
     s_orig_mm[0] = mc_dist_mm(0U);
     s_orig_mm[1] = mc_dist_mm(1U);
-    s_cruise = mc_clampf((float)speed_mmps, (float)MOTION_MIN_SPEED_MMPS, (float)MOTION_MAX_SPEED_MMPS);
+    s_cruise = mc_clampf((float)speed_mmps, (float)MOTION_MIN_SPEED_MMPS,
+                         (float)MOTION_MAX_SPEED_MMPS);
     s_vel_mode = false;
     s_integ[0] = 0.0f;
     s_integ[1] = 0.0f;
@@ -468,7 +492,7 @@ static void mc_start_turn(int32_t angle_deg, int32_t rate_dps)
 {
     const float half_track = TRACK_WIDTH_MM * 0.5f;
 
-    if (angle_deg == 0)
+    if (0 == angle_deg)
     {
         mc_finish_now(MOTION_RESULT_DONE);
         return;
@@ -476,8 +500,9 @@ static void mc_start_turn(int32_t angle_deg, int32_t rate_dps)
     s_target_mm = (float)angle_deg * MC_RAD_PER_DEG * half_track;
     s_orig_mm[0] = mc_dist_mm(0U);
     s_orig_mm[1] = mc_dist_mm(1U);
-    s_cruise = mc_clampf((float)rate_dps * MC_RAD_PER_DEG * half_track,
-                         (float)MOTION_MIN_SPEED_MMPS, (float)MOTION_MAX_SPEED_MMPS);
+    s_cruise =
+        mc_clampf((float)rate_dps * MC_RAD_PER_DEG * half_track,
+                  (float)MOTION_MIN_SPEED_MMPS, (float)MOTION_MAX_SPEED_MMPS);
     s_vel_mode = false;
     s_integ[0] = 0.0f;
     s_integ[1] = 0.0f;
@@ -487,13 +512,15 @@ static void mc_start_turn(int32_t angle_deg, int32_t rate_dps)
 
 static void mc_start_velocity(int32_t left_mmps, int32_t right_mmps)
 {
-    if ((left_mmps == 0) && (right_mmps == 0))
+    if ((0 == left_mmps) && (0 == right_mmps))
     {
         mc_begin_stop(MOTION_RESULT_STOPPED);
         return;
     }
-    s_goal[0] = mc_clampf((float)left_mmps, -(float)MOTION_MAX_SPEED_MMPS, (float)MOTION_MAX_SPEED_MMPS);
-    s_goal[1] = mc_clampf((float)right_mmps, -(float)MOTION_MAX_SPEED_MMPS, (float)MOTION_MAX_SPEED_MMPS);
+    s_goal[0] = mc_clampf((float)left_mmps, -(float)MOTION_MAX_SPEED_MMPS,
+                          (float)MOTION_MAX_SPEED_MMPS);
+    s_goal[1] = mc_clampf((float)right_mmps, -(float)MOTION_MAX_SPEED_MMPS,
+                          (float)MOTION_MAX_SPEED_MMPS);
     s_vel_mode = true;
     s_state = MOTION_STATE_DRIVING;
     s_result = MOTION_RESULT_NONE;
@@ -509,11 +536,13 @@ static void mc_plan_move(void)
 
     if ((mc_absf(rem) <= (float)MOTION_DIST_TOL_MM) || ((rem * sgn) < 0.0f))
     {
-        mc_begin_stop(MOTION_RESULT_DONE);      /* arrived (or passed it) */
+        mc_begin_stop(MOTION_RESULT_DONE); /* arrived (or passed it) */
         return;
     }
-    room = mc_absf(rem) - (mc_speed_avg() * MOTION_STOP_LAG_S);     /* the wheels need time to slow */
-    v = mc_sqrt(2.0f * (float)MOTION_ACCEL_MMPS2 * ((room > 0.0f) ? room : 0.0f));
+    /* the wheels need time to slow */
+    room = mc_absf(rem) - (mc_speed_avg() * MOTION_STOP_LAG_S);
+    v = mc_sqrt(2.0f * (float)MOTION_ACCEL_MMPS2 *
+                ((room > 0.0f) ? room : 0.0f));
     if (v > s_cruise)
     {
         v = s_cruise;
@@ -522,7 +551,8 @@ static void mc_plan_move(void)
     {
         v = (float)MOTION_MIN_SPEED_MMPS;
     }
-    trim = MOTION_HEADING_KP * (mc_rel_mm(0U) - mc_rel_mm(1U));     /* keep both wheels level */
+    /* keep both wheels level */
+    trim = MOTION_HEADING_KP * (mc_rel_mm(0U) - mc_rel_mm(1U));
     s_goal[0] = (sgn * v) - trim;
     s_goal[1] = (sgn * v) + trim;
 }
@@ -531,7 +561,8 @@ static void mc_plan_turn(void)
 {
     const float rem = s_target_mm - mc_turn_progress_mm();
     const float sgn = (s_target_mm >= 0.0f) ? 1.0f : -1.0f;
-    const float tol = (float)MOTION_TURN_TOL_DEG * MC_RAD_PER_DEG * (TRACK_WIDTH_MM * 0.5f);
+    const float tol =
+        (float)MOTION_TURN_TOL_DEG * MC_RAD_PER_DEG * (TRACK_WIDTH_MM * 0.5f);
     float room;
     float v;
     float trim;
@@ -542,7 +573,8 @@ static void mc_plan_turn(void)
         return;
     }
     room = mc_absf(rem) - (mc_speed_avg() * MOTION_STOP_LAG_S);
-    v = mc_sqrt(2.0f * (float)MOTION_ACCEL_MMPS2 * ((room > 0.0f) ? room : 0.0f));
+    v = mc_sqrt(2.0f * (float)MOTION_ACCEL_MMPS2 *
+                ((room > 0.0f) ? room : 0.0f));
     if (v > s_cruise)
     {
         v = s_cruise;
@@ -551,7 +583,8 @@ static void mc_plan_turn(void)
     {
         v = (float)MOTION_MIN_SPEED_MMPS;
     }
-    trim = MOTION_HEADING_KP * (mc_rel_mm(0U) + mc_rel_mm(1U));     /* wheels should mirror each other */
+    /* wheels should mirror each other */
+    trim = MOTION_HEADING_KP * (mc_rel_mm(0U) + mc_rel_mm(1U));
     s_goal[0] = (-sgn * v) - trim;
     s_goal[1] = (sgn * v) - trim;
 }
@@ -563,41 +596,42 @@ static void mc_run_state(void)
 
     switch (s_state)
     {
-    case MOTION_STATE_DRIVING:
-        if (!s_vel_mode)
-        {
-            mc_plan_move();
-        }
-        break;
-    case MOTION_STATE_TURNING:
-        mc_plan_turn();
-        break;
-    case MOTION_STATE_STOPPING:
-        s_goal[0] = 0.0f;
-        s_goal[1] = 0.0f;
-        if ((mc_absf(s_speed[0]) < (float)MOTION_STOPPED_SPEED_MMPS) &&
-            (mc_absf(s_speed[1]) < (float)MOTION_STOPPED_SPEED_MMPS) &&
-            (mc_absf(s_set[0]) < MC_ZERO_SPEED) && (mc_absf(s_set[1]) < MC_ZERO_SPEED))
-        {
-            s_still++;
-        }
-        else
-        {
-            s_still = 0U;
-        }
-        if (s_still >= MC_STILL_CYCLES)
-        {
-            s_state = MOTION_STATE_IDLE;
-            s_result = s_pending_result;
-            s_pending_evt |= MOTION_EVT_DONE;
-        }
-        break;
-    case MOTION_STATE_IDLE:
-        s_goal[0] = 0.0f;
-        s_goal[1] = 0.0f;
-        break;
-    default:
-        break;
+        case MOTION_STATE_DRIVING:
+            if (!s_vel_mode)
+            {
+                mc_plan_move();
+            }
+            break;
+        case MOTION_STATE_TURNING:
+            mc_plan_turn();
+            break;
+        case MOTION_STATE_STOPPING:
+            s_goal[0] = 0.0f;
+            s_goal[1] = 0.0f;
+            if ((mc_absf(s_speed[0]) < (float)MOTION_STOPPED_SPEED_MMPS) &&
+                (mc_absf(s_speed[1]) < (float)MOTION_STOPPED_SPEED_MMPS) &&
+                (mc_absf(s_set[0]) < MC_ZERO_SPEED) &&
+                (mc_absf(s_set[1]) < MC_ZERO_SPEED))
+            {
+                s_still++;
+            }
+            else
+            {
+                s_still = 0U;
+            }
+            if (s_still >= MC_STILL_CYCLES)
+            {
+                s_state = MOTION_STATE_IDLE;
+                s_result = s_pending_result;
+                s_pending_evt |= MOTION_EVT_DONE;
+            }
+            break;
+        case MOTION_STATE_IDLE:
+            s_goal[0] = 0.0f;
+            s_goal[1] = 0.0f;
+            break;
+        default:
+            break;
     }
 
     if (!mc_latched())
@@ -629,19 +663,20 @@ static void mc_flush_commands(void)
 
 static void mc_handle_cmd(const motion_cmd_msg_t *m)
 {
-    if (m->type == MOTION_CMD_RESET_TRIP)
+    if (MOTION_CMD_RESET_TRIP == m->type)
     {
         s_trip_origin_ticks = (s_pos_ticks[0] + s_pos_ticks[1]) / 2;
         return;
     }
 
-    if (m->type == MOTION_CMD_RESET)
+    if (MOTION_CMD_RESET == m->type)
     {
         if (mc_latched())
         {
             if (mc_read_estop() != 0U)
             {
-                mc_reject();                    /* VehicleController must clear the flag first */
+                /* VehicleController must clear the flag first */
+                mc_reject();
                 return;
             }
             mc_flush_commands();
@@ -662,54 +697,56 @@ static void mc_handle_cmd(const motion_cmd_msg_t *m)
 
     switch (m->type)
     {
-    case MOTION_CMD_MOVE:
-        if (s_state == MOTION_STATE_IDLE)
-        {
-            mc_start_move(m->p1, m->p2);
-        }
-        else
-        {
+        case MOTION_CMD_MOVE:
+            if (MOTION_STATE_IDLE == s_state)
+            {
+                mc_start_move(m->p1, m->p2);
+            }
+            else
+            {
+                mc_reject();
+            }
+            break;
+        case MOTION_CMD_TURN:
+            if (MOTION_STATE_IDLE == s_state)
+            {
+                mc_start_turn(m->p1, m->p2);
+            }
+            else
+            {
+                mc_reject();
+            }
+            break;
+        case MOTION_CMD_SET_SPEED:
+            if ((MOTION_STATE_IDLE == s_state) ||
+                (MOTION_STATE_DRIVING == s_state))
+            {
+                mc_start_velocity(m->p1, m->p2);
+            }
+            else
+            {
+                mc_reject();
+            }
+            break;
+        case MOTION_CMD_STOP:
+            if (MOTION_STATE_IDLE == s_state)
+            {
+                mc_finish_now(MOTION_RESULT_STOPPED);
+            }
+            else if (MOTION_STATE_STOPPING != s_state)
+            {
+                mc_begin_stop(MOTION_RESULT_STOPPED);
+            }
+            else
+            {
+                /* already stopping: nothing to add */
+            }
+            break;
+        /* TODO: needs the LineSense interface */
+        case MOTION_CMD_LINE_FOLLOW:
+        default:
             mc_reject();
-        }
-        break;
-    case MOTION_CMD_TURN:
-        if (s_state == MOTION_STATE_IDLE)
-        {
-            mc_start_turn(m->p1, m->p2);
-        }
-        else
-        {
-            mc_reject();
-        }
-        break;
-    case MOTION_CMD_SET_SPEED:
-        if ((s_state == MOTION_STATE_IDLE) || (s_state == MOTION_STATE_DRIVING))
-        {
-            mc_start_velocity(m->p1, m->p2);
-        }
-        else
-        {
-            mc_reject();
-        }
-        break;
-    case MOTION_CMD_STOP:
-        if (s_state == MOTION_STATE_IDLE)
-        {
-            mc_finish_now(MOTION_RESULT_STOPPED);
-        }
-        else if (s_state != MOTION_STATE_STOPPING)
-        {
-            mc_begin_stop(MOTION_RESULT_STOPPED);
-        }
-        else
-        {
-            /* already stopping: nothing to add */
-        }
-        break;
-    case MOTION_CMD_LINE_FOLLOW:                /* TODO: needs the LineSense interface */
-    default:
-        mc_reject();
-        break;
+            break;
     }
 }
 
@@ -752,10 +789,15 @@ static void mc_publish(void)
     st.dist_l_mm = (int32_t)mc_dist_mm(0U);
     st.dist_r_mm = (int32_t)mc_dist_mm(1U);
     st.distance_total_mm = (int32_t)(0.5f * (mc_dist_mm(0U) + mc_dist_mm(1U)));
-    st.distance_trip_mm = (int32_t)((float)(((s_pos_ticks[0] + s_pos_ticks[1]) / 2) - s_trip_origin_ticks) * MM_PER_TICK);
-    st.heading_deg = (int32_t)(((mc_dist_mm(1U) - mc_dist_mm(0U)) / track) / MC_RAD_PER_DEG);
+    st.distance_trip_mm =
+        (int32_t)((float)(((s_pos_ticks[0] + s_pos_ticks[1]) / 2) -
+                          s_trip_origin_ticks) *
+                  MM_PER_TICK);
+    st.heading_deg =
+        (int32_t)(((mc_dist_mm(1U) - mc_dist_mm(0U)) / track) / MC_RAD_PER_DEG);
 
-    if (tk_loc_mtx(s_status_mtx, TMO_POL) == E_OK)  /* never wait: skip this cycle if busy */
+    /* never wait: skip this cycle if busy */
+    if (tk_loc_mtx(s_status_mtx, TMO_POL) == E_OK)
     {
         s_shared = st;
         (void)tk_unl_mtx(s_status_mtx);
@@ -781,9 +823,9 @@ static void mc_control_cycle(void)
 {
     const uint32_t estop = mc_read_estop();
 
-    if (estop != 0U)
+    if (0U != estop)
     {
-        mc_enter_estop(estop);                  /* before anything else */
+        mc_enter_estop(estop); /* before anything else */
     }
 
     mc_update_time();
@@ -800,7 +842,8 @@ static void mc_control_cycle(void)
     }
 
     s_cycle_count++;
-    mc_publish();                               /* status first, then the event bits */
+    /* status first, then the event bits */
+    mc_publish();
     mc_notify(s_pending_evt);
     s_pending_evt = 0U;
 }
@@ -820,7 +863,7 @@ static void mc_task(INT stacd, void *exinf)
         {
             s_hist[side][i] = 0;
             // s_hist_t_us[i] = motion_hw_time_us();
-            SYSTIM now_tim = {0};
+            SYSTIM now_tim = { 0 };
             if (tk_get_otm(&now_tim) >= E_OK)
             {
                 s_hist_t_ms[i] = now_tim.lo;
@@ -837,8 +880,10 @@ static void mc_task(INT stacd, void *exinf)
     {
         INT late;
 
-        (void)tk_slp_tsk(TMO_FEVR);             /* woken by the cyclic handler */
-        late = tk_can_wup(TSK_SELF);            /* wake-ups that piled up = we were late */
+        /* woken by the cyclic handler */
+        (void)tk_slp_tsk(TMO_FEVR);
+        /* wake-ups that piled up = we were late */
+        late = tk_can_wup(TSK_SELF);
         if (late > 0)
         {
             s_overrun_count += (uint32_t)late;
@@ -857,11 +902,11 @@ static void mc_cyc_handler(void *exinf)
 
 bool motion_init(void)
 {
-    T_CTSK ctsk = {0};
-    T_CCYC ccyc = {0};
-    T_CMTX cmtx = {0};
-    T_CMBF cmbf = {0};
-    T_CFLG cflg = {0};
+    T_CTSK ctsk = { 0 };
+    T_CCYC ccyc = { 0 };
+    T_CMTX cmtx = { 0 };
+    T_CMBF cmbf = { 0 };
+    T_CFLG cflg = { 0 };
 
     if (!motion_hw_init())
     {
@@ -880,10 +925,10 @@ bool motion_init(void)
     cflg.iflgptn = 0U;
     s_estop_flg = tk_cre_flg(&cflg);
 
-    ctsk.tskatr  = TA_HLNG | TA_RNG0;
-    ctsk.task    = mc_task;
+    ctsk.tskatr = TA_HLNG | TA_RNG0;
+    ctsk.task = mc_task;
     ctsk.itskpri = MOTION_TASK_PRIORITY;
-    ctsk.stksz   = MOTION_TASK_STACK_BYTES;
+    ctsk.stksz = MOTION_TASK_STACK_BYTES;
     s_task_id = tk_cre_tsk(&ctsk);
 
     ccyc.cycatr = TA_HLNG;
@@ -934,22 +979,25 @@ static motion_err_t mc_post(motion_cmd_type_t type, int32_t p1, int32_t p2)
     {
         return MOTION_OK;
     }
-    return (er == E_TMOUT) ? MOTION_ERR_QUEUE_FULL : MOTION_ERR_INVALID;
+    return (E_TMOUT == er) ? MOTION_ERR_QUEUE_FULL : MOTION_ERR_INVALID;
 }
 
 motion_err_t motion_move(int32_t distance_mm, int32_t speed_mmps)
 {
-    return (speed_mmps > 0) ? mc_post(MOTION_CMD_MOVE, distance_mm, speed_mmps) : MOTION_ERR_INVALID;
+    return (speed_mmps > 0) ? mc_post(MOTION_CMD_MOVE, distance_mm, speed_mmps)
+                            : MOTION_ERR_INVALID;
 }
 
 motion_err_t motion_turn(int32_t angle_deg, int32_t rate_dps)
 {
-    return (rate_dps > 0) ? mc_post(MOTION_CMD_TURN, angle_deg, rate_dps) : MOTION_ERR_INVALID;
+    return (rate_dps > 0) ? mc_post(MOTION_CMD_TURN, angle_deg, rate_dps)
+                          : MOTION_ERR_INVALID;
 }
 
 motion_err_t motion_line_follow(int32_t speed_mmps)
 {
-    return (speed_mmps > 0) ? mc_post(MOTION_CMD_LINE_FOLLOW, speed_mmps, 0) : MOTION_ERR_INVALID;
+    return (speed_mmps > 0) ? mc_post(MOTION_CMD_LINE_FOLLOW, speed_mmps, 0)
+                            : MOTION_ERR_INVALID;
 }
 
 motion_err_t motion_set_wheel_speeds(int32_t left_mmps, int32_t right_mmps)
@@ -1011,6 +1059,7 @@ void motion_estop_clear(uint32_t source_bits)
 {
     if (s_estop_flg > 0)
     {
-        (void)tk_clr_flg(s_estop_flg, ~source_bits);    /* keeps the bits that are 1 in the mask */
+        /* keeps the bits that are 1 in the mask */
+        (void)tk_clr_flg(s_estop_flg, ~source_bits);
     }
 }

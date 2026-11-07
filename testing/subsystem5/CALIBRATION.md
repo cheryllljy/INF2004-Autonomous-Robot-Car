@@ -26,6 +26,9 @@ corrects every servo move and every distance.
 - A flat board, at least 30 cm wide: a book or a piece of cardboard.
 - A tape measure.
 - Tape to mark the car's centre line on the floor.
+- The obstacle the course uses (the 21 cm box), for step 4. Measure the
+  width of the face the car sees and put it in `S5_CAL_OBSTACLE_WIDTH_MM`
+  in `s5_config.h` (default 210).
 
 ## Steps
 
@@ -37,21 +40,31 @@ corrects every servo move and every distance.
 
 | Step | You do | It does |
 |---|---|---|
-| 1/3 | Put the post on the centre line, **300 mm** from the sensor face. Keep everything else at least 30 cm away. | Creeps the servo 60→120° and back, twice, 1° at a time. |
-| 2/3 | Put the board square to the sensor at **100**, then **200**, **300** and **500 mm**. Measure from the sensor face. | Takes 20 pings at each distance and fits a straight line. Shows PASS/FAIL against NFR15 (±10 mm). |
-| 3/3 | Put the post back at 300 mm on the centre line. | Switches the new values on and checks the post now reads as straight ahead. |
+| 1/4 | Put the post on the centre line, **300 mm** from the sensor face. Keep everything else at least 30 cm away. | Creeps the servo 60→120° and back, twice, 1° at a time. |
+| 2/4 | Put the board square to the sensor at **100**, then **200**, **300** and **500 mm**. Measure from the sensor face. | Takes 20 pings at each distance and fits a straight line. Shows PASS/FAIL against NFR15 (±10 mm). |
+| 3/4 | Put the post back at 300 mm on the centre line. | Switches the new values on and checks the post now reads as straight ahead. |
+| 4/4 | Put the obstacle square to the car, its middle on the centre line, its face **300 mm** from the sensor face. Nothing else within 30 cm. | Creeps the servo across the whole sweep, twice each way, and finds how far past the box's corners it still answers. That is the beam half-angle the obstacle task needs, and it replaces step 1's value. |
+
+**Why step 4 (nyx, 2026-11-06).** On the car the 21 cm box read 42 cm
+wide. A flat face echoes back from much further off the sensor's axis
+than a pen does, so the beam half-angle from the post (step 1) is too
+small for real obstacles: every edge is placed too far out. Step 4
+measures the beam on the obstacle itself. It prints, for example,
+`with the current beam half-angle 75 it reads 420 mm wide (true 210 mm)`
+and then the new value.
 
 4. It prints a block like this, every 15 seconds:
 
 ```
-=== S5 CALIBRATION RESULT: step1 PASS, step2 PASS, step3 PASS ===
+=== S5 CALIBRATION RESULT: step1 PASS, step2 PASS, step3 PASS, step4 PASS ===
 ---- paste into app_program/subsystem5/s5_calib.h ----
 #define S5_CAL_DONE                 (1)
 #define S5_CAL_SERVO_TRIM_DDEG      (-35)
 #define S5_CAL_SERVO_BACKLASH_DDEG  (15)
 #define S5_CAL_RANGE_SCALE_Q12      (3983)
 #define S5_CAL_RANGE_OFFSET_MM      (7)
-#define S5_CAL_BEAM_HALF_DDEG       (110)
+#define S5_CAL_BEAM_HALF_DDEG       (221)
+/* beam: from your obstacle, step 4 (post 110) */
 ```
 
 5. Copy those values into `s5_calib.h`, replacing the defaults. Keep
@@ -70,6 +83,9 @@ corrects every servo move and every distance.
 | `trim / backlash / beam out of range` | Something else is inside the beam (a wall, your hand), or the post is too wide. |
 | `no stable echo at N mm` | Board not square to the sensor, or too small. |
 | `spread over 10 mm` | Board moving, or at an angle. |
+| `STEP 4 FAIL: obstacle face not heard straight ahead` | Box not 200–400 mm away, or not square to the car. |
+| `STEP 4 FAIL: obstacle still heard at the sweep limit` | Something else (a wall, a chair leg, your hand) within about 30 cm, or the box much closer than 300 mm. |
+| `STEP 4 FAIL: beam half-angle N out of range` | `S5_CAL_OBSTACLE_WIDTH_MM` does not match the box, or the box is not at 300 mm. |
 | `FAIL NFR15` after the fit | The distances were measured from the wrong point. Measure from the sensor face. |
 
 ## Units

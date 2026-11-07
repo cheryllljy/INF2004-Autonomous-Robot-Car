@@ -13,6 +13,8 @@
 #                   then the obstacle task on it without / with the result
 #   make car        v3.0: 2-D bypass simulation, S5 + VehicleController's
 #                   obstacle part driving a simulated car (C1..C9)
+#   make turn       nyx, 2026-11-06: the junction turn (arc / U-turn) of
+#                   vc_turn.c with Buddy 3's line following (J1..J22)
 #   make clean
 #
 # Run from testing/subsystem5/host.
@@ -27,23 +29,31 @@ OUT     := build
 # come before anything else so the real kernel headers are never seen.
 APP     := ../../../app_program
 INC     := -Imock -I$(S5) -I.
-CAR_INC := $(INC) -I$(APP)/subsystem2 -I$(APP)/vehicle_controller
-V1_INC  := -Iv1_reference -Imock -DOBSTACLE_HOST_TEST \
+CAR_INC := $(INC) -I$(APP)/subsystem2 -I$(APP)/vehicle_controller \
+           -I$(APP)/subsystem3
+# nyx, 2026-11-06: v1 gets v2's chassis numbers (obstacle_model.h:
+# OBSTACLE_HALF_WIDTH_MM, OBSTACLE_SAFETY_MARGIN_MM), so the CR1
+# equivalence test still compares the two algorithms on the same car.
+V1_CAR  := -DBOARD_HALF_WIDTH_MM=65U -DOBSTACLE_SAFETY_MARGIN_MM=40U
+V1_INC  := -Iv1_reference -Imock -DOBSTACLE_HOST_TEST $(V1_CAR) \
            -Dobstacle_profile_build=v1_obstacle_profile_build \
            -Dobstacle_plan=v1_obstacle_plan
 
 PURE    := $(S5)/obstacle_geometry.c $(S5)/s5_pack.c
 TASK    := $(S5)/obstacle_task.c tk_shim.c sim_hal.c
 
-.PHONY: all geometry pack equiv sim calibrate v3 cal car clean
+.PHONY: all geometry pack equiv sim calibrate v3 cal car turn clean
 
 # The robot's calibration as the faulty simulated robot needs it (the
 # values "make cal" finds); compiled into the *_fixed binaries.
 CAL_FIX := -DS5_CAL_DONE=1 -DS5_CAL_SERVO_TRIM_DDEG=-35 \
            -DS5_CAL_SERVO_BACKLASH_DDEG=15 -DS5_CAL_BEAM_HALF_DDEG=110 \
            -DS5_CAL_RANGE_SCALE_Q12=3983 -DS5_CAL_RANGE_OFFSET_MM=7
+# nyx, 2026-11-06: the same robot with the beam step 4 finds on the 21 cm
+# box (test_cal box), compiled into test_cal_box.
+CAL_BOX := $(subst -DS5_CAL_BEAM_HALF_DDEG=110,-DS5_CAL_BEAM_HALF_DDEG=221,$(CAL_FIX))
 
-all: geometry pack equiv sim v3 cal car
+all: geometry pack equiv sim v3 cal car turn
 	@echo ""
 	@echo "All subsystem 5 host tests passed."
 
@@ -79,7 +89,7 @@ sim: | $(OUT)
 	@echo ""
 	@echo "=== simulation scenarios ==="
 	$(CC) $(CFLAGS) $(INC) $(PURE) $(TASK) test_sim.c -lm -o $(OUT)/test_sim
-	@for s in 1 2 3 4 5 7 8 9 10 11 12; do $(OUT)/test_sim $$s || exit 1; done
+	@for s in 1 2 3 4 5 7 8 9 10 11 12 13; do $(OUT)/test_sim $$s || exit 1; done
 
 calibrate: | $(OUT)
 	$(CC) $(CFLAGS) $(INC) $(PURE) $(TASK) test_sim.c -lm -o $(OUT)/test_sim
@@ -104,13 +114,38 @@ cal: | $(OUT)
 	@$(OUT)/test_cal cal
 	@$(OUT)/test_cal centre
 	@$(OUT)/test_cal_fixed centre
+	$(CC) $(CFLAGS) $(INC) $(CAL_BOX) $(PURE) \
+	    $(TASK) $(S5)/s5_calibrate.c test_cal.c -lm -o $(OUT)/test_cal_box
+	@$(OUT)/test_cal box
+	@$(OUT)/test_cal_box box
 
 car: | $(OUT)
 	@echo ""
 	@echo "=== v3.0 2-D bypass simulation ==="
 	$(CC) $(CFLAGS) $(CAR_INC) $(PURE) $(TASK) motion_mock.c \
-	    $(APP)/vehicle_controller/vc_obstacle.c test_car.c -lm -o $(OUT)/test_car
+	    $(APP)/vehicle_controller/vc_obstacle.c $(APP)/subsystem3/b3_line.c \
+	    test_car.c -lm -o $(OUT)/test_car
 	@$(OUT)/test_car
+	$(CC) $(CFLAGS) $(CAR_INC) -DS5_CAL_BEAM_HALF_DDEG=221 $(PURE) $(TASK) \
+	    motion_mock.c $(APP)/vehicle_controller/vc_obstacle.c \
+	    $(APP)/subsystem3/b3_line.c test_car.c -lm -o $(OUT)/test_car_cal
+	@$(OUT)/test_car_cal
+
+# nyx, 2026-11-06: the VehicleController's junction turn (vc_turn.c) with
+# Buddy 3's line following, at 25, 50 (the car's) and 80 mm/s.
+TURN_SRC := motion_mock.c $(APP)/vehicle_controller/vc_turn.c \
+            $(APP)/subsystem3/b3_line.c test_turn.c
+turn: | $(OUT)
+	@echo ""
+	@echo "=== junction turns (VC-H01) ==="
+	$(CC) $(CFLAGS) $(CAR_INC) $(TURN_SRC) -lm -o $(OUT)/test_turn
+	@$(OUT)/test_turn
+	$(CC) $(CFLAGS) $(CAR_INC) -DB3_BASE_SPEED_MM_S=25 $(TURN_SRC) -lm \
+	    -o $(OUT)/test_turn_25
+	@$(OUT)/test_turn_25
+	$(CC) $(CFLAGS) $(CAR_INC) -DB3_BASE_SPEED_MM_S=80 $(TURN_SRC) -lm \
+	    -o $(OUT)/test_turn_80
+	@$(OUT)/test_turn_80
 
 clean:
 	rm -rf $(OUT)

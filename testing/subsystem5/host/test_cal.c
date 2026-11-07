@@ -32,6 +32,9 @@
 #define TRUE_TRIM_DDEG      (-35)
 #define TRUE_BACKLASH_DDEG  (15)
 #define TRUE_BEAM_DEG       (12.0)
+/* nyx, 2026-11-06: a flat box face answers further off-axis than the
+ * pen (a 21 cm box read 42 cm on the car), so step 4 sees a wider beam. */
+#define TRUE_BOX_BEAM_DEG   (22.0)
 #define TRUE_SCALE          (0.03)
 #define TRUE_OFFSET_MM      (-8.0)
 
@@ -66,7 +69,15 @@ static void cal_prompt(const char *text)
 {
     const char *p;
 
-    if (strstr(text, "STEP 1/3") != NULL || strstr(text, "STEP 3/3") != NULL)
+    if ((strstr(text, "STEP 4/4: put") != NULL))
+    {
+        /* nyx, 2026-11-06: the course's box, face 300 mm away. */
+        sim_world_clear();
+        sim_set_beam_half_deg(TRUE_BOX_BEAM_DEG);
+        sim_add_box(0.0, 300.0, (double)S5_CAL_OBSTACLE_WIDTH_MM);
+    }
+    else if (strstr(text, "STEP 1/4") != NULL ||
+             strstr(text, "STEP 3/4") != NULL)
     {
         /* A 10 mm pen on the centre line, 300 mm from the sensor face:
          * x = 0 is where the horn REALLY points straight, not where
@@ -75,7 +86,7 @@ static void cal_prompt(const char *text)
         sim_add_box(0.0, 300.0, (double)S5_CAL_POST_DIAMETER_MM);
     }
     else if ((p = strstr(text, "mm from the sensor face")) != NULL &&
-             strstr(text, "STEP 2/3") != NULL)
+             strstr(text, "STEP 2/4") != NULL)
     {
         /* "... square to the sensor, NNN mm from the sensor face" */
         const char *q = p;
@@ -128,18 +139,25 @@ static int run_cal(void)
            " (want %.0f), offset %d mm (want %.1f)\n", r.trim_ddeg,
            r.backlash_ddeg, r.beam_half_ddeg, (int)r.scale_q12, want_scale,
            (int)r.offset_mm, want_off);
-    printf("  steps: %s / %s / %s, verify centre %d deg, took %u s\n",
+    printf("  post beam %d, obstacle beam %d (0.1 deg, want %d)\n",
+           r.post_beam_half_ddeg, r.beam_half_ddeg,
+           (int)(TRUE_BOX_BEAM_DEG * 10.0));
+    printf("  steps: %s / %s / %s / %s, verify centre %d deg, took %u s\n",
            r.step1_ok ? "PASS" : "FAIL", r.step2_ok ? "PASS" : "FAIL",
-           r.step3_ok ? "PASS" : "FAIL", r.verify_bearing_deg,
+           r.step3_ok ? "PASS" : "FAIL", r.step4_ok ? "PASS" : "FAIL",
+           r.verify_bearing_deg,
            (unsigned)(tkshim_now_ms() / 1000U));
 
     check(r.finished, "calibration finished");
-    check(r.step1_ok && r.step2_ok && r.step3_ok, "all three steps pass");
+    check(r.step1_ok && r.step2_ok && r.step3_ok && r.step4_ok,
+          "all four steps pass");
     check(abs(r.trim_ddeg - TRUE_TRIM_DDEG) <= 10, "trim within 1 deg");
     check(abs(r.backlash_ddeg - TRUE_BACKLASH_DDEG) <= 10,
           "backlash within 1 deg");
-    check(abs(r.beam_half_ddeg - (int)(TRUE_BEAM_DEG * 10.0)) <= 20,
-          "beam half-angle within 2 deg");
+    check(abs(r.post_beam_half_ddeg - (int)(TRUE_BEAM_DEG * 10.0)) <= 20,
+          "post beam half-angle within 2 deg");
+    check(abs(r.beam_half_ddeg - (int)(TRUE_BOX_BEAM_DEG * 10.0)) <= 15,
+          "obstacle beam half-angle within 1.5 deg (step 4 wins)");
     check(abs((int)r.scale_q12 - (int)(want_scale + 0.5)) <= 41,
           "range scale within 1 %");
     check(abs((int)r.offset_mm - (int)(want_off + 0.5)) <= 5,
@@ -220,11 +238,62 @@ static int run_centre(void)
     return (g_failures == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
+/*=====================================================================*/
+/* box: nyx, 2026-11-06, the course's 21 cm box with a flat-face beam  */
+/*=====================================================================*/
+
+/* On the car a 210 mm box read 420 mm wide with the datasheet beam
+ * (7.5 deg). Run the obstacle task on it with the box beam step 4
+ * measures (TRUE_BOX_BEAM_DEG). Built as test_cal (beam 75: too wide)
+ * and test_cal_box (the step 4 value compiled in: must be right). */
+static int run_box(void)
+{
+    const double w = (double)S5_CAL_OBSTACLE_WIDTH_MM;
+    int y;
+
+    printf("H06c box %.0f mm, flat-face beam %.1f deg, "
+           "S5_CAL_BEAM_HALF_DDEG %d\n",
+           w, TRUE_BOX_BEAM_DEG, (int)S5_CAL_BEAM_HALF_DDEG);
+
+    for (y = 220; y <= 300; y += 40)
+    {
+        tkshim_reset();
+        faulty_robot();
+        sim_set_beam_half_deg(TRUE_BOX_BEAM_DEG);
+        tkshim_set_quiet(1);
+        sim_add_box(0.0, (double)y, w);
+        g_have = 0;
+        (void)obstacle_create_objects();
+        tkshim_set_idle_hook(watch_profile);
+        tkshim_set_time_budget_ms(10000U);
+        tkshim_run(obstacle_task);
+
+        check(g_have, "a profile was published");
+        printf("  face at %3d mm: width %3u mm, centre %+d deg\n", y,
+               (unsigned)g_prof.width_mm, g_prof.bearing_deg);
+
+        if (S5_CAL_BEAM_HALF_DDEG >= 200)
+        {
+            check(fabs((double)g_prof.width_mm - w) <= 30.0,
+                  "step 4 beam: width within 3 cm");
+        }
+    }
+
+    printf("  %d checks, %d failures\n", g_checks, g_failures);
+
+    return (g_failures == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 int main(int argc, char **argv)
 {
     if ((argc > 1) && (strcmp(argv[1], "cal") == 0))
     {
         return run_cal();
+    }
+
+    if ((argc > 1) && (strcmp(argv[1], "box") == 0))
+    {
+        return run_box();
     }
 
     return run_centre();

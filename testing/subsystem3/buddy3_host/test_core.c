@@ -189,6 +189,12 @@ static void test_stream_and_quiet(void)
     edge.time_us += 200000U;
     CHECK(!b3_barcode_poll(&scan, edge, &result));
     CHECK(1U == scan.rejected);
+    /* nyx, 2026-11-06: the white measured and needed are kept for the VC. */
+    CHECK(B3_REJECT_LEADING_QUIET == scan.reject_reason);
+    CHECK(B3_BARCODE_RUNS == scan.reject_count);
+    CHECK(!scan.reject_encoder);
+    CHECK(50000U == scan.reject_lead);
+    CHECK((10000U * B3_QUIET_NARROW_MULTIPLE) == scan.reject_need);
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
     edge.time_us += (10000U * B3_TRAILING_NARROW_MULTIPLE) - 10000U;
     edge.black = true;
@@ -365,6 +371,151 @@ static void test_slowdown_compensation(void)
     CHECK(b3_barcode_poll(&scan, edge, &result));
     CHECK('A' == result.symbol);
     (void)puts("PASS: slowing down over a barcode is rescaled by measured speed");
+}
+
+/* nyx, 2026-11-06: one 41 us IR_B flicker in the white just before the
+ * first bar (or chatter on the bar's own edge) used to restart the white
+ * count there, so a good scan was rejected: 29/29 elements, reason 7. The
+ * white now carries on across the blip, in time and encoder mode. */
+static void test_leading_blip(void)
+{
+    uint32_t times[B3_BARCODE_RUNS];
+    uint32_t ticks[B3_BARCODE_RUNS];
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge;
+    size_t i;
+    uint32_t gap;
+    uint32_t mode;
+    make_frame('A', 10000U, 30000U, times);
+    make_frame('A', 20U, 60U, ticks);
+    for (mode = 0U; mode < 2U; ++mode)
+    {
+        /* gap from the end of the blip to the first bar */
+        for (gap = 300U; gap <= 80000U; gap *= 4U)
+        {
+            edge = (b3_edge_t){0};
+            edge.position_valid = (1U == mode);
+            edge.time_us = 300000U;
+            b3_barcode_init(&scan, edge);
+            edge.time_us = 500000U - gap - 41U;
+            edge.position_ticks = 400U - (gap / 500U);
+            edge.black = true;
+            CHECK(!b3_barcode_edge(&scan, edge, &result));
+            edge.time_us += 41U;
+            edge.black = false;
+            CHECK(!b3_barcode_edge(&scan, edge, &result));
+            CHECK(!b3_barcode_active(&scan));
+            edge.time_us = 500000U;
+            edge.position_ticks = 400U;
+            edge.black = true;
+            CHECK(!b3_barcode_edge(&scan, edge, &result));
+            for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+            {
+                edge.time_us += times[i];
+                edge.position_ticks += ticks[i];
+                edge.black = !edge.black;
+                CHECK(!b3_barcode_edge(&scan, edge, &result));
+            }
+            CHECK(scan.pending);
+            edge.time_us += 100000U;
+            edge.position_ticks += 200U;
+            CHECK(b3_barcode_poll(&scan, edge, &result));
+            CHECK('A' == result.symbol);
+            CHECK((1U == mode) == result.used_encoder);
+            CHECK(0U == scan.rejected);
+            CHECK(1U == scan.glitches);
+        }
+    }
+    /* Encoder mode: a white that really is too short still fails, with the
+       numbers in ticks (1000 ticks before, needs 10 x 200). */
+    make_frame('A', 200U, 600U, ticks);
+    edge = feed_frame(&scan, 500000U, times, ticks, 300000U);
+    edge.time_us += 200000U;
+    edge.position_ticks += 3000U;
+    CHECK(!b3_barcode_poll(&scan, edge, &result));
+    CHECK(1U == scan.rejected);
+    CHECK(B3_REJECT_LEADING_QUIET == scan.reject_reason);
+    CHECK(scan.reject_encoder);
+    CHECK(1000U == scan.reject_lead);
+    CHECK((200U * B3_QUIET_NARROW_MULTIPLE) == scan.reject_need);
+    (void)puts("PASS: a blip just before the first bar keeps the white before it");
+}
+
+/* nyx, 2026-11-06: an 18 mm black mark 105-125 mm before a barcode at
+ * 50 mm/s (20 ms/mm, 6 ticks/mm). The mark starts a scan, the white after
+ * it passes B3_MAX_ELEMENT_US and the scan is dropped. The white before the
+ * barcode must still count from the end of the mark (it used to restart at
+ * the drop, leaving 5-25 mm, so the barcode failed with reason 7). With
+ * polls every 10 ms, and with no poll in the white (dropped on the edge). */
+static void test_mark_before_barcode(void)
+{
+    uint32_t times[B3_BARCODE_RUNS];
+    uint32_t ticks[B3_BARCODE_RUNS];
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge;
+    size_t i;
+    uint32_t mode;
+    uint32_t gap_mm;
+    make_frame('A', 40000U, 100000U, times); /* narrow 2 mm, wide 5 mm */
+    make_frame('A', 12U, 30U, ticks);
+    for (mode = 0U; mode < 4U; ++mode)
+    {
+        bool polled = (mode < 2U);
+        for (gap_mm = 105U; gap_mm <= 125U; gap_mm += 10U)
+        {
+            uint32_t white_end;
+            edge = (b3_edge_t){0};
+            edge.position_valid = (1U == (mode & 1U));
+            edge.time_us = 100000U;
+            b3_barcode_init(&scan, edge);
+            edge.time_us = 1000000U;
+            edge.position_ticks = 6000U;
+            edge.black = true;
+            CHECK(!b3_barcode_edge(&scan, edge, &result));
+            edge.time_us += 18U * 20000U;
+            edge.position_ticks += 18U * 6U;
+            edge.black = false;
+            CHECK(!b3_barcode_edge(&scan, edge, &result));
+            CHECK(b3_barcode_active(&scan));
+            white_end = edge.time_us + (gap_mm * 20000U);
+            if (polled)
+            {
+                b3_edge_t now = edge;
+                while ((now.time_us + 10000U) < white_end)
+                {
+                    now.time_us += 10000U;
+                    now.position_ticks = edge.position_ticks +
+                        (((now.time_us - edge.time_us) * 6U) / 20000U);
+                    CHECK(!b3_barcode_poll(&scan, now, &result));
+                }
+                CHECK(!b3_barcode_active(&scan));
+            }
+            edge.time_us = white_end;
+            edge.position_ticks += gap_mm * 6U;
+            edge.black = true;
+            CHECK(!b3_barcode_edge(&scan, edge, &result));
+            CHECK(1U == scan.rejected);
+            CHECK(B3_REJECT_TOO_LONG == scan.reject_reason);
+            CHECK(b3_barcode_active(&scan));
+            for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+            {
+                edge.time_us += times[i];
+                edge.position_ticks += ticks[i];
+                edge.black = !edge.black;
+                CHECK(!b3_barcode_edge(&scan, edge, &result));
+            }
+            CHECK(scan.pending);
+            edge.time_us += 1000000U;
+            edge.position_ticks += 300U;
+            CHECK(b3_barcode_poll(&scan, edge, &result));
+            CHECK('A' == result.symbol);
+            CHECK((1U == (mode & 1U)) == result.used_encoder);
+            CHECK(1U == scan.rejected);
+        }
+    }
+    (void)puts("PASS: a black mark 10-13 cm before a barcode at 50 mm/s does not shorten its leading white");
 }
 
 /* DO comparator chatter: a 41 us blip inside a bar and another in the
@@ -558,6 +709,8 @@ int main(void)
     test_any_size();
     test_slowdown_compensation();
     test_edge_blips();
+    test_leading_blip();
+    test_mark_before_barcode();
     test_trim_outer_bars();
     test_line_logic();
     (void)printf("All %u checks passed. Host logic tests; no hardware timing claim.\n", g_checks);

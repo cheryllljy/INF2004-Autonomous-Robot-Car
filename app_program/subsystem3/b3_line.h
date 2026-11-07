@@ -45,7 +45,8 @@ typedef struct
 typedef struct
 {
     b3_line_state_t state;
-    int8_t error; /* -1 = line under IR_L (steer left); +1 = under IR_R (steer right); 0 = straight. */
+    /* -1 = line under IR_L (steer left); +1 = under IR_R (steer right); 0 = straight. */
+    int8_t error;
     int16_t left_mm_s;
     int16_t right_mm_s;
     bool left_black;

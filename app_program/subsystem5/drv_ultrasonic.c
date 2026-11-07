@@ -54,31 +54,33 @@
 /*=====================================================================*/
 
 /** Trigger pulse. Datasheet minimum is 10 us. */
-#define DRV_US_TRIG_US              (12U)
+#define DRV_US_TRIG_US (12U)
 
 /**
  * Read the counter this long (kernel time) after the trigger. With the
  * 10 ms tick that is at least 20 ms real: 3.4 m of flight, past the
  * 2.5 m valid limit, so every valid echo has finished.
  */
-#define DRV_US_READ_WINDOW_MS       (30U)   /* kernel ms; >= 20 ms real */
+#define DRV_US_READ_WINDOW_MS (30U) /* kernel ms; >= 20 ms real */
 
 /**
  * Minimum trigger-to-trigger spacing (datasheet 60 ms), kernel time.
  * Firing sooner makes the old echo look like a near object.
  */
-#define DRV_US_QUIET_MS             (60U)
+#define DRV_US_QUIET_MS (60U)
 
 /** v3.0: speed of sound from the air temperature, in 0.1 m/s
  *  (= 0.1 mm/ms): 331.3 + 0.606 T. 25 C -> 3464 (v2 used 343.0 fixed). */
-#define DRV_US_SPEED_DMM_PER_MS     (3313U + ((606U * (uint32_t)S5_AIR_TEMP_C) / 100U))
+#define DRV_US_SPEED_DMM_PER_MS \
+    (3313U + ((606U * (uint32_t)S5_AIR_TEMP_C) / 100U))
 
 S5_STATIC_ASSERT((S5_AIR_TEMP_C >= 0) && (S5_AIR_TEMP_C <= 50), air_temp_sane);
 S5_STATIC_ASSERT((S5_CAL_RANGE_SCALE_Q12 >= 3686) &&
-                 (S5_CAL_RANGE_SCALE_Q12 <= 4506), range_scale_within_10pc);
+                     (S5_CAL_RANGE_SCALE_Q12 <= 4506),
+                 range_scale_within_10pc);
 
 /** Kernel tick, used to turn a remaining time into a delay. */
-#define DRV_US_TICK_MS              (10U)
+#define DRV_US_TICK_MS (10U)
 
 S5_STATIC_ASSERT(S5_PWM_SLICE_OF(S5_ECHO_GPIO) == S5_ECHO_PWM_SLICE,
                  echo_on_slice_0);
@@ -88,14 +90,14 @@ S5_STATIC_ASSERT(S5_PWM_IS_CHAN_B(S5_ECHO_GPIO), echo_on_channel_b);
 /* Module state (owned by the obstacle task only)                      */
 /*=====================================================================*/
 
-static uint32_t           g_last_trig_ms = 0U;
-static bool               g_fired_once   = false;
-static bool               g_ready        = false;
-static ultrasonic_stats_t g_stats        = { 0U, 0U, 0U, 0U };
+static uint32_t g_last_trig_ms = 0U;
+static bool g_fired_once = false;
+static bool g_ready = false;
+static ultrasonic_stats_t g_stats = { 0U, 0U, 0U, 0U };
 
 /* Live range calibration; only the calibration build changes it. */
-static int32_t g_scale_q12  = (int32_t)S5_CAL_RANGE_SCALE_Q12;
-static int32_t g_offset_mm  = (int32_t)S5_CAL_RANGE_OFFSET_MM;
+static int32_t g_scale_q12 = (int32_t)S5_CAL_RANGE_SCALE_Q12;
+static int32_t g_offset_mm = (int32_t)S5_CAL_RANGE_OFFSET_MM;
 
 /*=====================================================================*/
 /* Private helpers                                                     */
@@ -172,9 +174,9 @@ static void drv_us_arm_counter(void)
 static uint32_t drv_us_read_counter(void)
 {
     const UW slice = (UW)S5_ECHO_PWM_SLICE;
-    UW       count;
+    UW count;
 
-    clr_w(S5_PWM_CSR(slice), S5_PWM_CSR_EN);  /* freeze */
+    clr_w(S5_PWM_CSR(slice), S5_PWM_CSR_EN); /* freeze */
     count = in_w(S5_PWM_CTR(slice)) & 0xFFFFU;
 
     return (uint32_t)count;
@@ -197,17 +199,17 @@ static void drv_us_fire(void)
 static ultrasonic_status_t drv_us_classify(uint32_t echo_us, uint16_t *p_mm)
 {
     ultrasonic_status_t status = ULTRASONIC_OK;
-    const uint16_t      mm     = drv_us_to_mm(echo_us);
+    const uint16_t mm = drv_us_to_mm(echo_us);
 
     if (mm < (uint16_t)DRV_US_MIN_VALID_MM)
     {
         status = ULTRASONIC_TOO_CLOSE;
-        *p_mm  = (uint16_t)DRV_US_MIN_VALID_MM;
+        *p_mm = (uint16_t)DRV_US_MIN_VALID_MM;
     }
     else if (mm > (uint16_t)DRV_US_MAX_VALID_MM)
     {
         status = ULTRASONIC_TOO_FAR;
-        *p_mm  = (uint16_t)S5_RANGE_UNKNOWN_MM;
+        *p_mm = (uint16_t)S5_RANGE_UNKNOWN_MM;
     }
     else
     {
@@ -224,7 +226,7 @@ static ultrasonic_status_t drv_us_classify(uint32_t echo_us, uint16_t *p_mm)
 bool drv_ultrasonic_init(void)
 {
     const UW slice = (UW)S5_ECHO_PWM_SLICE;
-    const UW pad   = GPIO(S5_ECHO_GPIO);
+    const UW pad = GPIO(S5_ECHO_GPIO);
 
     s5_pwm_block_ready();
 
@@ -242,14 +244,13 @@ bool drv_ultrasonic_init(void)
 
     /* Slice 0: level-gated divider, 1 count per us while B is high,
      * full 16-bit range (65 ms, above the 38 ms HC-SR04 no-echo pulse). */
-    out_w(S5_PWM_CSR(slice),
-          S5_PWM_DIVMODE_LEVEL << S5_PWM_CSR_DIVMODE_SHIFT);
+    out_w(S5_PWM_CSR(slice), S5_PWM_DIVMODE_LEVEL << S5_PWM_CSR_DIVMODE_SHIFT);
     out_w(S5_PWM_DIV(slice), S5_PWM_DIV_1MHZ << S5_PWM_DIV_INT_SHIFT);
     out_w(S5_PWM_TOP(slice), 0xFFFFU);
     out_w(S5_PWM_CTR(slice), 0U);
 
     g_fired_once = false;
-    g_ready      = true;
+    g_ready = true;
 
     return g_ready;
 }
@@ -257,10 +258,10 @@ bool drv_ultrasonic_init(void)
 ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result)
 {
     ultrasonic_status_t status = ULTRASONIC_BAD_PARAM;
-    uint16_t            mm     = (uint16_t)S5_RANGE_UNKNOWN_MM;
-    uint32_t            echo   = 0U;
+    uint16_t mm = (uint16_t)S5_RANGE_UNKNOWN_MM;
+    uint32_t echo = 0U;
 
-    if (p_result != NULL)
+    if (NULL != p_result)
     {
         if (!g_ready)
         {
@@ -286,13 +287,13 @@ ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result)
 
                 drv_us_arm_counter();
                 g_last_trig_ms = drv_us_now_ms();
-                g_fired_once   = true;
+                g_fired_once = true;
                 drv_us_fire();
 
                 drv_us_sleep_since(g_last_trig_ms, DRV_US_READ_WINDOW_MS);
 
                 still_high = drv_us_echo_high();
-                echo       = drv_us_read_counter();
+                echo = drv_us_read_counter();
                 drv_us_count(&g_stats.pings);
 
                 if (still_high)
@@ -302,7 +303,7 @@ ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result)
                     drv_us_count(&g_stats.no_echo);
                     status = ULTRASONIC_NO_ECHO;
                 }
-                else if (echo == 0U)
+                else if (0U == echo)
                 {
                     /* ECHO never rose. An empty track cannot cause this. */
                     drv_us_count(&g_stats.no_response);
@@ -312,7 +313,7 @@ ultrasonic_status_t drv_ultrasonic_ping(ultrasonic_result_t *p_result)
                 {
                     status = drv_us_classify(echo, &mm);
 
-                    if (status != ULTRASONIC_OK)
+                    if (ULTRASONIC_OK != status)
                     {
                         drv_us_count(&g_stats.rejects);
                     }
@@ -330,30 +331,30 @@ ultrasonic_status_t drv_ultrasonic_ping_median(ultrasonic_result_t *p_result)
 {
     ultrasonic_status_t status = ULTRASONIC_BAD_PARAM;
 
-    if (p_result != NULL)
+    if (NULL != p_result)
     {
         uint16_t valid[DRV_US_MEDIAN_SAMPLES];
-        uint8_t  n         = 0U;
-        uint8_t  faults    = 0U;
-        uint8_t  too_close = 0U;
-        uint8_t  i;
+        uint8_t n = 0U;
+        uint8_t faults = 0U;
+        uint8_t too_close = 0U;
+        uint8_t i;
         uint16_t mm = (uint16_t)S5_RANGE_UNKNOWN_MM;
 
         for (i = 0U; i < (uint8_t)DRV_US_MEDIAN_SAMPLES; i++)
         {
-            ultrasonic_result_t       one;
+            ultrasonic_result_t one;
             const ultrasonic_status_t st = drv_ultrasonic_ping(&one);
 
-            if (st == ULTRASONIC_OK)
+            if (ULTRASONIC_OK == st)
             {
                 valid[n] = drv_us_result_mm(one);
                 n++;
             }
-            else if (st == ULTRASONIC_TOO_CLOSE)
+            else if (ULTRASONIC_TOO_CLOSE == st)
             {
                 too_close++;
             }
-            else if ((st == ULTRASONIC_NO_ECHO) || (st == ULTRASONIC_TOO_FAR))
+            else if ((ULTRASONIC_NO_ECHO == st) || (ULTRASONIC_TOO_FAR == st))
             {
                 /* Answered, nothing in range. */
             }
@@ -371,7 +372,7 @@ ultrasonic_status_t drv_ultrasonic_ping_median(ultrasonic_result_t *p_result)
             for (a = 1U; a < n; a++)
             {
                 const uint16_t key = valid[a];
-                uint8_t        b   = a;
+                uint8_t b = a;
 
                 while ((b > 0U) && (valid[b - 1U] > key))
                 {
@@ -381,7 +382,7 @@ ultrasonic_status_t drv_ultrasonic_ping_median(ultrasonic_result_t *p_result)
                 valid[b] = key;
             }
 
-            mm     = valid[n / 2U];
+            mm = valid[n / 2U];
             status = ULTRASONIC_OK;
         }
         else if (faults > 0U)
@@ -392,7 +393,7 @@ ultrasonic_status_t drv_ultrasonic_ping_median(ultrasonic_result_t *p_result)
         }
         else if (too_close > 0U)
         {
-            mm     = (uint16_t)DRV_US_MIN_VALID_MM;
+            mm = (uint16_t)DRV_US_MIN_VALID_MM;
             status = ULTRASONIC_TOO_CLOSE;
         }
         else
@@ -408,7 +409,7 @@ ultrasonic_status_t drv_ultrasonic_ping_median(ultrasonic_result_t *p_result)
 
 void drv_ultrasonic_get_stats(ultrasonic_stats_t *p_stats)
 {
-    if (p_stats != NULL)
+    if (NULL != p_stats)
     {
         *p_stats = g_stats;
     }
@@ -435,10 +436,22 @@ uint32_t drv_ultrasonic_time_us(void)
 void drv_us_set_cal(int32_t scale_q12, int32_t offset_mm)
 {
     /* +/-10 % and +/-100 mm, like the compile-time check. */
-    if (scale_q12 < 3686) { scale_q12 = 3686; }
-    if (scale_q12 > 4506) { scale_q12 = 4506; }
-    if (offset_mm < -100) { offset_mm = -100; }
-    if (offset_mm > 100)  { offset_mm = 100; }
+    if (scale_q12 < 3686)
+    {
+        scale_q12 = 3686;
+    }
+    if (scale_q12 > 4506)
+    {
+        scale_q12 = 4506;
+    }
+    if (offset_mm < -100)
+    {
+        offset_mm = -100;
+    }
+    if (offset_mm > 100)
+    {
+        offset_mm = 100;
+    }
 
     g_scale_q12 = scale_q12;
     g_offset_mm = offset_mm;

@@ -10,6 +10,7 @@
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 watch    (window 3, optional)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 go       (reset + start)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 stop
+      powershell -ExecutionPolicy Bypass -File .\robot.ps1 map -Map "F=left,A=right,B=forward,C=uturn"
 
   Commands
       check   is mosquitto installed, which IP is this laptop, does it
@@ -21,6 +22,15 @@
       watch   print everything the robot publishes (inf2004/#)
       start | stop | reset    send one command
       go      reset, wait 2 s, start (use this after every power-up)
+      map     send the barcode letter -> movement mapping (Buddy 1),
+              -Map "F=left,A=right,B=forward,C=uturn": 4 different
+              letters A-Z, each with a different one of forward, left,
+              right, uturn (Buddy 1 accepts only a full set of 4).
+              Sent retained, so the broker gives it to the
+              car again after every power-up. The car prints
+              "[BUDDY1] MQTT mapping accepted" and one line per letter.
+              Mapping payload: 8 bytes = 4 x (ASCII letter, 0 forward / 1 left /
+              2 right / 3 uturn).
 
   The robot ignores a command whose sequence number is not newer than
   the last one, so this script remembers it in %TEMP%\inf2004_seq.txt
@@ -31,8 +41,9 @@
 #>
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('check', 'broker', 'test', 'watch', 'start', 'stop', 'reset', 'go')]
+    [ValidateSet('check', 'broker', 'test', 'watch', 'start', 'stop', 'reset', 'go', 'map')]
     [string]$Cmd = 'check',
+    [string]$Map = 'A=left,B=right,C=forward,D=uturn',
     [string]$Broker = '',
     [int]$Port = 1883,
     [string]$Mosquitto = 'C:\Program Files\mosquitto'
@@ -86,6 +97,29 @@ function Send-Robot([int]$code, [string]$name) {
     Write-Host ("sent {0,-5} (seq {1}) to {2}:{3}" -f $name.ToUpper(), $seq, $ip, $Port)
 }
 
+function Send-Mapping([string]$spec) {
+    if (-not (Test-Path $Pub)) { throw "mosquitto_pub not found in $Mosquitto (winget install -e --id EclipseFoundation.Mosquitto)" }
+    $codes = @{ 'FORWARD' = 0; 'LEFT' = 1; 'RIGHT' = 2; 'UTURN' = 3 }
+    $pairs = @($spec.ToUpper() -split '\s*,\s*' | Where-Object { $_ -ne '' })
+    if ($pairs.Count -ne 4) { throw 'need exactly 4 pairs, like -Map "F=left,A=right,B=forward,C=uturn"' }
+    $bytes = New-Object System.Collections.Generic.List[byte]
+    $letters = @{}; $moves = @{}
+    foreach ($p in $pairs) {
+        if ($p -notmatch '^([A-Z])\s*=\s*(FORWARD|LEFT|RIGHT|UTURN)$') { throw "bad pair '$p': use LETTER=forward|left|right|uturn" }
+        $l = $Matches[1]; $m = $Matches[2]
+        if ($letters.ContainsKey($l)) { throw "letter $l used twice" }
+        if ($moves.ContainsKey($m))   { throw "movement $m used twice (the robot needs 4 different movements)" }
+        $letters[$l] = 1; $moves[$m] = 1
+        $bytes.Add([byte][char]$l); $bytes.Add([byte]$codes[$m])
+    }
+    $ip = Get-BrokerIp
+    $f  = Join-Path $env:TEMP 'inf2004_map.bin'
+    [System.IO.File]::WriteAllBytes($f, $bytes.ToArray())
+    & $Pub -h $ip -p $Port -t $Topic -r -f $f
+    if ($LASTEXITCODE -ne 0) { throw "could not reach the broker at ${ip}:$Port - is 'robot.ps1 broker' running?" }
+    Write-Host "sent mapping $($pairs -join ' ') (retained) to ${ip}:$Port"
+}
+
 switch ($Cmd) {
     'check' {
         Write-Host "mosquitto      : $(if (Test-Path $Exe) { 'installed' } else { 'NOT FOUND - winget install -e --id EclipseFoundation.Mosquitto' })"
@@ -125,6 +159,7 @@ switch ($Cmd) {
     'start' { Send-Robot 1 'start' }
     'stop'  { Send-Robot 2 'stop' }
     'reset' { Send-Robot 3 'reset' }
+    'map'   { Send-Mapping $Map }
     'go' {
         Send-Robot 3 'reset'
         Start-Sleep -Seconds 2

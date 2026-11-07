@@ -4,6 +4,201 @@ Buddy 5, student ID 2502410. Newest first. v1 stays in
 `app_program/old_src/` (not built) and in git history; nothing is
 overwritten.
 
+## v3.4 (2026-11-06): faster sweep, back to the car's own line
+
+nyx's report (2026-11-06): the sweep is too slow; after turning away
+from the box the car does not get back to its line behind it.
+
+### Sweep (S5)
+- `S5_SCAN_SLEW_DPS` 90 -> 300 deg/s and `S5_WATCH_SLEW_DPS` 180 -> 300.
+  Still one smooth pass, 1 deg every 3 ms. A scan takes 2.6 s instead of
+  5.0 s (sim S2); most of what is left is the pings themselves.
+
+### Way back to the line (vc_obstacle.c, IN)
+- The course has lanes. With the beam not calibrated, the 21 cm box
+  scans about 35 cm wide and the detour goes about 29 cm out, past the
+  next lane's line; coming back, the IRs met that line first and the car
+  rejoined the wrong lane (sim C20 before the fix: rejoined 250 mm off).
+  A line met while dead reckoning still has the car more than half the
+  bypass offset (at least `VC_OBS_LINE_WINDOW_MIN_MM`, 100) from its own
+  line is now ignored and printed as another lane. While searching, the
+  first line is taken.
+- Near the line (within `VC_OBS_ARC_NEAR_MM` by dead reckoning, after
+  the first IR hit, and while searching) the arc slows to 60 mm/s.
+- Once the line has been between the IRs, the moment it is under one IR
+  again Buddy 3 takes over: it steers towards it. Before, VC drove on by
+  dead reckoning, which can carry the line out past the far IR, and with
+  the IRs straddling the line "both white" off the track looks centred.
+- The arc gives up by distance (the longest path back at the shallowest
+  approach + the line search + `VC_OBS_ARC_SLACK_MM`), not after 12 s,
+  so a slower car is not cut off. 40 s remains as a stall cap.
+- New log lines: `back to the line: N mm to the side ...`, `IR_x on the
+  line, N mm from where dead reckoning has it`, `crossed a line N mm from
+  ours by dead reckoning: another lane, ignored`, `line under IR_x,
+  Buddy 3 takes over`; every FAIL now prints where the car was.
+
+### Tests
+- test_car: after the handover, Buddy 3's real line logic (`b3_line.c`,
+  running on every pass as on the car) follows at its base speed for
+  400 mm, and the car must still be on the line. New scenarios: C19
+  nyx's 210 mm box with a 22 deg flat-face beam, beam not calibrated;
+  C20 the same with lane lines 250 mm either side; C21 the same with the
+  step 4 beam (separate build, test_car_cal); C22 / C23 IRs 120 / 20 mm
+  ahead of the axle where VC assumes 60. 23 scenarios pass.
+
+## v3.3 (2026-11-06): calibrate the beam on the real obstacle
+
+nyx's report (2026-11-06): the 21 cm box reads 42 cm wide.
+
+- The sweep range (+/-60) does not make it wider; the beam does. The
+  width is the angle where the box stops answering, minus the beam
+  half-angle, and `S5_CAL_BEAM_HALF_DDEG` is still the datasheet 7.5 deg.
+  A flat face echoes from much further off-axis than the thin post of
+  step 1, so every edge was placed too far out.
+- New calibration step 4/4 (`s5_calibrate.c`, `S5_CAL_BUILD 1`): the
+  course's box (`S5_CAL_OBSTACLE_WIDTH_MM`, 210) square to the car at
+  300 mm. The servo creeps 1 deg at a time over the whole sweep, twice
+  each way; the beam half-angle is how far past the box's own corners it
+  still answers. When step 4 passes it replaces step 1's beam in the
+  printed block (step 1's value is printed in a comment).
+- Host test H06a now runs all four steps (post beam 12 deg, box beam
+  22 deg: found 22.1). New H06c: the obstacle task on a 21 cm box with a
+  22 deg flat-face beam reads 297..354 mm wide with the old 7.5 deg and
+  208..214 mm with the step 4 value.
+
+## v3.2 (2026-11-06): smooth sweep, no rescan loop, find the line
+
+nyx's report (2026-11-06): the sweep is too fast and jumpy; the car
+keeps doing detect, reverse, sweep, pause, drive forward, sweep, reverse;
+it went left although the right side was shorter; after passing it did
+not come back to the line, drove straight, and the sensor kept sweeping.
+
+### Sweep (S5)
+- One smooth pass instead of jumps: the servo turns 1 deg at a time at
+  `S5_SCAN_SLEW_DPS` (90 deg/s) from one sweep limit to the other and
+  pings every 10 deg (13 bearings at +/-60). Bearings inside
+  +/-`S5_SWEEP_MEDIAN_DEG` (20) use the median of 3 on the way past, so
+  the fine pass does not turn back. Edge probes take the nearer edge
+  first. Side looks while passing and the return to centre turn at
+  `S5_WATCH_SLEW_DPS` (180 deg/s). New `drv_servo_get_angle_ddeg()`.
+- Scan time (sim S2) 1.5 s -> 5.0 s at 90 deg/s (2.6 s at 300). Every
+  bearing of the +/-60 view is measured now, so NFR11 (1.8 s) is no
+  longer met at any servo speed; test_sim checks the new budget.
+- A first scan plans round anything up to `OBSTACLE_TRIGGER_MM` +
+  `S5_PLAN_MARGIN_MM` (400 mm). A box the guard saw at 300 mm used to
+  scan as CONTINUE at 310, so the car drove on and stopped again.
+- A rescan VC asked for always stays in ASSIST and raises PROFILED, never
+  CLEARED, so VC decides what happens next.
+- `DRV_SERVO_INVERT` (drv_servo.c) can be set from the build. A wrong
+  servo direction mirrors every bearing: the car picks the wrong side
+  and WATCH looks at the empty side.
+
+### VehicleController (vc_obstacle.c)
+- The rescan after the slow back-off no longer ends the episode when it
+  says CONTINUE, STOP or SLOW: VC plans from the first scan, with the
+  nearest point moved out by the back-off (or the fresh front range).
+  This was the reverse / sweep / drive / reverse loop.
+- The arc back only hands over to line following after an IR has seen
+  the line. If dead reckoning says "on the line" first, the car keeps
+  closing in at 20 deg for up to 400 mm, then stops with a fault instead
+  of driving straight off the track (with the IRs straddling the line,
+  "both white" off the track looks like "centred").
+- Dead encoder check: one wheel moving 150 mm while the other reads
+  under 5 mm stops the episode with a fault (nyx's GP3 encoder). The
+  heading is worked out from the two encoders only, so a dead one makes
+  every turn and the arc back wrong.
+- `VC_OBS_TIMEOUT_MS` 45 -> 60 s for the slower scans.
+
+### Follow-up (same day): no sweeping unless driving, firmer return
+- nyx: "I don't want the servo to keep sweeping, only when it detects an
+  object", and the car still did not get back to the line.
+- `obstacle_set_armed()`: VC arms S5 only in LINE_FOLLOW, TURNING and
+  OBSTACLE. Parked or stopped, S5 keeps the front range fresh but never
+  stops-and-sweeps (a hand in front used to start a sweep that VC threw
+  away, over and over). Sim S13.
+- WATCH: `S5_WATCH_FRONT_LOOKS` 0 holds the sensor turned towards the
+  obstacle while passing instead of swinging side / front / side. 1 gives
+  back the front look on the pass leg.
+- Arc back: until an IR has seen the line the car cuts back at least
+  `VC_OBS_APPROACH_MIN_DEG` (15 deg), so drifting dead reckoning no longer
+  makes it creep alongside the line; search length 400 -> 600 mm.
+
+### Tests
+- test_car: C14 odometry 25 % short, C15 right encoder dead (safe
+  stop), C16 no line where the car comes back (safe stop), C17/C18
+  heading reads 12 % over / under (turn slip). 18/18 pass.
+- test_sim: S13 parked (no sweep until armed).
+
+## v3.1 (2026-11-06): wider sweep, slow reverse and rescan, smooth return
+
+nyx's requests (2026-11-06): the sonar bracket now sweeps a wider angle;
+measure the object to about +/-1 cm; always reverse slowly and scan
+again; leave the obstacle by a small, computed angle towards the
+clearer side so the car does not drift into another lane; come back to
+the centre of the track smoothly; the car is about 180 x 130 mm.
+
+### Sweep and measurement (S5)
+- `S5_SWEEP_LIMIT_DEG` 30 -> 60, `DRV_SERVO_MIN/MAX_DEG` 60/120 ->
+  30/150. Static asserts keep the limit on the 10 deg grid, inside the
+  packed bearing range (+/-70) and inside the servo limits.
+  TODO(measure): the limit must match the real bracket.
+- The coarse pass stays at -30..+30 (new `S5_COARSE_OUTER/MID_DEG`):
+  a +/-60 coarse pass took 1957-2188 ms and broke NFR11 (1800 ms).
+  Instead `obs_extend_edges()` follows an edge outwards 10 deg at a time,
+  up to the limit, only while the object still runs off the measured
+  bearings. S2 scan time 1391 -> 1518 ms.
+- `S5_EDGE_PROBES` 2 -> 3 (10 -> 1.25 deg, about +/-3 mm per edge at
+  300 mm). Host v3 test: mean width error 10 -> 9 mm on the ideal
+  robot; test_cal calibrated faulty robot 24 -> 9 mm. The sim's
+  sonar noise and beam model limit it; +/-10 mm on the real car still
+  needs the calibration run.
+- Height cannot be measured: the HC-SR04 sweeps one horizontal plane and
+  returns only the nearest echo. Nothing reports a height.
+- A rescan that VC asks for always uses the far remeasure trigger
+  (`rescan_far`), so an obstacle the car backed away from is never
+  called CONTINUE.
+
+### Car size and margins
+- `OBSTACLE_HALF_WIDTH_MM` 75 -> 65, `OBSTACLE_ROBOT_LENGTH_MM` 200 ->
+  180, `S5_REAR_FROM_SENSOR_MM` 150 -> 180 (TODO(measure)),
+  `OBSTACLE_SAFETY_MARGIN_MM` 60 -> 40, `VC_OBS_EXTRA_MM` 20 -> 10.
+  The in-path band is now +/-105 mm and the corridor 170 mm.
+
+### VehicleController bypass (`vc_obstacle.c/.h`)
+- Every bypass first reverses slowly (`VC_OBS_REV_SPEED_MM_S` 100 -> 40)
+  to stand about `VC_OBS_REMEASURE_MM` (350) from the face, scans again
+  and plans from the second profile. Each profile prints its width,
+  edges, centre, nearest point and swings.
+- Out angle: the smallest angle from `VC_OBS_TURN_MIN_DEG` (20) up to
+  STEEP (70) that clears the swing before the face, from
+  lateral * cos(a) <= forward * sin(a). The "blocked -> steeper" fallback
+  is kept.
+- Clearer side: when both sides are open and the swings are within
+  20 mm, the side with the bigger gap wins (`obs_prefer_clearer()`,
+  refine only, so the CR1 equivalence test is unchanged).
+- Return: TURN_IN / straight IN / ALIGN replaced by one arc
+  (`VC_OBS_IN`, `motion_set_wheel_speeds`): heading target from the
+  lateral offset (200 mm look-ahead, max 30 deg), the IR pair resets the
+  lateral offset when it straddles the line, and it hands straight to
+  LINE_FOLLOW without stopping. Something ahead -> stop and replan;
+  12 s timeout -> fail. TURN_IN and ALIGN stay in the enum (unused) so
+  telemetry step numbers do not move.
+
+### Tests (`testing/subsystem5/host`)
+- G7 vector `{20, 320}` -> `{20, 300}` and the G16 title: the 130 mm car's
+  path band is +/-105 mm.
+- v1 reference: `BOARD_HALF_WIDTH_MM` / `OBSTACLE_SAFETY_MARGIN_MM` can be
+  set from the Makefile (`V1_CAR`), so the CR1 equivalence test compares
+  the same car (0 mismatches).
+- test_car: chassis 180 x 130; C10 now expects the second box to be
+  seen by the wider scan and passed on the right; new C12 (small box
+  hidden behind the first, found beside the lane) and C13 (second box
+  on the line, hidden, found on the arc back: stop, rescan, replan; v3.0
+  stopped in FAULT here).
+- Car sim, v3.0 -> v3.1: rejoin error within +/-13 mm (was +/-7 mm, now
+  with no stop at the line); closest approach 36-97 mm (was 29-105);
+  episodes about 6 s longer (reverse at 40 mm/s plus the second scan).
+
 ## v3.0 (2026-11-04): prof feedback, calibration, side watch, reverse, VC bypass
 
 Prof feedback after Tribunal 1 (meeting 2026-11-03):
