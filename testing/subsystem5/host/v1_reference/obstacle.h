@@ -56,7 +56,9 @@
 #define OBSTACLE_HARD_STOP_MM       (120U)
 
 /** Lateral clearance the chassis needs to squeeze past an object. */
+#ifndef OBSTACLE_SAFETY_MARGIN_MM   /* nyx, 2026-11-06: see Makefile */
 #define OBSTACLE_SAFETY_MARGIN_MM   (60U)
+#endif
 
 /** Lateral gap reported when a sector returned no echo at all. */
 #define OBSTACLE_GAP_OPEN_MM        (1500U)

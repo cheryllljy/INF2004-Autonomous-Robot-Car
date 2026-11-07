@@ -37,7 +37,7 @@
 
 /** 1 once real measured values are pasted in. */
 #ifndef S5_CAL_DONE
-#define S5_CAL_DONE                 (0)
+#define S5_CAL_DONE (0)
 #endif
 
 /*---------------------------------------------------------------------*/
@@ -47,13 +47,13 @@
 /** Command (in 0.1 deg) that points the sensor straight ahead, minus
  *  90.0 deg. Example: -35 means "command 86.5 deg to look straight". */
 #ifndef S5_CAL_SERVO_TRIM_DDEG
-#define S5_CAL_SERVO_TRIM_DDEG      (0)
+#define S5_CAL_SERVO_TRIM_DDEG (0)
 #endif
 
 /** Half the backlash dead band, 0.1 deg. Added when the horn moves
  *  towards higher angles (left), subtracted when it moves right. */
 #ifndef S5_CAL_SERVO_BACKLASH_DDEG
-#define S5_CAL_SERVO_BACKLASH_DDEG  (0)
+#define S5_CAL_SERVO_BACKLASH_DDEG (0)
 #endif
 
 /*---------------------------------------------------------------------*/
@@ -62,12 +62,12 @@
 
 /** Q12 gain: 4096 = 1.000. */
 #ifndef S5_CAL_RANGE_SCALE_Q12
-#define S5_CAL_RANGE_SCALE_Q12      (4096)
+#define S5_CAL_RANGE_SCALE_Q12 (4096)
 #endif
 
 /** mm, added after the gain. */
 #ifndef S5_CAL_RANGE_OFFSET_MM
-#define S5_CAL_RANGE_OFFSET_MM      (0)
+#define S5_CAL_RANGE_OFFSET_MM (0)
 #endif
 
 /*---------------------------------------------------------------------*/
@@ -75,16 +75,19 @@
 /*---------------------------------------------------------------------*/
 
 /** Beam half-angle, 0.1 deg: the angle off the sensor axis at which a
- *  thin post still answers. Datasheet "15 deg measuring angle" = 7.5. */
+ *  thin post still answers. Datasheet "15 deg measuring angle" = 7.5.
+ *  nyx, 2026-11-06: calibration step 4 measures it on the real obstacle
+ *  instead (a flat face answers much further off-axis: with 7.5 the
+ *  21 cm box read 42 cm wide) and prints that value. */
 #ifndef S5_CAL_BEAM_HALF_DDEG
-#define S5_CAL_BEAM_HALF_DDEG       (75)
+#define S5_CAL_BEAM_HALF_DDEG (75)
 #endif
 
 /** Sensor face ahead of the servo axis, mm (ruler). The geometry works
  *  in polar coordinates round the servo axis, so this is added to every
  *  swept range. TODO(measure). */
 #ifndef S5_CAL_SENSOR_ARM_MM
-#define S5_CAL_SENSOR_ARM_MM        (0)
+#define S5_CAL_SENSOR_ARM_MM (0)
 #endif
 
 #endif /* S5_CALIB_H */

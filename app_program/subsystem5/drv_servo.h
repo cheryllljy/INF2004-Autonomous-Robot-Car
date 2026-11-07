@@ -19,10 +19,13 @@
 /** Hard limits: every command is clamped here, so no code path can
  *  drive the bracket into the Pico board (v2.2: 60..120 = +/-30 deg,
  *  bench 2026-11-01). A stalled SG90 also draws ~700 mA and can brown
- *  out the 5 V servo rail the sonar shares. */
-#define DRV_SERVO_MIN_DEG           (60)
-#define DRV_SERVO_MAX_DEG           (120)
-#define DRV_SERVO_CENTRE_DEG        (90)
+ *  out the 5 V servo rail the sonar shares.
+ *  nyx, 2026-11-06: extended mount, 30..150 = +/-60 deg. Keep these at
+ *  90 -/+ S5_SWEEP_LIMIT_DEG (s5_config.h) and at what the bracket can
+ *  really reach. */
+#define DRV_SERVO_MIN_DEG    (30)
+#define DRV_SERVO_MAX_DEG    (150)
+#define DRV_SERVO_CENTRE_DEG (90)
 
 /**
  * v3.0 correction, pure so the host tests run the same maths: logical
@@ -79,6 +82,9 @@ void drv_servo_set_cal(int16_t trim_ddeg, int16_t backlash_ddeg);
 
 /** Last angle actually commanded. */
 int16_t drv_servo_get_angle(void);
+
+/** nyx, 2026-11-06: last logical angle commanded, in 0.1 deg. */
+int16_t drv_servo_get_angle_ddeg(void);
 
 /** Worst-case travel plus ringing time, ms. Ranging earlier measures
  *  whatever the beam was sweeping past. */

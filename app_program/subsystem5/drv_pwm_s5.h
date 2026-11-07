@@ -14,28 +14,28 @@
 #include <sys/machine.h>
 
 /* Register offsets inside one slice (RP2040 datasheet 4.5.3). */
-#define S5_PWM_SLICE_BASE(s)        (PWM_BASE + (0x14U * (UW)(s)))
-#define S5_PWM_CSR(s)               (S5_PWM_SLICE_BASE(s) + PWM_CHx_CSR)
-#define S5_PWM_DIV(s)               (S5_PWM_SLICE_BASE(s) + PWM_CHx_DIV)
-#define S5_PWM_CTR(s)               (S5_PWM_SLICE_BASE(s) + PWM_CHx_CTR)
-#define S5_PWM_CC(s)                (S5_PWM_SLICE_BASE(s) + PWM_CHx_CC)
-#define S5_PWM_TOP(s)               (S5_PWM_SLICE_BASE(s) + PWM_CHx_TOP)
+#define S5_PWM_SLICE_BASE(s) (PWM_BASE + (0x14U * (UW)(s)))
+#define S5_PWM_CSR(s)        (S5_PWM_SLICE_BASE(s) + PWM_CHx_CSR)
+#define S5_PWM_DIV(s)        (S5_PWM_SLICE_BASE(s) + PWM_CHx_DIV)
+#define S5_PWM_CTR(s)        (S5_PWM_SLICE_BASE(s) + PWM_CHx_CTR)
+#define S5_PWM_CC(s)         (S5_PWM_SLICE_BASE(s) + PWM_CHx_CC)
+#define S5_PWM_TOP(s)        (S5_PWM_SLICE_BASE(s) + PWM_CHx_TOP)
 
 /* CSR fields */
-#define S5_PWM_CSR_EN               (1UL << 0)
-#define S5_PWM_CSR_DIVMODE_SHIFT    (4U)
-#define S5_PWM_DIVMODE_FREE         (0UL)   /* count every divided clock */
-#define S5_PWM_DIVMODE_LEVEL        (1UL)   /* count only while B is high */
+#define S5_PWM_CSR_EN            (1UL << 0)
+#define S5_PWM_CSR_DIVMODE_SHIFT (4U)
+#define S5_PWM_DIVMODE_FREE      (0UL) /* count every divided clock */
+#define S5_PWM_DIVMODE_LEVEL     (1UL) /* count only while B is high */
 
 /* DIV: 8.4 fixed point, integer part in bits 11..4 */
-#define S5_PWM_DIV_INT_SHIFT        (4U)
+#define S5_PWM_DIV_INT_SHIFT (4U)
 
 /** Divider for 1 count per microsecond. SYSCLK is in MHz (125). */
-#define S5_PWM_DIV_1MHZ             ((UW)SYSCLK)
+#define S5_PWM_DIV_1MHZ ((UW)SYSCLK)
 
 /** Slice of a GPIO, and whether it is channel B (odd pin). */
-#define S5_PWM_SLICE_OF(gpio)       (((gpio) >> 1) & 7U)
-#define S5_PWM_IS_CHAN_B(gpio)      (((gpio) & 1U) != 0U)
+#define S5_PWM_SLICE_OF(gpio)  (((gpio) >> 1) & 7U)
+#define S5_PWM_IS_CHAN_B(gpio) (((gpio) & 1U) != 0U)
 
 /**
  * @brief   Take the PWM block out of reset.

@@ -25,7 +25,8 @@
 #define B1_FR2_STOP  2u
 #define B1_FR2_RESET 3u
 
-typedef struct {
+typedef struct
+{
     uint8_t command;
     uint8_t sequence;
 } B1_FR2_Command;
@@ -40,7 +41,7 @@ typedef struct {
  *
  * This does not call the MQTT/lwIP stack.
  */
-int b1_fr2_pop(B1_FR2_Command *output);
+int32_t b1_fr2_pop(B1_FR2_Command *output);
 
 /*
  * Number of commands waiting for the controller.

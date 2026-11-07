@@ -21,11 +21,12 @@
 #include <tk/tkernel.h>
 #include <tm/tmonitor.h>
 
-#define DEMO_TASK_PRIORITY  (30)
-#define DEMO_TASK_STACK     (4096U)
-#define DEMO_GPIO_IN        (*(volatile uint32_t *)(0xD0000004U))
-#define DEMO_GPIO20_CTRL    (*(volatile uint32_t *)(0x400140A4U))   /* IO_BANK0 GPIO20_CTRL */
-#define DEMO_BUTTON_PIN     (20U)
+#define DEMO_TASK_PRIORITY (30)
+#define DEMO_TASK_STACK    (4096U)
+#define DEMO_GPIO_IN       (*(volatile uint32_t *)(0xD0000004U))
+/* IO_BANK0 GPIO20_CTRL */
+#define DEMO_GPIO20_CTRL (*(volatile uint32_t *)(0x400140A4U))
+#define DEMO_BUTTON_PIN  (20U)
 
 static ID s_demo_task_id;
 
@@ -33,15 +34,24 @@ static const char *demo_state_name(motion_state_t s)
 {
     switch (s)
     {
-    case MOTION_STATE_INIT:           return "INIT";
-    case MOTION_STATE_IDLE:           return "IDLE";
-    case MOTION_STATE_DRIVING:        return "DRIVING";
-    case MOTION_STATE_LINE_FOLLOWING: return "LINE_FOLLOWING";
-    case MOTION_STATE_TURNING:        return "TURNING";
-    case MOTION_STATE_STOPPING:       return "STOPPING";
-    case MOTION_STATE_ESTOP:          return "ESTOP";
-    case MOTION_STATE_FAULT:          return "FAULT";
-    default:                          return "?";
+        case MOTION_STATE_INIT:
+            return "INIT";
+        case MOTION_STATE_IDLE:
+            return "IDLE";
+        case MOTION_STATE_DRIVING:
+            return "DRIVING";
+        case MOTION_STATE_LINE_FOLLOWING:
+            return "LINE_FOLLOWING";
+        case MOTION_STATE_TURNING:
+            return "TURNING";
+        case MOTION_STATE_STOPPING:
+            return "STOPPING";
+        case MOTION_STATE_ESTOP:
+            return "ESTOP";
+        case MOTION_STATE_FAULT:
+            return "FAULT";
+        default:
+            return "?";
     }
 }
 
@@ -49,13 +59,20 @@ static const char *demo_result_name(motion_result_t r)
 {
     switch (r)
     {
-    case MOTION_RESULT_NONE:     return "NONE";
-    case MOTION_RESULT_DONE:     return "DONE";
-    case MOTION_RESULT_STOPPED:  return "STOPPED";
-    case MOTION_RESULT_FAULT:    return "FAULT";
-    case MOTION_RESULT_ESTOP:    return "ESTOP";
-    case MOTION_RESULT_REJECTED: return "REJECTED";
-    default:                     return "?";
+        case MOTION_RESULT_NONE:
+            return "NONE";
+        case MOTION_RESULT_DONE:
+            return "DONE";
+        case MOTION_RESULT_STOPPED:
+            return "STOPPED";
+        case MOTION_RESULT_FAULT:
+            return "FAULT";
+        case MOTION_RESULT_ESTOP:
+            return "ESTOP";
+        case MOTION_RESULT_REJECTED:
+            return "REJECTED";
+        default:
+            return "?";
     }
 }
 
@@ -63,18 +80,25 @@ static const char *demo_fault_name(motion_fault_t f)
 {
     switch (f)
     {
-    case MOTION_FAULT_NONE:             return "none";
-    case MOTION_FAULT_STALL_L:          return "STALL_L";
-    case MOTION_FAULT_STALL_R:          return "STALL_R";
-    case MOTION_FAULT_ENCODER_TIMEOUT:  return "ENCODER_TIMEOUT";
-    case MOTION_FAULT_LINE_STALE:       return "LINE_STALE";
-    default:                            return "?";
+        case MOTION_FAULT_NONE:
+            return "none";
+        case MOTION_FAULT_STALL_L:
+            return "STALL_L";
+        case MOTION_FAULT_STALL_R:
+            return "STALL_R";
+        case MOTION_FAULT_ENCODER_TIMEOUT:
+            return "ENCODER_TIMEOUT";
+        case MOTION_FAULT_LINE_STALE:
+            return "LINE_STALE";
+        default:
+            return "?";
     }
 }
 
 static bool demo_button_pressed(void)
 {
-    return (((DEMO_GPIO_IN >> DEMO_BUTTON_PIN) & 1U) == 0U);       /* active low */
+    /* active low */
+    return (((DEMO_GPIO_IN >> DEMO_BUTTON_PIN) & 1U) == 0U);
 }
 
 /* Wait (real time, from the status time stamp) until the command has finished.
@@ -86,7 +110,8 @@ static motion_result_t demo_wait_done(uint32_t timeout_ms)
     uint32_t last_print;
     bool estop_sent = false;
 
-    (void)tk_dly_tsk(60);                       /* let MotionControl pick up the command */
+    /* let MotionControl pick up the command */
+    (void)tk_dly_tsk(60);
     motion_get_status(&st);
     t0 = st.timestamp_ms;
     last_print = t0;
@@ -103,16 +128,20 @@ static motion_result_t demo_wait_done(uint32_t timeout_ms)
         if ((st.timestamp_ms - last_print) >= 200U)
         {
             last_print = st.timestamp_ms;
-            tm_printf((UB *)"  t=%u ms %s vL %d vR %d mm/s dist %d mm heading %d deg\n",
-                      (unsigned int)(st.timestamp_ms - t0), demo_state_name(st.state),
-                      (int)st.speed_l_mmps, (int)st.speed_r_mmps,
-                      (int)st.distance_total_mm, (int)st.heading_deg);
+            tm_printf((UB *)"  t=%u ms %s vL %d vR %d mm/s dist %d mm heading "
+                            "%d deg\n",
+                      (uint32_t)(st.timestamp_ms - t0),
+                      demo_state_name(st.state), (int32_t)st.speed_l_mmps,
+                      (int32_t)st.speed_r_mmps, (int32_t)st.distance_total_mm,
+                      (int32_t)st.heading_deg);
         }
-        if ((st.state == MOTION_STATE_IDLE) && (st.last_result != MOTION_RESULT_NONE))
+        if ((MOTION_STATE_IDLE == st.state) &&
+            (MOTION_RESULT_NONE != st.last_result))
         {
             break;
         }
-        if ((st.state == MOTION_STATE_ESTOP) || (st.state == MOTION_STATE_FAULT))
+        if ((MOTION_STATE_ESTOP == st.state) ||
+            (MOTION_STATE_FAULT == st.state))
         {
             break;
         }
@@ -127,19 +156,21 @@ static motion_result_t demo_wait_done(uint32_t timeout_ms)
         (void)tk_dly_tsk(20);
     }
 
-    tm_printf((UB *)"  -> %s, result %s, fault %s, dist %d mm (L %d, R %d), heading %d deg, overruns %u\n",
-              demo_state_name(st.state), demo_result_name(st.last_result), demo_fault_name(st.fault),
-              (int)st.distance_total_mm, (int)st.dist_l_mm, (int)st.dist_r_mm,
-              (int)st.heading_deg, (unsigned int)st.overrun_count);
+    tm_printf((UB *)"  -> %s, result %s, fault %s, dist %d mm (L %d, R %d), "
+                    "heading %d deg, overruns %u\n",
+              demo_state_name(st.state), demo_result_name(st.last_result),
+              demo_fault_name(st.fault), (int32_t)st.distance_total_mm,
+              (int32_t)st.dist_l_mm, (int32_t)st.dist_r_mm,
+              (int32_t)st.heading_deg, (uint32_t)st.overrun_count);
     return st.last_result;
 }
 
 static bool demo_step(const char *name, motion_err_t err, uint32_t timeout_ms)
 {
     tm_printf((UB *)"demo: %s\n", name);
-    if (err != MOTION_OK)
+    if (MOTION_OK != err)
     {
-        tm_printf((UB *)"  command not accepted (%d)\n", (int)err);
+        tm_printf((UB *)"  command not accepted (%d)\n", (int32_t)err);
         return false;
     }
     return (demo_wait_done(timeout_ms) == MOTION_RESULT_DONE);
@@ -150,14 +181,15 @@ static void demo_task(INT stacd, void *exinf)
     (void)stacd;
     (void)exinf;
 
-    DEMO_GPIO20_CTRL = 5U;                      /* SIO function: GP20 readable as a plain input */
+    /* SIO function: GP20 readable as a plain input */
+    DEMO_GPIO20_CTRL = 5U;
     (void)tk_dly_tsk(8000);
 
-    {   /* Is the kernel's time the same as the hardware timer's? */
+    { /* Is the kernel's time the same as the hardware timer's? */
         motion_status_t a;
         motion_status_t b;
-        SYSTIM kernel_t0 = {0};
-        SYSTIM kernel_t1 = {0};
+        SYSTIM kernel_t0 = { 0 };
+        SYSTIM kernel_t1 = { 0 };
         const uint32_t t0 = motion_hw_time_us();
 
         (void)tk_get_otm(&kernel_t0);
@@ -166,10 +198,11 @@ static void demo_task(INT stacd, void *exinf)
         motion_get_status(&b);
         (void)tk_get_otm(&kernel_t1);
         //tm_printf((UB *)"clock check: tk_dly_tsk(1000) took %u ms by the hardware timer; %u control cycles in that time (expect 50)\n",
-        tm_printf((UB *)"clock check: kernel %u ms, raw timer %u ms, control cycles %u (expect ~1000 ms / ~50 cycles)\n",
-                  (unsigned int)(kernel_t1.lo - kernel_t0.lo),
-                  (unsigned int)((motion_hw_time_us() - t0) / 1000U),
-                  (unsigned int)(b.cycle_count - a.cycle_count));
+        tm_printf((UB *)"clock check: kernel %u ms, raw timer %u ms, control "
+                        "cycles %u (expect ~1000 ms / ~50 cycles)\n",
+                  (uint32_t)(kernel_t1.lo - kernel_t0.lo),
+                  (uint32_t)((motion_hw_time_us() - t0) / 1000U),
+                  (uint32_t)(b.cycle_count - a.cycle_count));
     }
 
     // if (demo_step("1) forward 300 mm at 100 mm/s", motion_move(300, 100), 8000U) &&
@@ -177,7 +210,8 @@ static void demo_task(INT stacd, void *exinf)
     //     demo_step("3) forward 200 mm", motion_move(200, 100), 6000U) &&
     //     demo_step("4) turn right 90 deg", motion_turn(-90, 90), 6000U) &&
     //     demo_step("5) backward 200 mm", motion_move(-200, 100), 6000U))
-    if (demo_step("1) forward 300 mm at 100 mm/s", motion_move(300, 100), 8000U))
+    if (demo_step("1) forward 300 mm at 100 mm/s", motion_move(300, 100),
+                  8000U))
     {
         motion_status_t st;
 
@@ -191,12 +225,14 @@ static void demo_task(INT stacd, void *exinf)
         (void)motion_reset();
         (void)tk_dly_tsk(100);
         motion_get_status(&st);
-        tm_printf((UB *)"  -> %s, result %s\n", demo_state_name(st.state), demo_result_name(st.last_result));
+        tm_printf((UB *)"  -> %s, result %s\n", demo_state_name(st.state),
+                  demo_result_name(st.last_result));
         tm_printf((UB *)"demo: finished OK\n");
     }
     else
     {
-        tm_printf((UB *)"demo: STOPPED at the first step that did not finish with DONE\n");
+        tm_printf((UB *)"demo: STOPPED at the first step that did not finish "
+                        "with DONE\n");
     }
 
     for (;;)
@@ -207,12 +243,12 @@ static void demo_task(INT stacd, void *exinf)
 
 void motion_demo_init(void)
 {
-    T_CTSK ctsk = {0};
+    T_CTSK ctsk = { 0 };
 
-    ctsk.tskatr  = TA_HLNG | TA_RNG0;
-    ctsk.task    = demo_task;
+    ctsk.tskatr = TA_HLNG | TA_RNG0;
+    ctsk.task = demo_task;
     ctsk.itskpri = DEMO_TASK_PRIORITY;
-    ctsk.stksz   = DEMO_TASK_STACK;
+    ctsk.stksz = DEMO_TASK_STACK;
     s_demo_task_id = tk_cre_tsk(&ctsk);
 }
 

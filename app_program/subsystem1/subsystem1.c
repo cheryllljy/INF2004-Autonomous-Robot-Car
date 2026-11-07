@@ -18,18 +18,16 @@
 /*
  * Initialize Subsystem 1.
  */
-EXPORT ER subsystem1_init(void)
+ER subsystem1_init(void)
 {
     if (b1_mapping_store_init() != 0)
     {
-        tm_printf((UB*)
-            "[BUDDY1] Mapping store initialization failed\n");
+        tm_printf((UB *)"[BUDDY1] Mapping store initialization failed\n");
 
         return E_SYS;
     }
 
-    tm_printf((UB*)
-        "[BUDDY1] Mapping store initialized\n");
+    tm_printf((UB *)"[BUDDY1] Mapping store initialized\n");
 
     return E_OK;
 }
@@ -40,7 +38,7 @@ EXPORT ER subsystem1_init(void)
  * Wi-Fi and MQTT run independently inside
  * the network-owning task.
  */
-EXPORT ER subsystem1_start(void)
+ER subsystem1_start(void)
 {
     return E_OK;
 }

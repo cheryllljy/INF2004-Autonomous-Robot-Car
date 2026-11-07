@@ -22,20 +22,16 @@ void mqtt_utk_start(void);
  *
  * Returns 0 if accepted, -1 if invalid.
  */
-int b1_mqtt_set_robot_status(
-    uint8_t controller_state,
-    uint8_t fault_flags,
-    uint8_t metric_0_100
-);
+int32_t b1_mqtt_set_robot_status(uint8_t controller_state, uint8_t fault_flags,
+                                 uint8_t metric_0_100);
 
 /*
  * Returns -1 until controller data exists.
  */
-int b1_mqtt_get_robot_status(
-    B1_Telemetry *output
-);
+int32_t b1_mqtt_get_robot_status(B1_Telemetry *output);
 
-typedef struct {
+typedef struct
+{
     uint8_t wifi_up;
     uint8_t mqtt_up;
     uint8_t healthy;
@@ -51,9 +47,7 @@ typedef struct {
 /*
  * Safe status snapshot for VehicleController.
  */
-int b1_fr3_get_status(
-    B1_FR3_Status *output
-);
+int32_t b1_fr3_get_status(B1_FR3_Status *output);
 
 /*
  * Request an authorized safety-latch reset.
@@ -71,6 +65,6 @@ int b1_fr3_get_status(
  * - Valid RESET command received
  * - A later START is required to resume
  */
-int b1_fr3_controller_reset(void);
+int32_t b1_fr3_controller_reset(void);
 
 #endif

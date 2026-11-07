@@ -7,9 +7,9 @@
 
 /* RP2040 IO_BANK0 uses four interrupt bits per GPIO:
  * level-low, level-high, edge-low, edge-high. Buddy 3 only uses edges. */
-#define B3_GPIO_EDGE_FALL  (1U << 2)
-#define B3_GPIO_EDGE_RISE  (1U << 3)
-#define B3_GPIO_EDGE_BOTH  (B3_GPIO_EDGE_FALL | B3_GPIO_EDGE_RISE)
+#define B3_GPIO_EDGE_FALL (1U << 2)
+#define B3_GPIO_EDGE_RISE (1U << 3)
+#define B3_GPIO_EDGE_BOTH (B3_GPIO_EDGE_FALL | B3_GPIO_EDGE_RISE)
 
 typedef uint32_t b3_irq_state_t;
 
@@ -20,10 +20,10 @@ void b3_port_lock(b3_irq_state_t *p_state);
 void b3_port_unlock(b3_irq_state_t state);
 
 /* GPIO/time services used by the portable IR driver. */
-ER b3_port_gpio_input_init(unsigned int pin, bool pull_up);
-ER b3_port_gpio_output_init(unsigned int pin, bool initial_high);
+ER b3_port_gpio_input_init(uint32_t pin, bool pull_up);
+ER b3_port_gpio_output_init(uint32_t pin, bool initial_high);
 uint32_t b3_port_gpio_get_all(void);
-void b3_port_gpio_put(unsigned int pin, bool value);
+void b3_port_gpio_put(uint32_t pin, bool value);
 uint32_t b3_port_time_us(void);
 
 /* Barcode edge interrupt control. */
@@ -40,6 +40,6 @@ void b3_port_dispatch_barcode_irq(void);
 /* ADC self-check of the IR pins (test build). b3_port_adc_read() is a
  * polled 12-bit read (0..4095), safe from tasks on either core; it returns
  * -1 while the kernel "adca" driver has a conversion in flight. */
-int32_t b3_port_adc_read(unsigned int channel);
+int32_t b3_port_adc_read(uint32_t channel);
 
 #endif

@@ -21,13 +21,14 @@
 #include <tm/tmonitor.h>
 #include "cyc_check.h"
 
-#define CYC_PERIOD_MS       (20U)
-#define CYC_REPORT_CYCLES   (250U)      /* print about every 5 s              */
-#define CYC_TASK_PRIORITY   (1)         /* same as MotionControl (1 = highest) */
-#define CYC_TASK_STACK      (2048U)
+#define CYC_PERIOD_MS     (20U)
+#define CYC_REPORT_CYCLES (250U) /* print about every 5 s              */
+/* same as MotionControl (1 = highest) */
+#define CYC_TASK_PRIORITY (1)
+#define CYC_TASK_STACK    (2048U)
 /* RP2040 free-running 1 MHz timer, low 32 bits (TIMER base 0x40054000 + 0x28).
  * Read directly so no SDK timer library is needed. */
-#define TIMER_RAWL          (*(volatile uint32_t *)0x40054028U)
+#define TIMER_RAWL (*(volatile uint32_t *)0x40054028U)
 
 static ID s_task_id;
 static ID s_cyc_id;
@@ -45,14 +46,14 @@ static void cyc_handler(void *exinf)
 
 static void cyc_task(INT stacd, void *exinf)
 {
-    uint32_t last_stamp  = 0U;
-    uint32_t last_count  = 0U;
-    uint32_t period_min  = UINT32_MAX;
-    uint32_t period_max  = 0U;
+    uint32_t last_stamp = 0U;
+    uint32_t last_count = 0U;
+    uint32_t period_min = UINT32_MAX;
+    uint32_t period_max = 0U;
     uint32_t latency_max = 0U;
-    uint32_t missed      = 0U;
-    uint32_t samples     = 0U;
-    bool     have_last   = false;
+    uint32_t missed = 0U;
+    uint32_t samples = 0U;
+    bool have_last = false;
 
     (void)stacd;
     (void)exinf;
@@ -61,9 +62,10 @@ static void cyc_task(INT stacd, void *exinf)
     {
         (void)tk_slp_tsk(TMO_FEVR);
 
-        uint32_t stamp   = s_handler_stamp_us;
-        uint32_t count   = s_handler_count;
-        uint32_t latency = TIMER_RAWL - stamp;      /* handler -> task running */
+        uint32_t stamp = s_handler_stamp_us;
+        uint32_t count = s_handler_count;
+        /* handler -> task running */
+        uint32_t latency = TIMER_RAWL - stamp;
 
         if (latency > latency_max)
         {
@@ -72,7 +74,7 @@ static void cyc_task(INT stacd, void *exinf)
 
         if (have_last)
         {
-            uint32_t period = stamp - last_stamp;   /* handler to handler */
+            uint32_t period = stamp - last_stamp; /* handler to handler */
             if (period < period_min)
             {
                 period_min = period;
@@ -81,38 +83,39 @@ static void cyc_task(INT stacd, void *exinf)
             {
                 period_max = period;
             }
-            missed += (count - last_count) - 1U;    /* wake-ups that piled up */
+            missed += (count - last_count) - 1U; /* wake-ups that piled up */
         }
 
-        have_last  = true;
+        have_last = true;
         last_stamp = stamp;
         last_count = count;
         samples++;
 
         if (samples >= CYC_REPORT_CYCLES)
         {
-            tm_printf((UB *)"cyc: period %u..%u us, max wake latency %u us, missed %u\n",
-                      (unsigned int)period_min, (unsigned int)period_max,
-                      (unsigned int)latency_max, (unsigned int)missed);
-            samples     = 0U;
-            period_min  = UINT32_MAX;
-            period_max  = 0U;
+            tm_printf((UB *)"cyc: period %u..%u us, max wake latency %u us, "
+                            "missed %u\n",
+                      (uint32_t)period_min, (uint32_t)period_max,
+                      (uint32_t)latency_max, (uint32_t)missed);
+            samples = 0U;
+            period_min = UINT32_MAX;
+            period_max = 0U;
             latency_max = 0U;
-            missed      = 0U;
-            have_last   = false;    /* skip the cycle disturbed by printing */
+            missed = 0U;
+            have_last = false; /* skip the cycle disturbed by printing */
         }
     }
 }
 
 void cyc_check_init(void)
 {
-    T_CTSK ctsk = {0};
-    T_CCYC ccyc = {0};
+    T_CTSK ctsk = { 0 };
+    T_CCYC ccyc = { 0 };
 
-    ctsk.tskatr  = TA_HLNG | TA_RNG0;
-    ctsk.task    = cyc_task;
+    ctsk.tskatr = TA_HLNG | TA_RNG0;
+    ctsk.task = cyc_task;
     ctsk.itskpri = CYC_TASK_PRIORITY;
-    ctsk.stksz   = CYC_TASK_STACK;
+    ctsk.stksz = CYC_TASK_STACK;
     s_task_id = tk_cre_tsk(&ctsk);
 
     ccyc.cycatr = TA_HLNG;
@@ -132,6 +135,6 @@ void cyc_check_start(void)
     else
     {
         tm_printf((UB *)"cyc_check: object creation failed (task %d, cyc %d)\n",
-                  (int)s_task_id, (int)s_cyc_id);
+                  (int32_t)s_task_id, (int32_t)s_cyc_id);
     }
 }

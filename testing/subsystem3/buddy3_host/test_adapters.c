@@ -1,12 +1,39 @@
 /* Deterministic simulation of the micro T-Kernel/BSP boundary. No hardware. */
 #include "buddy3.h"
 #include "b3_port.h"
+#include "b3_code39.h"
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 static uint32_t g_now = 1000U;
 static uint32_t g_pins = UINT32_MAX;
+/* nyx, 2026-11-06: encoder position for Buddy 3, off unless a test turns
+ * it on: ticks = g_pos_base + rate x (g_now - g_pos_t0) */
+static bool g_pos_on;
+static uint32_t g_pos_base;
+static uint32_t g_pos_t0;
+static int32_t g_pos_rate; /* ticks per second, - = backwards */
+
+static uint32_t pos_now(void)
+{
+    return g_pos_base +
+           (uint32_t)(((int64_t)g_pos_rate * (int64_t)(g_now - g_pos_t0)) /
+                      1000000);
+}
+
+static void pos_rate(int32_t ticks_per_s)
+{
+    g_pos_base = pos_now();
+    g_pos_t0 = g_now;
+    g_pos_rate = ticks_per_s;
+}
+
+static bool mock_position(uint32_t *p_ticks)
+{
+    *p_ticks = pos_now();
+    return g_pos_on;
+}
 static uint32_t g_pending;
 static uint32_t g_initialised;
 static bool g_debug_high; /* any GPIO write: Buddy 3 must make none */
@@ -179,7 +206,7 @@ static void test_task_boundary(void)
     b3_context_t context = {0};
     b3_snapshot_t snapshot;
     g_pins = UINT32_MAX;
-    CHECK(E_OK == buddy3_start(NULL));
+    CHECK(E_OK == buddy3_start(mock_position));
     CHECK(g_irq_enabled);
     CHECK(E_OBJ == buddy3_start(NULL));
     one_task_pass();
@@ -321,10 +348,260 @@ static void test_task_boundary(void)
     (void)puts("PASS: micro T-Kernel adapter startup, bounded task pass and stale-context stop");
 }
 
+/* nyx, 2026-11-06: helpers for the held-letter / junction / fault checks. */
+static void set_line_black(bool left, bool right)
+{
+    g_pins = ((B3_IR_L_BLACK_LEVEL != 0U) == left) ? (g_pins | (1U << B3_IR_L_GPIO))
+                                                   : (g_pins & ~(1U << B3_IR_L_GPIO));
+    g_pins = ((B3_IR_R_BLACK_LEVEL != 0U) == right) ? (g_pins | (1U << B3_IR_R_GPIO))
+                                                    : (g_pins & ~(1U << B3_IR_R_GPIO));
+}
+
+static void run_for(b3_context_t *p_context, uint32_t duration_us)
+{
+    uint32_t end = g_now + duration_us;
+    while ((int32_t)(end - g_now) > 0)
+    {
+        g_now += 5000U;
+        p_context->time_us = g_now;
+        buddy3_set_context(p_context);
+        one_task_pass();
+    }
+}
+
+/* Drive one '*' symbol '*' barcode under IR_B: narrow 20 ms, wide 60 ms,
+ * after lead_us of white. */
+static void drive_barcode_lead(b3_context_t *p_context, char symbol,
+                               uint32_t lead_us)
+{
+    const char frame[3] = {'*', symbol, '*'};
+    uint32_t widths[B3_BARCODE_RUNS];
+    size_t out = 0U;
+    for (size_t c = 0U; c < 3U; ++c)
+    {
+        uint16_t pattern = 0U;
+        CHECK(b3_code39_pattern(frame[c], &pattern));
+        for (size_t bit = 0U; bit < 9U; ++bit)
+        {
+            widths[out++] = ((pattern & (1U << (8U - bit))) != 0U) ? 60000U : 20000U;
+        }
+        if (c < 2U)
+        {
+            widths[out++] = 20000U;
+        }
+    }
+    CHECK(B3_BARCODE_RUNS == out);
+    run_for(p_context, lead_us);       /* leading quiet zone */
+    emit(true);                        /* first bar starts */
+    for (size_t i = 0U; i < B3_BARCODE_RUNS; ++i)
+    {
+        g_now += widths[i] - 1000U;    /* emit() adds 1 ms */
+        emit(0U != (i & 1U));          /* bar ends -> white, gap ends -> black */
+        p_context->time_us = g_now;
+        buddy3_set_context(p_context);
+        one_task_pass();
+    }
+    run_for(p_context, 300000U);       /* trailing quiet zone */
+}
+
+static void drive_barcode(b3_context_t *p_context, char symbol)
+{
+    drive_barcode_lead(p_context, symbol, 600000U);
+}
+
+static void test_held_symbol_and_faults(void)
+{
+    b3_context_t context = {0};
+    b3_snapshot_t snapshot;
+    uint32_t junctions;
+
+    context.follow_enabled = true;
+    context.scan_enabled = true;
+    context.motion_valid = true;
+    context.left_measured_mm_s = 120;
+    context.right_measured_mm_s = 120;
+    set_line_black(false, false);
+    emit(false);
+    run_for(&context, 1000000U);
+    buddy3_get_snapshot(&snapshot);
+    junctions = snapshot.junction_sequence;
+
+    /* A decoded letter is held, not acted on. */
+    drive_barcode(&context, 'A');
+    buddy3_get_snapshot(&snapshot);
+    CHECK('A' == snapshot.held_symbol);
+    CHECK(junctions == snapshot.junction_sequence);
+
+    /* Junction at 25 mm/s with a dead right encoder: still detected, and
+       the held letter moves to that junction. */
+    context.left_measured_mm_s = 25;
+    context.right_measured_mm_s = 0;
+    set_line_black(true, true);
+    run_for(&context, 800000U);         /* 20 mm of black at 25 mm/s */
+    buddy3_get_snapshot(&snapshot);
+    CHECK((junctions + 1U) == snapshot.junction_sequence);
+    CHECK('A' == snapshot.junction_symbol);
+    CHECK('\0' == snapshot.held_symbol);
+    set_line_black(false, false);
+    context.left_measured_mm_s = 120;
+    context.right_measured_mm_s = 120;
+    run_for(&context, 100000U);
+
+    /* nyx, 2026-11-06: a speed dip in the middle of the tape no longer
+       hides the junction (distance driven, not slowest speed x time). */
+    junctions = snapshot.junction_sequence;
+    context.left_measured_mm_s = 25;
+    context.right_measured_mm_s = 25;
+    set_line_black(true, true);
+    run_for(&context, 200000U);
+    context.left_measured_mm_s = 5;     /* one slow speed window */
+    context.right_measured_mm_s = 5;
+    run_for(&context, 20000U);
+    context.left_measured_mm_s = 25;
+    context.right_measured_mm_s = 25;
+    run_for(&context, 400000U);         /* ~15 mm in all */
+    buddy3_get_snapshot(&snapshot);
+    CHECK((junctions + 1U) == snapshot.junction_sequence);
+    set_line_black(false, false);
+    run_for(&context, 100000U);
+
+    /* A short black patch (6 mm) is not a junction, and says why. */
+    {
+        const uint32_t misses = snapshot.patch_misses;
+
+        junctions = snapshot.junction_sequence;
+        set_line_black(true, true);
+        run_for(&context, 240000U);     /* 6 mm at 25 mm/s */
+        set_line_black(false, false);
+        run_for(&context, 100000U);
+        buddy3_get_snapshot(&snapshot);
+        CHECK(junctions == snapshot.junction_sequence);
+        CHECK((misses + 1U) == snapshot.patch_misses);
+        CHECK(B3_PATCH_SHORT == (b3_patch_why_t)snapshot.patch_miss_why);
+        CHECK((snapshot.patch_miss_mm >= 4U) && (snapshot.patch_miss_mm <= 8U));
+    }
+    context.left_measured_mm_s = 120;
+    context.right_measured_mm_s = 120;
+
+    /* STOP/RESET from the controller forgets a held letter. */
+    drive_barcode(&context, 'B');
+    buddy3_get_snapshot(&snapshot);
+    CHECK('B' == snapshot.held_symbol);
+    buddy3_clear_held_symbol();
+    run_for(&context, 10000U);
+    buddy3_get_snapshot(&snapshot);
+    CHECK('\0' == snapshot.held_symbol);
+    CHECK(!snapshot.stop_required);
+
+    /* nyx, 2026-11-06: scanning is off during a turn or stop. If IR_B stayed
+     * white, the white before the next barcode counts from before the
+     * pause, so a barcode soon after line following resumes still decodes
+     * (100 ms of white since resuming; 10 x 20 ms narrow is needed). */
+    {
+        uint32_t rejected;
+
+        buddy3_get_snapshot(&snapshot);
+        rejected = snapshot.rejected_scans;
+        run_for(&context, 300000U);
+        context.scan_enabled = false;
+        run_for(&context, 500000U);
+        context.scan_enabled = true;
+        drive_barcode_lead(&context, 'C', 100000U);
+        buddy3_get_snapshot(&snapshot);
+        CHECK('C' == snapshot.held_symbol);
+        CHECK(rejected == snapshot.rejected_scans);
+
+        /* IR_B saw black during the pause, so the white starts after it:
+         * 20 ms + 100 ms is too short, reason 7 with the times kept. */
+        context.scan_enabled = false;
+        run_for(&context, 100000U);
+        emit(true);
+        run_for(&context, 50000U);
+        emit(false);
+        run_for(&context, 20000U);
+        context.scan_enabled = true;
+        drive_barcode_lead(&context, 'D', 100000U);
+        buddy3_get_snapshot(&snapshot);
+        CHECK('C' == snapshot.held_symbol);
+        CHECK((rejected + 1U) == snapshot.rejected_scans);
+        CHECK(B3_REJECT_LEADING_QUIET == (b3_reject_reason_t)snapshot.reject_reason);
+        CHECK(!snapshot.reject_encoder);
+        CHECK((snapshot.reject_lead >= 100000U) && (snapshot.reject_lead <= 130000U));
+        CHECK((snapshot.reject_need >= 180000U) && (snapshot.reject_need <= 220000U));
+        buddy3_clear_held_symbol();
+        run_for(&context, 10000U);
+    }
+
+    /* nyx, 2026-11-06: the VC stops on a barcode start, backs up with
+     * scanning off and reads it slowly. The decoder measures white as net
+     * encoder distance, so the white before the barcode must start where
+     * the reverse ended, not where IR_B left the barcode backwards (that
+     * gave about 0 mm: reason 7). 300 ticks/s; narrow 20 ms = 6 ticks, so
+     * 60 ticks of white are needed; the reverse goes 90 ticks past it. */
+    {
+        uint32_t rejected;
+
+        g_pos_on = true;
+        pos_rate(300);
+        context.base_speed_mm_s = 100;
+        run_for(&context, 1000000U);
+        emit(true); /* first bar */
+        run_for(&context, 20000U);
+        emit(false);
+        run_for(&context, 60000U);
+        emit(true); /* second bar: the VC backs up from here */
+        run_for(&context, 10000U);
+        buddy3_get_snapshot(&snapshot);
+        CHECK(snapshot.scan_active && (snapshot.scan_elements >= 2U));
+        rejected = snapshot.rejected_scans;
+        context.scan_enabled = false;
+        pos_rate(0);
+        run_for(&context, 100000U);
+        pos_rate(-300); /* IR_B crosses the two bars backwards */
+        run_for(&context, 10000U);
+        emit(false);
+        run_for(&context, 60000U);
+        emit(true);
+        run_for(&context, 20000U);
+        emit(false);
+        run_for(&context, 300000U); /* 90 ticks of white backwards */
+        pos_rate(0);
+        run_for(&context, 100000U);
+        context.base_speed_mm_s = 50;
+        context.scan_enabled = true;
+        pos_rate(300);
+        drive_barcode_lead(&context, 'E', 300000U);
+        buddy3_get_snapshot(&snapshot);
+        CHECK('E' == snapshot.held_symbol);
+        CHECK(rejected == snapshot.rejected_scans);
+        CHECK(50 == snapshot.line.left_mm_s);
+        context.base_speed_mm_s = 0;
+        buddy3_clear_held_symbol();
+        run_for(&context, 10000U);
+        g_pos_on = false;
+    }
+
+    /* A serious fault from another Buddy 3 task stops the car for good. */
+    buddy3_report_fault(B3_FAULT_MBF_SEND, E_IO);
+    run_for(&context, 10000U);
+    buddy3_get_snapshot(&snapshot);
+    CHECK(snapshot.stop_required);
+    CHECK(B3_FAULT_MBF_SEND == (b3_fault_t)snapshot.fault_source);
+    CHECK(E_IO == snapshot.task_error);
+    CHECK((0 == snapshot.line.left_mm_s) && (0 == snapshot.line.right_mm_s));
+    buddy3_report_fault(B3_FAULT_MBX_RECEIVE, E_OBJ);   /* first cause kept */
+    run_for(&context, 50000U);
+    buddy3_get_snapshot(&snapshot);
+    CHECK(B3_FAULT_MBF_SEND == (b3_fault_t)snapshot.fault_source);
+    CHECK(snapshot.stop_required);
+    (void)puts("PASS: letter held until a 25 mm/s junction, speed dips tolerated, short patch reported, cleared on request, faults latch a stop");
+}
+
 int main(void)
 {
     test_driver();
     test_task_boundary();
+    test_held_symbol_and_faults();
     (void)printf("All %u adapter checks passed using test doubles.\n", g_checks);
     return EXIT_SUCCESS;
 }

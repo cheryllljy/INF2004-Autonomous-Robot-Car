@@ -25,14 +25,19 @@ typedef struct
 typedef enum
 {
     B3_REJECT_NONE = 0,
-    B3_REJECT_SAME_LEVEL,     /* two edges of the same colour in a row (missed edge) */
-    B3_REJECT_TOO_SHORT,      /* element shorter than B3_MIN_EDGE_US (noise/bounce) */
-    B3_REJECT_TOO_LONG,       /* element longer than B3_MAX_ELEMENT_US */
-    B3_REJECT_RATIO,          /* element > B3_MAX_ELEMENT_RATIO x shortest in this scan */
-    B3_REJECT_SCAN_TIMEOUT,   /* whole scan longer than B3_MAX_SCAN_US */
-    B3_REJECT_DECODE,         /* 29 elements seen but not a valid Code 39 pattern */
-    B3_REJECT_LEADING_QUIET,  /* white before the barcode < 10 x narrow */
-    B3_REJECT_TRAILING_QUIET  /* black came back before the white after it was long enough */
+    /* two edges of the same colour in a row (missed edge) */
+    B3_REJECT_SAME_LEVEL,
+    /* element shorter than B3_MIN_EDGE_US (noise/bounce) */
+    B3_REJECT_TOO_SHORT,
+    B3_REJECT_TOO_LONG, /* element longer than B3_MAX_ELEMENT_US */
+    /* element > B3_MAX_ELEMENT_RATIO x shortest in this scan */
+    B3_REJECT_RATIO,
+    B3_REJECT_SCAN_TIMEOUT, /* whole scan longer than B3_MAX_SCAN_US */
+    /* 29 elements seen but not a valid Code 39 pattern */
+    B3_REJECT_DECODE,
+    B3_REJECT_LEADING_QUIET, /* white before the barcode < 10 x narrow */
+    /* black came back before the white after it was long enough */
+    B3_REJECT_TRAILING_QUIET
 } b3_reject_reason_t;
 
 typedef struct
@@ -40,23 +45,39 @@ typedef struct
     uint32_t time_widths[B3_BARCODE_RUNS];
     uint32_t tick_widths[B3_BARCODE_RUNS];
     b3_edge_t last;
-    b3_edge_t prev;             /* edge before last, to undo a sensor blip */
+    b3_edge_t prev; /* edge before last, to undo a sensor blip */
     uint32_t glitches;
-    uint32_t trimmed;           /* scans decoded only after trimming the outer bars */          /* blips shorter than B3_MIN_EDGE_US absorbed */
+    /* scans decoded only after trimming the outer bars */ /* blips shorter than B3_MIN_EDGE_US absorbed */
+    uint32_t trimmed;
     bool prev_valid;
-    uint32_t glitch_us;         /* time of a black edge seen in the trailing white */
-    bool glitch;                /* that edge is waiting to be confirmed or dropped */
+    /* time of a black edge seen in the trailing white */
+    uint32_t glitch_us;
+    /* that edge is waiting to be confirmed or dropped */
+    bool glitch;
     b3_code39_result_t decoded;
+    /* nyx, 2026-11-06: the white edge the leading white started from, so a
+     * blip on the first bar can hand the white back instead of restarting
+     * it (that restart caused reason 7 on the car). */
+    b3_edge_t lead_from;
     uint32_t leading_us;
     uint32_t leading_ticks;
     uint32_t started_us;
     uint32_t required_trailing;
     uint32_t min_time_width;
     uint32_t rejected;
-    uint32_t reject_element_us; /* duration of the element that caused the last reject */
-    uint8_t reject_reason;      /* b3_reject_reason_t of the last reject */
-    uint8_t reject_count;       /* elements measured (of B3_BARCODE_RUNS) at the last reject */
-    uint32_t reject_widths[B3_BARCODE_RUNS]; /* widths (us) of the last DECODE reject */
+    /* duration of the element that caused the last reject */
+    uint32_t reject_element_us;
+    uint8_t reject_reason; /* b3_reject_reason_t of the last reject */
+    /* elements measured (of B3_BARCODE_RUNS) at the last reject */
+    uint8_t reject_count;
+    /* widths (us) of the last DECODE reject */
+    uint32_t reject_widths[B3_BARCODE_RUNS];
+    /* nyx, 2026-11-06: last LEADING_QUIET reject: white measured before the
+     * first bar and the white needed (B3_QUIET_NARROW_MULTIPLE x narrow), in
+     * encoder ticks if reject_encoder, else in us. */
+    uint32_t reject_lead;
+    uint32_t reject_need;
+    bool reject_encoder;
     uint8_t count;
     bool collecting;
     bool pending;

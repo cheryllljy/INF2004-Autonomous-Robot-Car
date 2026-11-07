@@ -18,9 +18,7 @@
  * Returns 0 on success.
  * Returns -1 for invalid input.
  */
-int buddy1_mqtt_prepare_telemetry(
-    const B1_Telemetry *telemetry,
-    uint8_t payload[B1_TELEMETRY_BYTES]
-);
+int32_t buddy1_mqtt_prepare_telemetry(const B1_Telemetry *telemetry,
+                                      uint8_t payload[B1_TELEMETRY_BYTES]);
 
 #endif /* BUDDY1_MQTT_H */

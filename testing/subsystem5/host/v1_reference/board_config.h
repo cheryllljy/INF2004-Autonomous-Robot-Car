@@ -66,8 +66,12 @@
 /* Chassis geometry (millimetres). Measure your own car and edit.      */
 /*=====================================================================*/
 
-/** Half the widest part of the chassis, wheels included. */
+/** Half the widest part of the chassis, wheels included.
+ *  nyx, 2026-11-06: the Makefile passes v2's value so the CR1
+ *  equivalence test compares like with like after the chassis changed. */
+#ifndef BOARD_HALF_WIDTH_MM
 #define BOARD_HALF_WIDTH_MM         (75U)
+#endif
 
 /** Distance from the sonar face to the front bumper. */
 #define BOARD_SONAR_TO_BUMPER_MM    (30U)

@@ -11,55 +11,56 @@
 #include <tk/smp.h>
 #endif
 
-#define B3_IO_IRQ_BANK0             13U
-#define B3_IO_IRQ_PRIORITY          1
-#define B3_IO_INTR0_OFFSET          0x000000F0U
-#define B3_IO_PROC0_INTE0_OFFSET    0x00000100U
-#define B3_IO_PROC0_INTS0_OFFSET    0x00000120U
-#define B3_GPIO_IRQ_BITS_PER_PIN    4U
-#define B3_GPIO_IRQ_PINS_PER_REG    8U
+#define B3_IO_IRQ_BANK0          13U
+#define B3_IO_IRQ_PRIORITY       1
+#define B3_IO_INTR0_OFFSET       0x000000F0U
+#define B3_IO_PROC0_INTE0_OFFSET 0x00000100U
+#define B3_IO_PROC0_INTS0_OFFSET 0x00000120U
+#define B3_GPIO_IRQ_BITS_PER_PIN 4U
+#define B3_GPIO_IRQ_PINS_PER_REG 8U
 
 /* The TIMER block (TIMERAWL, used for every barcode timestamp) counts one
  * tick per watchdog tick. The kernel never sets the watchdog tick up (the
  * Pico SDK runtime normally does), so after some resets TIMERAWL stands
  * still or runs at the wrong rate. b3_port_init() starts it at 1 MHz:
  * clk_ref is the 12 MHz XOSC (XOSC_MHz, divider 1 in cpu_clock.c). */
-#define B3_WATCHDOG_TICK            0x4005802CU
-#define B3_WATCHDOG_TICK_ENABLE     (1U << 9)
-#define B3_WATCHDOG_TICK_CYCLES     ((UW)XOSC_MHz)
+#define B3_WATCHDOG_TICK        0x4005802CU
+#define B3_WATCHDOG_TICK_ENABLE (1U << 9)
+#define B3_WATCHDOG_TICK_CYCLES ((UW)XOSC_MHz)
 
 /* Polled ADC read for the test self-check. ADC registers as in
  * device/adc/sysdepend/rp2040. */
-#define B3_ADC_CS                   0x4004C000U
-#define B3_ADC_RESULT               0x4004C004U
-#define B3_ADC_FCS                  0x4004C008U
-#define B3_ADC_FIFO                 0x4004C00CU
-#define B3_ADC_INTE                 0x4004C018U
-#define B3_ADC_CS_EN                (1U << 0)
-#define B3_ADC_CS_START_ONCE        (1U << 2)
-#define B3_ADC_CS_READY             (1U << 8)
-#define B3_ADC_CS_AINSEL_POS        12U
-#define B3_ADC_FCS_EMPTY            (1U << 8)
-#define B3_ADC_READY_SPINS          1000U   /* a conversion is 2 us; bound the wait */
-#define B3_IO_GPIO_CTRL(n)          (IO_BANK0_BASE + 0x04U + ((n) * 8U))
-#define B3_IO_FUNCSEL_NULL          31U
+#define B3_ADC_CS            0x4004C000U
+#define B3_ADC_RESULT        0x4004C004U
+#define B3_ADC_FCS           0x4004C008U
+#define B3_ADC_FIFO          0x4004C00CU
+#define B3_ADC_INTE          0x4004C018U
+#define B3_ADC_CS_EN         (1U << 0)
+#define B3_ADC_CS_START_ONCE (1U << 2)
+#define B3_ADC_CS_READY      (1U << 8)
+#define B3_ADC_CS_AINSEL_POS 12U
+#define B3_ADC_FCS_EMPTY     (1U << 8)
+/* a conversion is 2 us; bound the wait */
+#define B3_ADC_READY_SPINS 1000U
+#define B3_IO_GPIO_CTRL(n) (IO_BANK0_BASE + 0x04U + ((n) * 8U))
+#define B3_IO_FUNCSEL_NULL 31U
 
 #if TK_SUPPORT_SMP
 static T_SPLOCK g_b3_lock;
 #endif
 static bool g_port_ready;
 
-static uint32_t irq_reg_index(unsigned int pin)
+static uint32_t irq_reg_index(uint32_t pin)
 {
     return pin / B3_GPIO_IRQ_PINS_PER_REG;
 }
 
-static uint32_t irq_shift(unsigned int pin)
+static uint32_t irq_shift(uint32_t pin)
 {
     return (pin % B3_GPIO_IRQ_PINS_PER_REG) * B3_GPIO_IRQ_BITS_PER_PIN;
 }
 
-static uint32_t irq_hw_mask(unsigned int pin, uint32_t events)
+static uint32_t irq_hw_mask(uint32_t pin, uint32_t events)
 {
     return (events & 0xFU) << irq_shift(pin);
 }
@@ -122,7 +123,7 @@ void b3_port_unlock(b3_irq_state_t state)
 #endif
 }
 
-ER b3_port_gpio_input_init(unsigned int pin, bool pull_up)
+ER b3_port_gpio_input_init(uint32_t pin, bool pull_up)
 {
     ER status = gpio_set_pin((UINT)pin, GPIO_MODE_IN);
     UW pad;
@@ -145,7 +146,7 @@ ER b3_port_gpio_input_init(unsigned int pin, bool pull_up)
     return E_OK;
 }
 
-ER b3_port_gpio_output_init(unsigned int pin, bool initial_high)
+ER b3_port_gpio_output_init(uint32_t pin, bool initial_high)
 {
     ER status = gpio_set_pin((UINT)pin, GPIO_MODE_OUT);
     if (E_OK != status)
@@ -160,7 +161,7 @@ uint32_t b3_port_gpio_get_all(void)
     return (uint32_t)in_w(GPIO_IN);
 }
 
-void b3_port_gpio_put(unsigned int pin, bool value)
+void b3_port_gpio_put(uint32_t pin, bool value)
 {
     (void)gpio_set_val((UINT)pin, value ? 1U : 0U);
 }
@@ -224,7 +225,7 @@ static void b3_io_bank0_handler(UINT intno)
 
 ER b3_port_install_barcode_irq(void)
 {
-    T_DINT dint = {0};
+    T_DINT dint = { 0 };
     ER status;
 
 #if TK_SUPPORT_SMP
@@ -246,7 +247,7 @@ ER b3_port_install_barcode_irq(void)
     return E_OK;
 }
 
-int32_t b3_port_adc_read(unsigned int channel)
+int32_t b3_port_adc_read(uint32_t channel)
 {
     b3_irq_state_t saved;
     int32_t value = -1;
@@ -258,7 +259,8 @@ int32_t b3_port_adc_read(unsigned int channel)
     if (0U == in_w(B3_ADC_INTE))
     {
         for (spins = 0U; (spins < B3_ADC_READY_SPINS) &&
-                         (0U == (in_w(B3_ADC_CS) & B3_ADC_CS_READY)); ++spins)
+                         (0U == (in_w(B3_ADC_CS) & B3_ADC_CS_READY));
+             ++spins)
         {
         }
         out_w(B3_ADC_CS, ((UW)channel << B3_ADC_CS_AINSEL_POS) | B3_ADC_CS_EN);
@@ -281,4 +283,3 @@ int32_t b3_port_adc_read(unsigned int channel)
     b3_port_unlock(saved);
     return value;
 }
-

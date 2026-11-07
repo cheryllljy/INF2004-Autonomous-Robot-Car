@@ -27,7 +27,7 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
                               bool right_black, uint32_t now_us,
                               int16_t base_mm_s)
 {
-    b3_line_result_t result = {0};
+    b3_line_result_t result = { 0 };
     int16_t correction;
     result.left_black = filtered(&p_line->left, left_black, now_us);
     result.right_black = filtered(&p_line->right, right_black, now_us);
@@ -74,23 +74,22 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         p_line->side = result.error;
         p_line->side_since_us = now_us;
     }
-    if ((B3_SHARP_TURN_US != 0U) && (result.error != 0) &&
+    if ((B3_SHARP_TURN_US != 0U) && (0 != result.error) &&
         ((now_us - p_line->side_since_us) >= B3_SHARP_TURN_US))
     {
         p_line->sharp = result.error;
     }
-    if (p_line->sharp != 0)
+    if (0 != p_line->sharp)
     {
         if (result.error == p_line->sharp)
         {
             p_line->sharp_last_us = now_us;
         }
-        else if ((result.state == B3_LINE_CROSSING) ||
-                 (result.error != 0) ||
+        else if ((B3_LINE_CROSSING == result.state) || (0 != result.error) ||
                  ((now_us - p_line->sharp_last_us) >= B3_SHARP_HOLD_US))
         {
             p_line->sharp = 0; /* crossing, other side, or straight again */
-            p_line->recovering = (result.state != B3_LINE_CROSSING);
+            p_line->recovering = (B3_LINE_CROSSING != result.state);
             p_line->sharp_end_us = now_us;
         }
     }
@@ -103,12 +102,12 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         int32_t base = base_mm_s;
         int32_t corr = B3_CORRECTION_MM_S;
 
-        if (p_line->sharp != 0)
+        if (0 != p_line->sharp)
         {
             result.sharp_turn = true;
             ramp_pm = 1000;
         }
-        else if ((B3_SHARP_TURN_US != 0U) && (result.error != 0))
+        else if ((B3_SHARP_TURN_US != 0U) && (0 != result.error))
         {
             uint32_t held = now_us - p_line->side_since_us;
             ramp_pm = (int32_t)(((uint64_t)held * 1000U) / B3_SHARP_TURN_US);
@@ -117,18 +116,19 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
                 ramp_pm = 1000;
             }
         }
-        if (p_line->recovering && (p_line->sharp == 0))
+        if (p_line->recovering && (0 == p_line->sharp))
         {
             /* Ease back up to speed after a sharp turn (B3_SHARP_RECOVER_US). */
             uint32_t since = now_us - p_line->sharp_end_us;
-            if ((result.state == B3_LINE_CROSSING) ||
+            if ((B3_LINE_CROSSING == result.state) ||
                 (since >= B3_SHARP_RECOVER_US))
             {
                 p_line->recovering = false;
             }
             else if (base > B3_SHARP_SPEED_MM_S)
             {
-                int32_t cap = B3_SHARP_SPEED_MM_S +
+                int32_t cap =
+                    B3_SHARP_SPEED_MM_S +
                     (int32_t)(((uint64_t)(base - B3_SHARP_SPEED_MM_S) * since) /
                               B3_SHARP_RECOVER_US);
                 if (base > cap)
@@ -147,11 +147,11 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         }
         corr += ((base - corr) * ramp_pm) / 1000;
         base_mm_s = (int16_t)base;
-        if (result.error != 0)
+        if (0 != result.error)
         {
             correction = (int16_t)(result.error * corr);
         }
-        else if (result.sharp_turn && (result.state != B3_LINE_CROSSING))
+        else if (result.sharp_turn && (B3_LINE_CROSSING != result.state))
         {
             /* Side white again inside the hold: the line may have
              * crossed under the sensor and out, so keep turning gently

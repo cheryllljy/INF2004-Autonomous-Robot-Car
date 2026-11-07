@@ -8,8 +8,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MOTION_SIDE_LEFT    (0U)
-#define MOTION_SIDE_RIGHT   (1U)
+#define MOTION_SIDE_LEFT  (0U)
+#define MOTION_SIDE_RIGHT (1U)
 
 /* Release the PWM/GPIO blocks, set up the motor PWM and the encoder interrupt.
  * Call it from subsystem init code (usermain, core 0), NOT from a task: the

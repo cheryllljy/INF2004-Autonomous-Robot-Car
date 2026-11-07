@@ -21,19 +21,21 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define GPIO_DISPATCH_EDGE_LOW      (0x4U)
-#define GPIO_DISPATCH_EDGE_HIGH     (0x8U)
-#define GPIO_DISPATCH_EDGE_BOTH     (0xCU)
+#define GPIO_DISPATCH_EDGE_LOW  (0x4U)
+#define GPIO_DISPATCH_EDGE_HIGH (0x8U)
+#define GPIO_DISPATCH_EDGE_BOTH (0xCU)
 
-#define GPIO_DISPATCH_IRQ_NUMBER    (13U)   /* RP2040 IO_IRQ_BANK0                          */
-#define GPIO_DISPATCH_IRQ_LEVEL     (1)     /* same level Buddy 3 uses                      */
-#define GPIO_DISPATCH_MAX_PINS      (8U)
+/* RP2040 IO_IRQ_BANK0                          */
+#define GPIO_DISPATCH_IRQ_NUMBER (13U)
+/* same level Buddy 3 uses                      */
+#define GPIO_DISPATCH_IRQ_LEVEL (1)
+#define GPIO_DISPATCH_MAX_PINS  (8U)
 
 /* gpio_dispatch_start() reports this in the tk_def_int status when it is called from
  * core 1. Every RP2040 core has its own interrupt controller, and the handler reads
  * the core 0 registers, so the interrupt must be enabled FROM CORE 0: call it from
  * subsystem init code (usermain runs on core 0), never from a task. */
-#define GPIO_DISPATCH_ERR_WRONG_CORE    (-99)
+#define GPIO_DISPATCH_ERR_WRONG_CORE (-99)
 
 typedef void (*gpio_dispatch_cb_t)(uint32_t pin);
 
@@ -41,7 +43,8 @@ typedef void (*gpio_dispatch_cb_t)(uint32_t pin);
  *              them before calling cb (use for the encoders).
  * events == 0: the owner enables and clears its own events (Buddy 3 does this);
  *              cb is called whenever the pin shows any event. */
-bool gpio_dispatch_register(uint32_t pin, uint32_t events, gpio_dispatch_cb_t cb);
+bool gpio_dispatch_register(uint32_t pin, uint32_t events,
+                            gpio_dispatch_cb_t cb);
 
 /* Install the one handler. Safe to call more than once (Buddy 2 and Buddy 3 both
  * call it; the first call installs, later calls return true). Returns false if
@@ -51,6 +54,7 @@ bool gpio_dispatch_start(void);
 
 /* Diagnostics: tk_def_int() return value (0 = OK, -41 = already defined),
  * INTE0 read back, and how many times the handler has run. */
-void gpio_dispatch_status(int32_t *def_status, uint32_t *inte0, uint32_t *handler_calls);
+void gpio_dispatch_status(int32_t *def_status, uint32_t *inte0,
+                          uint32_t *handler_calls);
 
 #endif /* GPIO_DISPATCH_H */

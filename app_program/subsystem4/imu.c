@@ -12,23 +12,23 @@ static int32_t g_offset_y = 0;
 static int32_t g_offset_z = 0;
 
 /* LSM303D I2C Address (shared by both accelerometer and magnetometer) */
-#define LSM303D_ADDR    0x1DU
+#define LSM303D_ADDR 0x1DU
 
 /* Device Identification */
-#define REG_WHO_AM_I    0x0FU
-#define LSM303D_ID      0x49U
+#define REG_WHO_AM_I 0x0FU
+#define LSM303D_ID   0x49U
 
 /* Accelerometer Registers */
-#define REG_CTRL1_A     0x20U
-#define REG_CTRL2_A     0x21U
-#define REG_CTRL4_A     0x23U
-#define REG_OUT_X_L_A   0x28U
+#define REG_CTRL1_A   0x20U
+#define REG_CTRL2_A   0x21U
+#define REG_CTRL4_A   0x23U
+#define REG_OUT_X_L_A 0x28U
 
 /* Magnetometer Registers */
-#define REG_CTRL5_M     0x24U
-#define REG_CTRL6_M     0x25U
-#define REG_CTRL7_M     0x26U
-#define REG_OUT_X_L_M   0x08U
+#define REG_CTRL5_M   0x24U
+#define REG_CTRL6_M   0x25U
+#define REG_CTRL7_M   0x26U
+#define REG_OUT_X_L_M 0x08U
 
 static ID g_i2c_device;
 static uint8_t g_accel_address;
@@ -37,8 +37,8 @@ static bool g_ready;
 /* ------------------------------------------------------------------ */
 /* Low-level I2C via RTOS device driver                               */
 /* ------------------------------------------------------------------ */
-static bool imu_read_regs(uint8_t address, uint8_t reg, UB *p_data,
-                          SZ length, bool auto_increment)
+static bool imu_read_regs(uint8_t address, uint8_t reg, UB *p_data, SZ length,
+                          bool auto_increment)
 {
     UB register_address = reg;
     T_I2C_EXEC transfer;
@@ -51,13 +51,13 @@ static bool imu_read_regs(uint8_t address, uint8_t reg, UB *p_data,
     }
 
     /* Give the bus plenty of time, especially when motor noise is present. */
-    for (int retry = 0; retry < 3; retry++)
+    for (int32_t retry = 0; retry < 3; retry++)
     {
-        transfer.sadr       = address;
-        transfer.snd_size   = 1;
-        transfer.snd_data   = &register_address;
-        transfer.rcv_size   = length;
-        transfer.rcv_data   = p_data;
+        transfer.sadr = address;
+        transfer.snd_size = 1;
+        transfer.snd_data = &register_address;
+        transfer.rcv_size = length;
+        transfer.rcv_data = p_data;
         status = tk_swri_dev(g_i2c_device, TDN_I2C_EXEC, &transfer,
                              sizeof(transfer), &actual_size);
         if (status >= E_OK && actual_size == (SZ)sizeof(transfer))
@@ -75,8 +75,8 @@ static bool imu_write_reg(uint8_t address, uint8_t reg, uint8_t value)
     SZ actual_size;
     ER status;
 
-    status = tk_swri_dev(g_i2c_device, address, bytes, sizeof(bytes),
-                         &actual_size);
+    status =
+        tk_swri_dev(g_i2c_device, address, bytes, sizeof(bytes), &actual_size);
     return status >= E_OK && actual_size == (SZ)sizeof(bytes);
 }
 
@@ -89,26 +89,26 @@ void imu_scan_bus(void)
 
     if (g_i2c_device <= 0)
     {
-        tm_printf((UB*)"I2C device is not open.\n");
+        tm_printf((UB *)"I2C device is not open.\n");
         return;
     }
 
-    tm_printf((UB*)"Scanning I2C bus...\n");
+    tm_printf((UB *)"Scanning I2C bus...\n");
     for (uint8_t addr = 0x08; addr < 0x78; addr++)
     {
         if (imu_read_regs(addr, REG_WHO_AM_I, &id, 1U, false))
         {
-            tm_printf((UB*)"  Device at 0x%02X, WHO_AM_I=0x%02X\n",
-                      (UINT)addr, (UINT)id);
+            tm_printf((UB *)"  Device at 0x%02X, WHO_AM_I=0x%02X\n", (UINT)addr,
+                      (UINT)id);
         }
     }
-    tm_printf((UB*)"Scan complete.\n");
+    tm_printf((UB *)"Scan complete.\n");
 }
 
 imu_status_t imu_init(void)
 {
     UB id = 0U;
-    static const UB device_name[] = {'i', 'i', 'c', 'a', '\0'};
+    static const UB device_name[] = { 'i', 'i', 'c', 'a', '\0' };
 
     g_ready = false;
     g_accel_address = 0U;
@@ -124,32 +124,51 @@ imu_status_t imu_init(void)
 
     if (imu_read_regs(LSM303D_ADDR, REG_WHO_AM_I, &id, 1U, false))
     {
-        if (id == LSM303D_ID)
+        if (LSM303D_ID == id)
         {
             g_accel_address = LSM303D_ADDR;
         }
         else
         {
-            tm_printf((UB*)"Unexpected WHO_AM_I value: 0x%02X (expected 0x49)\n",
-                      (UINT)id);
+            tm_printf(
+                (UB *)"Unexpected WHO_AM_I value: 0x%02X (expected 0x49)\n",
+                (UINT)id);
             return IMU_BAD_ID;
         }
     }
 
-    if (g_accel_address == 0U)
+    if (0U == g_accel_address)
     {
         return IMU_ACCEL_NOT_FOUND;
     }
 
     /* Accelerometer: 100 Hz, all axes, +/-2g, high-resolution, BDU */
-    if (!imu_write_reg(g_accel_address, REG_CTRL1_A, 0x57U)) return IMU_I2C_ERROR;
-    if (!imu_write_reg(g_accel_address, REG_CTRL2_A, 0x00U)) return IMU_I2C_ERROR;
-    if (!imu_write_reg(g_accel_address, REG_CTRL4_A, 0x88U)) return IMU_I2C_ERROR;
+    if (!imu_write_reg(g_accel_address, REG_CTRL1_A, 0x57U))
+    {
+        return IMU_I2C_ERROR;
+    }
+    if (!imu_write_reg(g_accel_address, REG_CTRL2_A, 0x00U))
+    {
+        return IMU_I2C_ERROR;
+    }
+    if (!imu_write_reg(g_accel_address, REG_CTRL4_A, 0x88U))
+    {
+        return IMU_I2C_ERROR;
+    }
 
     /* Magnetometer: 50 Hz, high-res, +/-4 gauss, continuous */
-    if (!imu_write_reg(g_accel_address, REG_CTRL5_M, 0x74U)) return IMU_I2C_ERROR;
-    if (!imu_write_reg(g_accel_address, REG_CTRL6_M, 0x20U)) return IMU_I2C_ERROR;
-    if (!imu_write_reg(g_accel_address, REG_CTRL7_M, 0x00U)) return IMU_I2C_ERROR;
+    if (!imu_write_reg(g_accel_address, REG_CTRL5_M, 0x74U))
+    {
+        return IMU_I2C_ERROR;
+    }
+    if (!imu_write_reg(g_accel_address, REG_CTRL6_M, 0x20U))
+    {
+        return IMU_I2C_ERROR;
+    }
+    if (!imu_write_reg(g_accel_address, REG_CTRL7_M, 0x00U))
+    {
+        return IMU_I2C_ERROR;
+    }
 
     g_ready = true;
     return IMU_OK;
@@ -158,7 +177,7 @@ imu_status_t imu_init(void)
 /* Close and reopen the I2C device. Call this if imu_init fails. */
 imu_status_t imu_reset(void)
 {
-    if (g_i2c_device > 0) 
+    if (g_i2c_device > 0)
     {
         tk_cls_dev(g_i2c_device, 0);
         g_i2c_device = 0;
@@ -173,14 +192,16 @@ void imu_calibrate(void)
 {
     imu_vector_t sample;
     int32_t sum_x = 0, sum_y = 0, sum_z = 0;
-    int valid = 0;
+    int32_t valid = 0;
 
     g_offset_x = g_offset_y = g_offset_z = 0;
-    tm_printf((UB*)"Calibrating IMU... Keep the sensor still and flat.\n");
+    tm_printf((UB *)"Calibrating IMU... Keep the sensor still and flat.\n");
     tk_dly_tsk(100);
 
-    for (int i = 0; i < 100; i++) {
-        if (imu_read_accel(&sample) == IMU_OK) {
+    for (int32_t i = 0; i < 100; i++)
+    {
+        if (imu_read_accel(&sample) == IMU_OK)
+        {
             sum_x += sample.x;
             sum_y += sample.y;
             sum_z += sample.z;
@@ -189,8 +210,9 @@ void imu_calibrate(void)
         tk_dly_tsk(2);
     }
 
-    if (valid == 0) {
-        tm_printf((UB*)"Calibration failed: no valid samples.\n");
+    if (0 == valid)
+    {
+        tm_printf((UB *)"Calibration failed: no valid samples.\n");
         return;
     }
 
@@ -198,8 +220,8 @@ void imu_calibrate(void)
     g_offset_y = sum_y / valid;
     g_offset_z = (sum_z / valid) + 16384;
 
-    tm_printf((UB*)"Calibration complete: %d/100. Offsets X=%d Y=%d Z=%d\n",
-        valid, (INT)g_offset_x, (INT)g_offset_y, (INT)g_offset_z);
+    tm_printf((UB *)"Calibration complete: %d/100. Offsets X=%d Y=%d Z=%d\n",
+              valid, (INT)g_offset_x, (INT)g_offset_y, (INT)g_offset_z);
 }
 
 imu_status_t imu_read_accel(imu_vector_t *p_sample)
@@ -212,17 +234,26 @@ imu_status_t imu_read_accel_with_raw(imu_vector_t *p_sample,
                                      imu_vector_t *p_raw_sample)
 {
     UB bytes[6];
-    if (p_sample == NULL || p_raw_sample == NULL) return IMU_BAD_PARAM;
-    if (!g_ready) return IMU_NOT_READY;
-    if (!imu_read_regs(g_accel_address, REG_OUT_X_L_A, bytes, sizeof(bytes), true))
+    if (NULL == p_sample || NULL == p_raw_sample)
+    {
+        return IMU_BAD_PARAM;
+    }
+    if (!g_ready)
+    {
+        return IMU_NOT_READY;
+    }
+    if (!imu_read_regs(g_accel_address, REG_OUT_X_L_A, bytes, sizeof(bytes),
+                       true))
+    {
         return IMU_I2C_ERROR;
+    }
 
-    p_raw_sample->x = (int16_t)((uint16_t)bytes[0] |
-                                ((uint16_t)bytes[1] << 8U));
-    p_raw_sample->y = (int16_t)((uint16_t)bytes[2] |
-                                ((uint16_t)bytes[3] << 8U));
-    p_raw_sample->z = (int16_t)((uint16_t)bytes[4] |
-                                ((uint16_t)bytes[5] << 8U));
+    p_raw_sample->x =
+        (int16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8U));
+    p_raw_sample->y =
+        (int16_t)((uint16_t)bytes[2] | ((uint16_t)bytes[3] << 8U));
+    p_raw_sample->z =
+        (int16_t)((uint16_t)bytes[4] | ((uint16_t)bytes[5] << 8U));
 
     p_sample->x = (int16_t)((int32_t)p_raw_sample->x - g_offset_x);
     p_sample->y = (int16_t)((int32_t)p_raw_sample->y - g_offset_y);
@@ -234,10 +265,19 @@ imu_status_t imu_read_accel_with_raw(imu_vector_t *p_sample,
 imu_status_t imu_read_mag(imu_vector_t *p_sample)
 {
     UB bytes[6];
-    if (p_sample == NULL) return IMU_BAD_PARAM;
-    if (!g_ready) return IMU_NOT_READY;
-    if (!imu_read_regs(g_accel_address, REG_OUT_X_L_M, bytes, sizeof(bytes), true))
+    if (NULL == p_sample)
+    {
+        return IMU_BAD_PARAM;
+    }
+    if (!g_ready)
+    {
+        return IMU_NOT_READY;
+    }
+    if (!imu_read_regs(g_accel_address, REG_OUT_X_L_M, bytes, sizeof(bytes),
+                       true))
+    {
         return IMU_I2C_ERROR;
+    }
 
     p_sample->x = (int16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8U));
     p_sample->y = (int16_t)((uint16_t)bytes[2] | ((uint16_t)bytes[3] << 8U));

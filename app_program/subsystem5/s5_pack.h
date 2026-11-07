@@ -40,10 +40,10 @@
 /*=====================================================================*/
 
 /** Mask of the low `width` bits. Valid for width 1..31. */
-#define S5_MASK(width)              ((uint32_t)((1UL << (width)) - 1UL))
+#define S5_MASK(width) ((uint32_t)((1UL << (width)) - 1UL))
 
 /** Extract a field. */
-#define S5_GET(word, shift, width)  \
+#define S5_GET(word, shift, width) \
     (((uint32_t)(word) >> (shift)) & S5_MASK(width))
 
 /** Place a value into a field position. Bits above `width` are cut
@@ -61,8 +61,7 @@
  * proves the value fits; the mask makes that proof visible to the
  * compiler (-Wconversion) and to a reviewer.
  */
-#define S5_FIT(value, width)        \
-    ((unsigned int)((uint32_t)(value) & S5_MASK(width)))
+#define S5_FIT(value, width) ((uint32_t)((uint32_t)(value) & S5_MASK(width)))
 
 /** Saturate an unsigned value to `width` bits instead of wrapping. */
 static inline uint32_t s5_sat_u(uint32_t value, uint32_t width)
@@ -85,13 +84,13 @@ static inline uint32_t s5_sat_u(uint32_t value, uint32_t width)
  * wire use the 12-bit codes, so nobody else's code changes (decided in
  * the Tribunal 1 live log).
  */
-#define S5_RANGE_BITS               (12U)
-#define S5_RANGE12_CLEAR            (0xFFEU)    /* answered, nothing    */
-#define S5_RANGE12_UNKNOWN          (0xFFFU)    /* stale, fault, blind  */
-#define S5_RANGE12_MAX_MM           (0xFFDU)    /* 4093, saturation cap */
+#define S5_RANGE_BITS      (12U)
+#define S5_RANGE12_CLEAR   (0xFFEU) /* answered, nothing    */
+#define S5_RANGE12_UNKNOWN (0xFFFU) /* stale, fault, blind  */
+#define S5_RANGE12_MAX_MM  (0xFFDU) /* 4093, saturation cap */
 
-#define S5_RANGE_CLEAR_MM           (0xFFFEU)   /* public 16-bit code   */
-#define S5_RANGE_UNKNOWN_MM         (0xFFFFU)   /* public 16-bit code   */
+#define S5_RANGE_CLEAR_MM   (0xFFFEU) /* public 16-bit code   */
+#define S5_RANGE_UNKNOWN_MM (0xFFFFU) /* public 16-bit code   */
 
 static inline uint32_t s5_range_encode(uint16_t range_mm)
 {
@@ -120,13 +119,13 @@ static inline uint32_t s5_range_encode(uint16_t range_mm)
 static inline uint16_t s5_range_decode(uint32_t code)
 {
     const uint32_t c = code & S5_MASK(S5_RANGE_BITS);
-    uint16_t       mm;
+    uint16_t mm;
 
-    if (c == S5_RANGE12_UNKNOWN)
+    if (S5_RANGE12_UNKNOWN == c)
     {
         mm = (uint16_t)S5_RANGE_UNKNOWN_MM;
     }
-    else if (c == S5_RANGE12_CLEAR)
+    else if (S5_RANGE12_CLEAR == c)
     {
         mm = (uint16_t)S5_RANGE_CLEAR_MM;
     }
@@ -148,7 +147,7 @@ static inline uint16_t s5_range_decode(uint32_t code)
  * 131 s, and modular subtraction gives the right age for anything
  * younger than that. A full 32-bit stamp would waste 15 bits.
  */
-#define S5_TIME_BITS                (17U)
+#define S5_TIME_BITS (17U)
 
 static inline uint32_t s5_time_stamp(uint32_t now_ms)
 {
@@ -176,14 +175,14 @@ static inline uint32_t s5_age_ms(uint32_t stamp, uint32_t now_ms)
  */
 typedef uint16_t s5_sample_t;
 
-#define S5_SAMPLE_RANGE_SHIFT       (0U)
-#define S5_SAMPLE_BEARING_SHIFT     (12U)
-#define S5_SAMPLE_BEARING_BITS      (4U)
+#define S5_SAMPLE_RANGE_SHIFT   (0U)
+#define S5_SAMPLE_BEARING_SHIFT (12U)
+#define S5_SAMPLE_BEARING_BITS  (4U)
 
-#define S5_BEARING_STEP_DEG         (10)
-#define S5_BEARING_MIN_DEG          (-70)
-#define S5_BEARING_MAX_DEG          (70)
-#define S5_BEARING_INDEX_OFFSET     (7)
+#define S5_BEARING_STEP_DEG     (10)
+#define S5_BEARING_MIN_DEG      (-70)
+#define S5_BEARING_MAX_DEG      (70)
+#define S5_BEARING_INDEX_OFFSET (7)
 
 /** True if the bearing sits on the 10 deg grid the scan uses. */
 static inline bool s5_bearing_on_grid(int16_t bearing_deg)
@@ -193,16 +192,21 @@ static inline bool s5_bearing_on_grid(int16_t bearing_deg)
             ((bearing_deg % S5_BEARING_STEP_DEG) == 0));
 }
 
-static inline s5_sample_t s5_sample_pack(int16_t bearing_deg,
-                                         uint16_t range_mm)
+static inline s5_sample_t s5_sample_pack(int16_t bearing_deg, uint16_t range_mm)
 {
     int32_t b = (int32_t)bearing_deg;
     int32_t idx;
 
     /* Clamp, then round to the nearest grid point. Off-grid input is
      * a caller bug; it is made safe rather than undefined. */
-    if (b < S5_BEARING_MIN_DEG) { b = S5_BEARING_MIN_DEG; }
-    if (b > S5_BEARING_MAX_DEG) { b = S5_BEARING_MAX_DEG; }
+    if (b < S5_BEARING_MIN_DEG)
+    {
+        b = S5_BEARING_MIN_DEG;
+    }
+    if (b > S5_BEARING_MAX_DEG)
+    {
+        b = S5_BEARING_MAX_DEG;
+    }
 
     idx = ((b - S5_BEARING_MIN_DEG) + (S5_BEARING_STEP_DEG / 2)) /
           S5_BEARING_STEP_DEG;
@@ -215,16 +219,15 @@ static inline s5_sample_t s5_sample_pack(int16_t bearing_deg,
 
 static inline int16_t s5_sample_bearing(s5_sample_t s)
 {
-    const int32_t idx = (int32_t)S5_GET(s, S5_SAMPLE_BEARING_SHIFT,
-                                        S5_SAMPLE_BEARING_BITS);
+    const int32_t idx =
+        (int32_t)S5_GET(s, S5_SAMPLE_BEARING_SHIFT, S5_SAMPLE_BEARING_BITS);
 
     return (int16_t)((idx - S5_BEARING_INDEX_OFFSET) * S5_BEARING_STEP_DEG);
 }
 
 static inline uint16_t s5_sample_range(s5_sample_t s)
 {
-    return s5_range_decode(S5_GET(s, S5_SAMPLE_RANGE_SHIFT,
-                                  S5_RANGE_BITS));
+    return s5_range_decode(S5_GET(s, S5_SAMPLE_RANGE_SHIFT, S5_RANGE_BITS));
 }
 
 /*=====================================================================*/
@@ -244,10 +247,10 @@ static inline uint16_t s5_sample_range(s5_sample_t s)
  */
 typedef uint32_t s5_front_t;
 
-#define S5_FRONT_RANGE_SHIFT        (0U)
-#define S5_FRONT_STATUS_SHIFT       (12U)
-#define S5_FRONT_STATUS_BITS        (3U)
-#define S5_FRONT_TIME_SHIFT         (15U)
+#define S5_FRONT_RANGE_SHIFT  (0U)
+#define S5_FRONT_STATUS_SHIFT (12U)
+#define S5_FRONT_STATUS_BITS  (3U)
+#define S5_FRONT_TIME_SHIFT   (15U)
 
 static inline s5_front_t s5_front_pack(uint16_t range_mm, uint32_t status,
                                        uint32_t now_ms)
@@ -255,8 +258,7 @@ static inline s5_front_t s5_front_pack(uint16_t range_mm, uint32_t status,
     return S5_PUT(s5_range_encode(range_mm), S5_FRONT_RANGE_SHIFT,
                   S5_RANGE_BITS) |
            S5_PUT(status, S5_FRONT_STATUS_SHIFT, S5_FRONT_STATUS_BITS) |
-           S5_PUT(s5_time_stamp(now_ms), S5_FRONT_TIME_SHIFT,
-                  S5_TIME_BITS);
+           S5_PUT(s5_time_stamp(now_ms), S5_FRONT_TIME_SHIFT, S5_TIME_BITS);
 }
 
 static inline uint16_t s5_front_range(s5_front_t w)
@@ -299,43 +301,42 @@ typedef uint32_t s5_watch_t;
 
 typedef enum
 {
-    S5_WATCH_IDLE = 0,      /* not watching                           */
-    S5_WATCH_LOOKING,       /* pass leg started, obstacle not yet beside */
-    S5_WATCH_SEEN,          /* obstacle face beside the car           */
-    S5_WATCH_CLEARING,      /* face gone; driving until the rear clears */
-    S5_WATCH_PASSED,        /* S5_EVT_PASSED raised                   */
-    S5_WATCH_BLIND,         /* never saw it beside us: use the profile */
+    S5_WATCH_IDLE = 0, /* not watching                           */
+    S5_WATCH_LOOKING,  /* pass leg started, obstacle not yet beside */
+    S5_WATCH_SEEN,     /* obstacle face beside the car           */
+    S5_WATCH_CLEARING, /* face gone; driving until the rear clears */
+    S5_WATCH_PASSED,   /* S5_EVT_PASSED raised                   */
+    S5_WATCH_BLIND,    /* never saw it beside us: use the profile */
     S5_WATCH_PHASE_COUNT
 } s5_watch_phase_t;
 
-#define S5_WATCH_RANGE_SHIFT        (0U)
-#define S5_WATCH_LAT_SHIFT          (12U)
-#define S5_WATCH_LAT_BITS           (8U)
-#define S5_WATCH_LAT_UNIT_MM        (4U)
-#define S5_WATCH_REV_SHIFT          (20U)
-#define S5_WATCH_REV_BITS           (8U)
-#define S5_WATCH_REV_UNIT_MM        (2U)
-#define S5_WATCH_PHASE_SHIFT        (28U)
-#define S5_WATCH_PHASE_BITS         (3U)
-#define S5_WATCH_SIDE_SHIFT         (31U)
+#define S5_WATCH_RANGE_SHIFT (0U)
+#define S5_WATCH_LAT_SHIFT   (12U)
+#define S5_WATCH_LAT_BITS    (8U)
+#define S5_WATCH_LAT_UNIT_MM (4U)
+#define S5_WATCH_REV_SHIFT   (20U)
+#define S5_WATCH_REV_BITS    (8U)
+#define S5_WATCH_REV_UNIT_MM (2U)
+#define S5_WATCH_PHASE_SHIFT (28U)
+#define S5_WATCH_PHASE_BITS  (3U)
+#define S5_WATCH_SIDE_SHIFT  (31U)
 
 static inline s5_watch_t s5_watch_pack(bool left, s5_watch_phase_t phase,
-                                       uint16_t reverse_mm,
-                                       uint16_t lateral_mm,
+                                       uint16_t reverse_mm, uint16_t lateral_mm,
                                        uint16_t side_range_mm)
 {
-    const uint32_t rev = s5_sat_u(((uint32_t)reverse_mm +
-                                   (S5_WATCH_REV_UNIT_MM / 2U)) /
-                                  S5_WATCH_REV_UNIT_MM, S5_WATCH_REV_BITS);
-    const uint32_t lat = s5_sat_u((uint32_t)lateral_mm /
-                                  S5_WATCH_LAT_UNIT_MM, S5_WATCH_LAT_BITS);
+    const uint32_t rev =
+        s5_sat_u(((uint32_t)reverse_mm + (S5_WATCH_REV_UNIT_MM / 2U)) /
+                     S5_WATCH_REV_UNIT_MM,
+                 S5_WATCH_REV_BITS);
+    const uint32_t lat = s5_sat_u((uint32_t)lateral_mm / S5_WATCH_LAT_UNIT_MM,
+                                  S5_WATCH_LAT_BITS);
 
     return S5_PUT(s5_range_encode(side_range_mm), S5_WATCH_RANGE_SHIFT,
                   S5_RANGE_BITS) |
            S5_PUT(lat, S5_WATCH_LAT_SHIFT, S5_WATCH_LAT_BITS) |
            S5_PUT(rev, S5_WATCH_REV_SHIFT, S5_WATCH_REV_BITS) |
-           S5_PUT((uint32_t)phase, S5_WATCH_PHASE_SHIFT,
-                  S5_WATCH_PHASE_BITS) |
+           S5_PUT((uint32_t)phase, S5_WATCH_PHASE_SHIFT, S5_WATCH_PHASE_BITS) |
            S5_PUT(left ? 1U : 0U, S5_WATCH_SIDE_SHIFT, 1U);
 }
 
@@ -350,7 +351,7 @@ static inline s5_watch_phase_t s5_watch_phase(s5_watch_t w)
 
     /* A corrupt code must never read as PASSED. */
     return (p < (uint32_t)S5_WATCH_PHASE_COUNT) ? (s5_watch_phase_t)p
-                                                 : S5_WATCH_BLIND;
+                                                : S5_WATCH_BLIND;
 }
 
 static inline uint16_t s5_watch_reverse_mm(s5_watch_t w)

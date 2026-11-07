@@ -328,6 +328,11 @@ int16_t drv_servo_get_angle(void)
     return g_angle;
 }
 
+int16_t drv_servo_get_angle_ddeg(void)
+{
+    return (int16_t)g_logical;
+}
+
 uint32_t drv_servo_settle_ms(int16_t from_deg, int16_t to_deg)
 {
     int32_t d = (int32_t)to_deg - (int32_t)from_deg;

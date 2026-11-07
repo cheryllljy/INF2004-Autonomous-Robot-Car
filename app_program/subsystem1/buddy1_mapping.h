@@ -26,17 +26,19 @@
 /*
  * Movement identifiers shared with VehicleController.
  */
-typedef enum {
+typedef enum
+{
     B1_MOVE_FORWARD = 0,
-    B1_MOVE_LEFT    = 1,
-    B1_MOVE_RIGHT   = 2,
-    B1_MOVE_UTURN   = 3
+    B1_MOVE_LEFT = 1,
+    B1_MOVE_RIGHT = 2,
+    B1_MOVE_UTURN = 3
 } B1_Movement;
 
 /*
  * One barcode character and its movement.
  */
-typedef struct {
+typedef struct
+{
     char character;
     B1_Movement movement;
 } B1_MappingEntry;
@@ -44,7 +46,8 @@ typedef struct {
 /*
  * Four runtime barcode-to-movement pairs.
  */
-typedef struct {
+typedef struct
+{
     B1_MappingEntry entries[B1_MAPPING_COUNT];
 } B1_Mapping;
 
@@ -58,11 +61,8 @@ typedef struct {
  *  0 = valid mapping
  * -1 = invalid mapping
  */
-int b1_mapping_decode(
-    const uint8_t *payload,
-    uint32_t length,
-    B1_Mapping *output
-);
+int32_t b1_mapping_decode(const uint8_t *payload, uint32_t length,
+                          B1_Mapping *output);
 
 /*
  * Find a character's movement in a mapping.
@@ -71,11 +71,8 @@ int b1_mapping_decode(
  *  0 = mapping found
  * -1 = character not mapped or invalid input
  */
-int b1_mapping_lookup(
-    const B1_Mapping *mapping,
-    char character,
-    B1_Movement *movement
-);
+int32_t b1_mapping_lookup(const B1_Mapping *mapping, char character,
+                          B1_Movement *movement);
 
 /*
  * Publish a validated mapping into the shared
@@ -90,9 +87,7 @@ int b1_mapping_lookup(
  * Implementation must synchronize access
  * between the MQTT task and VehicleController.
  */
-int b1_mapping_store_latest(
-    const B1_Mapping *mapping
-);
+int32_t b1_mapping_store_latest(const B1_Mapping *mapping);
 
 /*
  * Retrieve a snapshot of the latest mapping.
@@ -107,9 +102,7 @@ int b1_mapping_store_latest(
  * VehicleController must not access internal
  * MQTT storage directly.
  */
-int b1_mapping_get_latest(
-    B1_Mapping *output
-);
+int32_t b1_mapping_get_latest(B1_Mapping *output);
 
 /*
  * Look up a movement using the latest
@@ -120,15 +113,12 @@ int b1_mapping_get_latest(
  * -1 = mapping unavailable or character
  *      not present in the mapping
  */
-int b1_mapping_get_movement(
-    char character,
-    B1_Movement *movement
-);
+int32_t b1_mapping_get_movement(char character, B1_Movement *movement);
 
 /*
  * Initialize the shared mapping semaphore.
  * Called once during subsystem initialization.
  */
-int b1_mapping_store_init(void);
+int32_t b1_mapping_store_init(void);
 
 #endif /* BUDDY1_MAPPING_H */

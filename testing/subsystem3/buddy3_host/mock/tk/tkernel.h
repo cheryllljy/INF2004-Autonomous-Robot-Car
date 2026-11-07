@@ -55,6 +55,7 @@ typedef struct
 #define E_OK        0
 #define E_CTX       (-25)
 #define E_OBJ       (-41)
+#define E_QOVR      (-43)
 #define TMO_FEVR    (-1)
 #define E_NOSPT     (-9)
 #define E_IO        (-57)

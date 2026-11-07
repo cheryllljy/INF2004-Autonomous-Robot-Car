@@ -21,6 +21,7 @@
 #include "motion_mock.h"
 
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MM_PI           (3.14159265358979323846)
@@ -54,9 +55,11 @@ typedef struct
     /* measured */
     double dl, dr;                  /* encoder distances */
     double scale;                   /* encoder scale error */
+    int    dead_r;                  /* v3.2: right encoder reads 0 */
 } mm_t;
 
 static mm_t g;
+static int g_min_cmd = 0x7FFF; /* nyx, 2026-11-06: smallest |wheel speed| asked */
 
 void mm_reset(double x, double y, double psi_deg)
 {
@@ -68,6 +71,11 @@ void mm_reset(double x, double y, double psi_deg)
     g.state = MOTION_STATE_IDLE;
     g.last = MOTION_RESULT_NONE;
     g.mode = MD_IDLE;
+}
+
+void mm_set_dead_right(int dead)
+{
+    g.dead_r = dead;
 }
 
 void mm_set_errors(double encoder_scale, double track_error)
@@ -213,7 +221,7 @@ void mm_step_1ms(void)
 
     /* ---- encoders ---- */
     g.dl += g.vl * dt * (1.0 + g.scale);
-    g.dr += g.vr * dt * (1.0 + g.scale);
+    if (!g.dead_r) { g.dr += g.vr * dt * (1.0 + g.scale); }
 }
 
 /*=====================================================================*/
@@ -265,11 +273,44 @@ motion_err_t motion_set_wheel_speeds(int32_t l, int32_t r)
     {
         return refuse();
     }
+    /* nyx, 2026-11-06: like Buddy 2's mc_start_velocity, (0, 0) is a stop,
+     * and further speeds are refused until it is IDLE again */
+    if ((0 == l) && (0 == r))
+    {
+        if (g.state == MOTION_STATE_IDLE)
+        {
+            g.last = MOTION_RESULT_STOPPED;
+        }
+        else
+        {
+            finish(MOTION_RESULT_STOPPED);
+        }
+        return MOTION_OK;
+    }
+    if ((0 != l) && (abs((int)l) < g_min_cmd))
+    {
+        g_min_cmd = abs((int)l);
+    }
+    if ((0 != r) && (abs((int)r) < g_min_cmd))
+    {
+        g_min_cmd = abs((int)r);
+    }
     g.mode = MD_VEL;
     g.state = MOTION_STATE_DRIVING;
     g.goal_l = (double)l;
     g.goal_r = (double)r;
     return MOTION_OK;
+}
+
+int mm_min_wheel_cmd(int restart)
+{
+    const int m = g_min_cmd;
+
+    if (restart)
+    {
+        g_min_cmd = 0x7FFF;
+    }
+    return m;
 }
 
 motion_err_t motion_stop(void)
@@ -332,7 +373,7 @@ void motion_get_status(motion_status_t *out)
     out->last_result = g.last;
     out->estop_sources = g.estop;
     out->speed_l_mmps = (int16_t)lround(g.vl * (1.0 + g.scale));
-    out->speed_r_mmps = (int16_t)lround(g.vr * (1.0 + g.scale));
+    out->speed_r_mmps = g.dead_r ? 0 : (int16_t)lround(g.vr * (1.0 + g.scale));
     out->dist_l_mm = (int32_t)lround(g.dl);
     out->dist_r_mm = (int32_t)lround(g.dr);
     out->distance_total_mm = (int32_t)lround(meas_dist());

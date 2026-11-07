@@ -14,28 +14,28 @@
 
 #include "s5_pack.h"
 
-#define DRV_US_MIN_VALID_MM         (30U)
-#define DRV_US_MAX_VALID_MM         (2500U)
-#define DRV_US_MEDIAN_SAMPLES       (3U)
+#define DRV_US_MIN_VALID_MM   (30U)
+#define DRV_US_MAX_VALID_MM   (2500U)
+#define DRV_US_MEDIAN_SAMPLES (3U)
 
 /** Result of one ping. 8 values -> 3 bits. */
 typedef enum
 {
-    ULTRASONIC_OK = 0,        /* valid range                           */
-    ULTRASONIC_NO_ECHO,       /* sensor answered (ECHO rose) and heard
+    ULTRASONIC_OK = 0,      /* valid range                           */
+    ULTRASONIC_NO_ECHO,     /* sensor answered (ECHO rose) and heard
                                  nothing in range: path CLEAR, not a
                                  fault                                 */
-    ULTRASONIC_NO_RESPONSE,   /* ECHO never rose: dead sensor, no 5 V,
+    ULTRASONIC_NO_RESPONSE, /* ECHO never rose: dead sensor, no 5 V,
                                  TRIG/ECHO swapped. ALWAYS a fault.    */
-    ULTRASONIC_TOO_CLOSE,     /* echo shorter than the 30 mm blind zone*/
-    ULTRASONIC_TOO_FAR,       /* beyond 2500 mm                        */
-    ULTRASONIC_ECHO_STUCK,    /* ECHO high before triggering: fault    */
-    ULTRASONIC_NOT_READY,     /* init not done or failed               */
-    ULTRASONIC_BAD_PARAM,     /* NULL pointer                          */
+    ULTRASONIC_TOO_CLOSE,   /* echo shorter than the 30 mm blind zone*/
+    ULTRASONIC_TOO_FAR,     /* beyond 2500 mm                        */
+    ULTRASONIC_ECHO_STUCK,  /* ECHO high before triggering: fault    */
+    ULTRASONIC_NOT_READY,   /* init not done or failed               */
+    ULTRASONIC_BAD_PARAM,   /* NULL pointer                          */
     ULTRASONIC_STATUS_COUNT
 } ultrasonic_status_t;
 
-#define DRV_US_STATUS_BITS          (3U)
+#define DRV_US_STATUS_BITS (3U)
 
 S5_STATIC_ASSERT(ULTRASONIC_STATUS_COUNT <= (1U << DRV_US_STATUS_BITS),
                  us_status_fits);
@@ -52,14 +52,13 @@ S5_STATIC_ASSERT(ULTRASONIC_STATUS_COUNT <= (1U << DRV_US_STATUS_BITS),
  */
 typedef uint32_t ultrasonic_result_t;
 
-#define DRV_US_RES_RANGE_SHIFT      (0U)
-#define DRV_US_RES_ECHO_SHIFT       (12U)
-#define DRV_US_RES_ECHO_BITS        (15U)
-#define DRV_US_RES_STATUS_SHIFT     (27U)
+#define DRV_US_RES_RANGE_SHIFT  (0U)
+#define DRV_US_RES_ECHO_SHIFT   (12U)
+#define DRV_US_RES_ECHO_BITS    (15U)
+#define DRV_US_RES_STATUS_SHIFT (27U)
 
-static inline ultrasonic_result_t drv_us_result_pack(uint16_t range_mm,
-                                                     uint32_t echo_us,
-                                                     ultrasonic_status_t st)
+static inline ultrasonic_result_t
+drv_us_result_pack(uint16_t range_mm, uint32_t echo_us, ultrasonic_status_t st)
 {
     return S5_PUT(s5_range_encode(range_mm), DRV_US_RES_RANGE_SHIFT,
                   S5_RANGE_BITS) |
@@ -94,9 +93,9 @@ static inline ultrasonic_status_t drv_us_result_status(ultrasonic_result_t r)
 typedef struct
 {
     uint16_t pings;
-    uint16_t no_response;     /* the A5 metric: target < 1 %           */
+    uint16_t no_response; /* the A5 metric: target < 1 %           */
     uint16_t no_echo;
-    uint16_t rejects;         /* out of range, stuck                   */
+    uint16_t rejects; /* out of range, stuck                   */
 } ultrasonic_stats_t;
 
 /** Configure TRIG, ECHO and PWM slice 0. */
