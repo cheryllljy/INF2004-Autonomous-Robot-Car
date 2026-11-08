@@ -1,4 +1,3 @@
-
 /*
  * INF2004 - Buddy 1 MQTT communication
  *
@@ -28,17 +27,25 @@
 
 #include <tm/tmonitor.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "../../../../app_program/subsystem1/buddy1_cr1.h"
 #include "../../../../app_program/subsystem1/buddy1_mqtt.h"
 #include "../../../../app_program/subsystem1/buddy1_mapping.h"
 #include "../../../../app_program/subsystem1/buddy1_fr2.h"
 
-#define HEARTBEAT_MS     5000u
-#define MQTT_RETRY_MS    3000u
+#define MQTT_RETRY_MS    10000u
 #define MQTT_KEEPALIVE_S 60u
+#define MQTT_HEARTBEAT_MS 5000u
 
 #define COMMAND_TOPIC "inf2004/robot/command"
+#define MAPPING_TOPIC "inf2004/robot/mapping"
+#define CONNECTION_TOPIC "inf2004/robot/connection"
+#define HEARTBEAT_TOPIC "inf2004/robot/heartbeat"
+#define HEARTBEAT_PAYLOAD "alive"
+#define CONNECTION_ONLINE "online"
+#define CONNECTION_OFFLINE "offline"
+#define MAPPING_TEXT_MAX 128
 #define PROBE_TOPIC   "inf2004/robot/status/probe"
 
 #define RX_TOPIC_MAX 64u
@@ -136,10 +143,14 @@ static uint8_t fr3_latched = 0;
 static uint8_t fr3_loss_reason = B1_FR3_REASON_NONE;
 static uint8_t fr3_reported_reason = B1_FR3_REASON_NONE;
 
-static void heartbeat_timeout(void *arg);
 static void test_log_timeout(void *arg);
+static void heartbeat_timeout(void *arg);
 static void retry_timeout(void *arg);
 static void fr3_monitor_timeout(void *arg);
+
+static char const *mqtt_utk_movement_name(B1_Movement movement);
+static void mqtt_utk_publish_mapping(B1_Mapping const *p_mapping);
+static void mqtt_utk_publish_connection(void);
 
 static void publish_done_cb(void *arg, err_t result);
 static void probe_done_cb(void *arg, err_t result);
@@ -704,7 +715,7 @@ static void schedule_retry(void)
 
     retry_pending = 1u;
 
-    tm_printf((UB *)"[BUDDY1] MQTT retry scheduled in 3 seconds\n");
+    tm_printf((UB *)"[BUDDY1] MQTT retry scheduled in 10 seconds\n");
 
     sys_timeout(MQTT_RETRY_MS, retry_timeout, NULL);
 }
@@ -750,77 +761,230 @@ static void subscribe_done_cb(void *arg, err_t result)
 }
 
 /* --------------------------------------------------------
- * CR1 outgoing telemetry
+ * Connection status (event-based MQTT messages)
  * -------------------------------------------------------- */
 
-static void heartbeat_timeout(void *arg)
+/*!
+ * @brief Publish the current online state to the broker.
+ *
+ * The retained Last Will publishes "offline" when the broker detects
+ * an unexpected disconnection. FR3 probes remain active for safety.
+ */
+static void mqtt_utk_publish_connection(void)
 {
-    B1_Telemetry telemetry = { 0 };
-    B1_FR3_Status link = { 0 };
-    u8_t payload[B1_TELEMETRY_BYTES];
-    err_t result;
+    err_t result = ERR_CONN;
 
-    static uint8_t waiting_reported = 0u;
-
-    (void)arg;
-
-    if (!wifi_is_up() || client == NULL || !mqtt_client_is_connected(client))
+    if ((NULL != client) && mqtt_client_is_connected(client))
     {
-        goto next_heartbeat;
+        result = mqtt_publish(client, CONNECTION_TOPIC,
+                              CONNECTION_ONLINE,
+                              (u16_t)(sizeof(CONNECTION_ONLINE) - 1u),
+                              1u, 1u, publish_done_cb, NULL);
     }
 
-    /*
-     * Never construct a fake controller snapshot.
-     */
-    if (b1_mqtt_get_robot_status(&telemetry) != 0)
+    if (ERR_OK != result)
     {
-        if (!waiting_reported)
+        tm_printf((UB *)"[BUDDY1] Online status queue error: %d\n",
+                  (int32_t)result);
+    }
+}
+
+/*!
+ * @brief Convert one validated movement to a readable name.
+ * @param[in] movement The validated movement identifier.
+ * @return A static movement name, or INVALID for an unknown value.
+ */
+static char const *mqtt_utk_movement_name(B1_Movement movement)
+{
+    char const *p_name = "INVALID";
+
+    switch (movement)
+    {
+        case B1_MOVE_FORWARD:
+            p_name = "FORWARD";
+            break;
+
+        case B1_MOVE_LEFT:
+            p_name = "LEFT";
+            break;
+
+        case B1_MOVE_RIGHT:
+            p_name = "RIGHT";
+            break;
+
+        case B1_MOVE_UTURN:
+            p_name = "U-TURN";
+            break;
+
+        default:
+            break;
+    }
+
+    return p_name;
+}
+
+/*! 
+ * @brief Append ASCII text to the mapping message without stdio.
+ * @param[in,out] p_buffer Output buffer.
+ * @param[in] capacity Maximum bytes available.
+ * @param[in,out] p_used Number of bytes written.
+ * @param[in] p_text Null-terminated text to append.
+ * @return true if successfully appended, false if insufficient space.
+ */
+static bool mqtt_utk_append_text(char *p_buffer, uint32_t capacity,
+                                 uint32_t *p_used, char const *p_text)
+{
+    bool b_success = false;
+    uint32_t length = 0u;
+
+    if ((NULL != p_buffer) && (NULL != p_used) && (NULL != p_text))
+    {
+        /* strlen excludes the terminator; the payload is length-delimited. */
+        length = (uint32_t)strlen(p_text);
+
+        if ((*p_used <= capacity) &&
+            (length <= (capacity - *p_used)))
         {
-            waiting_reported = 1u;
-
-            tm_printf((UB *)"[BUDDY1] Robot telemetry awaiting "
-                            "VehicleController data\n");
+            (void)memcpy(&p_buffer[*p_used], p_text, length);
+            *p_used += length;
+            b_success = true;
         }
-
-        goto next_heartbeat;
     }
 
-    waiting_reported = 0u;
+    return b_success;
+}
 
-    if (b1_fr3_get_status(&link) != 0)
+/*!
+ * @brief Publish an accepted mapping for console and dashboard subscribers.
+ * @param[in] p_mapping A validated, successfully stored mapping snapshot.
+ *
+ * The message is assembled without snprintf to avoid pulling newlib stdio
+ * system-call dependencies into a bare-metal Pico build.
+ */
+static void mqtt_utk_publish_mapping(B1_Mapping const *p_mapping)
+{
+    char payload[MAPPING_TEXT_MAX] = { 0 };
+    uint32_t used = 0u;
+    uint32_t index = 0u;
+    bool b_valid = true;
+    err_t result = ERR_CONN;
+
+    if ((NULL == p_mapping) || (NULL == client))
     {
-        goto next_heartbeat;
+        return;
     }
 
-    telemetry.wifi_connected = link.wifi_up;
-    telemetry.mqtt_connected = link.mqtt_up;
-
-    if (buddy1_mqtt_prepare_telemetry(&telemetry, payload) != 0)
+    if (!mqtt_client_is_connected(client))
     {
-        tm_printf((UB *)"[BUDDY1] Telemetry packing failed\n");
-
-        goto next_heartbeat;
+        return;
     }
 
-    result = mqtt_publish(client, MQTT_TOPIC, payload, B1_TELEMETRY_BYTES, 0, 0,
-                          publish_done_cb, NULL);
+    b_valid = mqtt_utk_append_text(payload, MAPPING_TEXT_MAX, &used,
+            "===== BARCODE MAPPING RECEIVED =====\n");
 
-    if (ERR_OK == result)
+    for (index = 0u; (index < B1_MAPPING_COUNT) && b_valid; index++)
     {
-        tm_printf((UB *)"[BUDDY1] TX live telemetry: "
-                        "%02X %02X %02X\n",
-                  (uint32_t)payload[0], (uint32_t)payload[1],
-                  (uint32_t)payload[2]);
+        char letter_text[2] = { 0 };
+        letter_text[0] = p_mapping->entries[index].character;
+
+        b_valid = mqtt_utk_append_text(payload, MAPPING_TEXT_MAX, &used,
+                                       letter_text);
+        if (b_valid)
+        {
+            b_valid = mqtt_utk_append_text(payload, MAPPING_TEXT_MAX,
+                                           &used, " -> ");
+        }
+        if (b_valid)
+        {
+            b_valid = mqtt_utk_append_text(payload, MAPPING_TEXT_MAX,
+                         &used, mqtt_utk_movement_name(
+                                      p_mapping->entries[index].movement));
+        }
+        if (b_valid)
+        {
+            b_valid = mqtt_utk_append_text(payload, MAPPING_TEXT_MAX,
+                                           &used, "\n");
+        }
+    }
+
+    if (b_valid)
+    {
+        b_valid = mqtt_utk_append_text(payload, MAPPING_TEXT_MAX, &used,
+                        "====================================");
+    }
+
+    if (!b_valid)
+    {
+        tm_printf((UB *)"[BUDDY1] Mapping text buffer too small\n");
+        return;
+    }
+
+    /* WARNING: MAPPING_TEXT_MAX fits the 16-bit lwIP MQTT length. */
+    result = mqtt_publish(client, MAPPING_TOPIC, payload, (u16_t)used,
+                          1u, 1u, publish_done_cb, NULL);
+
+    if (ERR_OK != result)
+    {
+        tm_printf((UB *)"[BUDDY1] Mapping publish queue failed: %d\n",
+                  (int32_t)result);
     }
     else
     {
-        tm_printf((UB *)"[BUDDY1] MQTT publish queue error: %d\n",
-                  (int32_t)result);
+        tm_printf((UB *)"[BUDDY1] Mapping queued for MQTT publish\n");
+    }
+}
+
+/* --------------------------------------------------------
+ * Periodic MQTT heartbeat and real controller telemetry
+ * -------------------------------------------------------- */
+
+/*
+ * A heartbeat confirms that this MQTT client can enqueue messages.
+ * It is separate from controller telemetry: no sensor values are invented.
+ * The FR3 safety probe and its PUBACK tracking remain independent.
+ */
+static void heartbeat_timeout(void *arg)
+{
+    B1_Telemetry telemetry = { 0 };
+    uint8_t payload[B1_TELEMETRY_BYTES] = { 0 };
+    err_t result;
+
+    (void)arg;
+
+    if ((NULL != client) && mqtt_client_is_connected(client))
+    {
+        result = mqtt_publish(client, HEARTBEAT_TOPIC, HEARTBEAT_PAYLOAD,
+                              (u16_t)(sizeof(HEARTBEAT_PAYLOAD) - 1u),
+                              0u, 0u, NULL, NULL);
+
+        if (ERR_OK != result)
+        {
+            tm_printf((UB *)"[BUDDY1] Heartbeat queue failed: %d\n",
+                      (int32_t)result);
+        }
+
+        /* Controller values are published only after a real snapshot exists. */
+        if (0 == b1_mqtt_get_robot_status(&telemetry))
+        {
+            telemetry.wifi_connected = wifi_is_up();
+            telemetry.mqtt_connected = 1u;
+
+            if (0 == b1_telemetry_pack(&telemetry, payload))
+            {
+                result = mqtt_publish(client, MQTT_TOPIC, payload,
+                                      B1_TELEMETRY_BYTES, 0u, 0u,
+                                      NULL, NULL);
+
+                if (ERR_OK != result)
+                {
+                    tm_printf((UB *)"[BUDDY1] Telemetry queue failed: %d\n",
+                              (int32_t)result);
+                }
+            }
+        }
     }
 
-next_heartbeat:
-
-    sys_timeout(HEARTBEAT_MS, heartbeat_timeout, NULL);
+    sys_timeout(MQTT_HEARTBEAT_MS, heartbeat_timeout, NULL);
 }
 
 /* --------------------------------------------------------
@@ -905,6 +1069,8 @@ static void incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t flags)
                                   candidate.entries[index].character,
                                   (uint32_t)candidate.entries[index].movement);
                     }
+
+                    mqtt_utk_publish_mapping(&candidate);
                 }
                 else
                 {
@@ -993,6 +1159,18 @@ static void connection_cb(mqtt_client_t *c, void *arg,
 
         tm_printf((UB *)"[BUDDY1] MQTT connected to " MQTT_BROKER_IP "\n");
 
+        mqtt_utk_publish_connection();
+
+        /* Republish real stored mapping after broker reconnects. */
+        {
+            B1_Mapping latest_mapping = { 0 };
+
+            if (0 == b1_mapping_get_latest(&latest_mapping))
+            {
+                mqtt_utk_publish_mapping(&latest_mapping);
+            }
+        }
+
         mqtt_set_inpub_callback(client, incoming_publish_cb, incoming_data_cb,
                                 NULL);
 
@@ -1016,9 +1194,6 @@ static void connection_cb(mqtt_client_t *c, void *arg,
                       (int32_t)result);
         }
 
-        sys_untimeout(heartbeat_timeout, NULL);
-
-        sys_timeout(HEARTBEAT_MS, heartbeat_timeout, NULL);
     }
     else
     {
@@ -1027,8 +1202,6 @@ static void connection_cb(mqtt_client_t *c, void *arg,
                   (int32_t)status);
 
         fr3_probe_pending = 0u;
-
-        sys_untimeout(heartbeat_timeout, NULL);
 
         schedule_retry();
     }
@@ -1167,6 +1340,16 @@ void mqtt_utk_start(void)
     fr3_monitor_start();
 
     {
+        static u8_t heartbeat_started = 0u;
+
+        if (!heartbeat_started)
+        {
+            heartbeat_started = 1u;
+            sys_timeout(MQTT_HEARTBEAT_MS, heartbeat_timeout, NULL);
+        }
+    }
+
+    {
         static u8_t test_log_started = 0u;
 
         if (!test_log_started)
@@ -1211,6 +1394,10 @@ void mqtt_utk_start(void)
 
     client_info.client_id = MQTT_CLIENT_ID;
     client_info.keep_alive = MQTT_KEEPALIVE_S;
+    client_info.will_topic = CONNECTION_TOPIC;
+    client_info.will_msg = CONNECTION_OFFLINE;
+    client_info.will_qos = 1u;
+    client_info.will_retain = 1u;
 
     connecting = 1u;
 
@@ -1231,3 +1418,5 @@ void mqtt_utk_start(void)
         schedule_retry();
     }
 }
+
+/*** end of file ***/
