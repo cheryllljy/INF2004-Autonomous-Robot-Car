@@ -153,6 +153,15 @@
 #ifndef S5_CAP_AIM_DEG
 #define S5_CAP_AIM_DEG  (10.0f)
 #endif
+/* nyx, 2026-11-09: turning onto the line after a bypass, the IRs decide
+ * (as in a line search): they count from this far before the direction
+ * the crossing gave, and the turn stops this far past it. The IRs, 125 mm
+ * ahead of the axle, meet a bend where its chord runs, asin(125 / 2R) off
+ * that direction (R300: 12 deg, R200: 18 deg); a junction's branch at
+ * 45 deg or more stays outside */
+#ifndef S5_CAP_BEND_DEG
+#define S5_CAP_BEND_DEG (25.0f)
+#endif
 /* after the IR on the far side has crossed the tape: a little more, to
  * centre the tape between the IRs */
 #define S5_CAP_EXTRA_DEG                                                      \
@@ -181,7 +190,8 @@ typedef enum
     S5_PH_ALIGN,    /* settling on the line */
     S5_PH_CAPTURE,  /* the IRs crossed our line: onto it, face along it */
     S5_PH_BLOCKED,  /* no way round */
-    S5_PH_SEARCH    /* nyx, 2026-11-08: line search, straight on */
+    S5_PH_SEARCH,   /* nyx, 2026-11-08: line search, straight on */
+    S5_PH_OUT       /* nyx, 2026-11-09: turning out on the spot */
 } s5_phase_t;
 
 typedef enum
@@ -281,10 +291,22 @@ typedef struct
     int32_t cap_first;   /* IR that went black first (0 L, 1 R), -1 none */
     float cap_first_at;  /* ... odometer then */
     int32_t cap_dir;     /* the car crosses the line to +1 left, -1 right */
-    uint32_t cap_step;   /* 0 drive on, 3 stop, 1 turn, 2 the last bit */
+    uint32_t cap_step;   /* 0 drive on, 3 stop, 1 turn, 2 the last bit,
+                          * 4 stop before Buddy 3 (nyx, 2026-11-09) */
+    const char *p_cap_why; /* ... why the turn ended */
     float cap_from;      /* odometer when the pick-up began */
     float cap_psi;       /* heading when the last bit of the turn began */
     bool b_cap_seen;     /* turning: the far-side IR has seen the tape */
+    bool b_cap_wide;     /* nyx, 2026-11-09: ... both IRs black at once
+                          * (a junction): turn by the crossing's angle */
+    bool b_cap_back;     /* ... turning towards an IR black at the start */
+    bool b_out_pivot;    /* nyx, 2026-11-09: the plan turns out on the
+                          * spot (too close for a ramp) ... */
+    float out_th;        /* ... to this heading (+ = left) ... */
+    uint32_t out_step;   /* ... 0 turn, 1 stand, 2 drive out, 3 stand,
+                          * 4 turn back, 5 stand */
+    float out_from;      /* ... odometer where the drive out began */
+    float cap_psi0;      /* ... heading then */
     float cap_x1;        /* nyx, 2026-11-08: where the first IR met the */
     float cap_y1;        /* tape (encoders' frame) */
     float cap_phi;       /* the crossed line's direction, encoders' frame */
@@ -1069,6 +1091,54 @@ static void s5_plan_back(float x_now)
     g.path.x_back = hi;
 }
 
+/* nyx, 2026-11-09: the car's outline at (x, y), heading psi, clear of
+ * the object (margin) and of the one just gone round? */
+static bool s5_out_free(float x, float y, float psi, float margin)
+{
+    return !s5_path_car_hits(x, y, psi, &g.box, margin) &&
+           (!g.b_passed ||
+            !s5_path_car_hits(x, y, psi, &g.passed, S5_PIVOT_MARGIN_MM));
+}
+
+/* nyx, 2026-11-09: turning out on the spot to heading th (+ = left),
+ * straight out until the axle is at the pass (g.path.a), turning back
+ * on the spot there: clear of the object all the way? *p_x1: where the
+ * axle reaches the pass. */
+static bool s5_pivot_out_clear(float th, float *p_x1)
+{
+    const float x = g.odo.x;
+    const float y = g.odo.y;
+    const float run = s5_absf(g.path.a - y) / s5_absf(s5_sinf(th));
+    const float x1 = x + (run * s5_cosf(th));
+    const uint32_t n_turn =
+        (uint32_t)(s5_absf(th) / (S5_PIVOT_STEP_DEG * S5_DEG2RAD_F)) + 1U;
+    const uint32_t n_run = (uint32_t)(run / 10.0f) + 1U;
+    uint32_t i;
+
+    for (i = 0U; i <= n_turn; i++)
+    {
+        const float a = (th * (float)i) / (float)n_turn;
+
+        if (!s5_out_free(x, y, a, S5_PIVOT_MARGIN_MM) ||
+            !s5_out_free(x1, g.path.a, a, S5_PIVOT_MARGIN_MM))
+        {
+            return false;
+        }
+    }
+    for (i = 0U; i <= n_run; i++)
+    {
+        const float d = (run * (float)i) / (float)n_run;
+
+        if (!s5_out_free(x + (d * s5_cosf(th)), y + (d * s5_sinf(th)), th,
+                         (float)S5_RAMP_MARGIN_MM))
+        {
+            return false;
+        }
+    }
+    *p_x1 = x1;
+    return true;
+}
+
 /* The path round on this side. False: not even backing up all the way
  * left gives room to turn out. */
 static bool s5_plan(int32_t side)
@@ -1122,8 +1192,41 @@ static bool s5_plan(int32_t side)
             g.path.l_out = lo_l;
         }
     }
+    g.b_out_pivot = false;
     if (!s5_out_clear(x_here))
     {
+        /* nyx, 2026-11-09: no backing up for room to turn out: turn out
+         * on the spot, by as little as clears the object */
+        int32_t deg;
+        float x1 = x_here;
+
+        for (deg = S5_OUT_PIVOT_MIN_DEG; (deg <= 90) && !g.b_out_pivot;
+             deg += S5_OUT_PIVOT_STEP_DEG)
+        {
+            const float th = (float)side * (float)deg * S5_DEG2RAD_F;
+
+            if (s5_pivot_out_clear(th, &x1))
+            {
+                g.b_out_pivot = true;
+                g.out_th = th;
+            }
+        }
+        if (g.b_out_pivot)
+        {
+            /* the rest of the path from where the turn back ends */
+            g.path.x0 = x1;
+            g.path.y0 = g.path.a;
+            g.path.l_out = 1.0f;
+            s5_plan_back(x1);
+            return !g.b_passed ||
+                   s5_path_clear(&g.path, &g.passed, S5_PIVOT_MARGIN_MM, x1,
+                                 s5_path_end(&g.path));
+        }
+    }
+    if (!s5_out_clear(x_here))
+    {
+        /* not even turning out on the spot: no way round from here, so
+         * back up (nyx, 2026-11-09) */
         float lo = x_here - budget; /* clear, if anything is */
         float hi = x_here;          /* not clear */
         uint32_t i;
@@ -1190,29 +1293,23 @@ static s5_pick_t s5_pick_sides(bool b_maybe)
     {
         return (b_more_l || b_more_r) ? S5_PICK_RESCAN : S5_PICK_BLOCKED;
     }
+    /* nyx, 2026-11-09: no backing up to see the other edge while one side
+     * is open (it may be the longer way round) */
     if (!p->b_left_seen)
     {
-        if (b_ok_r && (p->b_left_hidden || ((cost_r + tie) < cost_l)))
+        if (b_ok_r)
         {
             return S5_PICK_RIGHT;
         }
-        if (b_more_l)
-        {
-            return S5_PICK_RESCAN;
-        }
-        return b_ok_r ? S5_PICK_RIGHT : S5_PICK_BLOCKED;
+        return b_more_l ? S5_PICK_RESCAN : S5_PICK_BLOCKED;
     }
     if (!p->b_right_seen)
     {
-        if (b_ok_l && (p->b_right_hidden || ((cost_l + tie) < cost_r)))
+        if (b_ok_l)
         {
             return S5_PICK_LEFT;
         }
-        if (b_more_r)
-        {
-            return S5_PICK_RESCAN;
-        }
-        return b_ok_l ? S5_PICK_LEFT : S5_PICK_BLOCKED;
+        return b_more_r ? S5_PICK_RESCAN : S5_PICK_BLOCKED;
     }
     if (b_ok_l && b_ok_r)
     {
@@ -1244,11 +1341,47 @@ static s5_pick_t s5_pick_sides(bool b_maybe)
  * Both sides only maybe blocked (walls either side): wait as before. */
 static s5_pick_t s5_pick(void)
 {
+    const s5_profile_t *p = &g.prof;
     s5_pick_t pick = s5_pick_sides(true);
+    /* nyx, 2026-11-09: the car went the long way round nyx's box all
+     * day: the sonar hears the floor 54-71 cm out on every bearing the
+     * box does not cover, and the edge of that echo's beam made the short
+     * side "maybe blocked". At the first object (not after another one),
+     * a side only maybe blocked by an echo at least S5_FLOOR_MIN_MM away
+     * is taken when it is the shorter way by more than S5_TIE_MM and the
+     * other side is clear. A nearer echo (a 2nd box close behind) still
+     * rules it out; both sides maybe (walls, C10/C11) still waits. */
+    const bool b_first = !g.b_passed && !g.b_rejoin;
+    const float ext_l = p->y_left;
+    const float ext_r = -p->y_right;
+    const bool b_l_short = b_first && (S5_PICK_RIGHT == pick) &&
+                           p->b_left_maybe && !p->b_left_blocked &&
+                           !p->b_right_maybe &&
+                           (p->block_l_mm >= (uint16_t)S5_FLOOR_MIN_MM) &&
+                           ((ext_r - ext_l) > (float)S5_TIE_MM);
+    const bool b_r_short = b_first && (S5_PICK_LEFT == pick) &&
+                           p->b_right_maybe && !p->b_right_blocked &&
+                           !p->b_left_maybe &&
+                           (p->block_r_mm >= (uint16_t)S5_FLOOR_MIN_MM) &&
+                           ((ext_l - ext_r) > (float)S5_TIE_MM);
 
+    if (b_l_short || b_r_short)
+    {
+        const s5_pick_t shorter = s5_pick_sides(false);
+
+        if (((S5_PICK_LEFT == shorter) && b_l_short) ||
+            ((S5_PICK_RIGHT == shorter) && b_r_short))
+        {
+            S5_LOG("[VC-S5] going %s anyway, the shorter way (%d / %d mm): "
+                   "only a far echo (floor?) at its beam edge\n",
+                   (S5_PICK_LEFT == shorter) ? "LEFT" : "RIGHT",
+                   (int)s5_mm(ext_l), (int)s5_mm(ext_r));
+            pick = shorter;
+        }
+    }
     if ((S5_PICK_BLOCKED == pick) &&
-        ((g.prof.b_left_maybe && g.prof.b_right_blocked) ||
-         (g.prof.b_right_maybe && g.prof.b_left_blocked)))
+        ((p->b_left_maybe && p->b_right_blocked) ||
+         (p->b_right_maybe && p->b_left_blocked)))
     {
         pick = s5_pick_sides(false);
         if ((S5_PICK_LEFT == pick) || (S5_PICK_RIGHT == pick))
@@ -1274,10 +1407,10 @@ static void s5_say_sweep(void)
            "line%s%s%s%s%s%s\n",
            (int)s5_mm(p->width), (int)s5_mm(p->y_left), (int)s5_mm(-p->y_right),
            p->b_left_seen     ? ""
-           : p->b_left_hidden ? ", left edge hidden by the object just passed"
+           : p->b_left_hidden ? ", left edge hidden by the last object"
                               : ", left edge past the sweep",
            p->b_right_seen     ? ""
-           : p->b_right_hidden ? ", right edge hidden by the object just passed"
+           : p->b_right_hidden ? ", right edge hidden by the last object"
                                : ", right edge past the sweep",
            p->b_left_blocked ? ", left side blocked" : "",
            p->b_left_maybe ? ", left maybe blocked" : "",
@@ -1475,14 +1608,27 @@ static s5_avoid_result_t s5_decide(void)
     if (S5_PICK_RESCAN == pick)
     {
         g.rescans++;
-        S5_LOG("[VC-S5] an edge is outside the sweep: backing off %d mm to "
-               "look again\n",
+        /* nyx, 2026-11-09: only with no side open (s5_pick_sides()) */
+        S5_LOG("[VC-S5] an edge is outside the sweep and no side is open: "
+               "backing off %d mm to look again\n",
                (int)S5_RESCAN_BACK_MM);
         s5_back_by((float)S5_RESCAN_BACK_MM, S5_THEN_SCAN);
         return S5_AVOID_RUNNING;
     }
     if (S5_PICK_BLOCKED == pick)
     {
+        /* nyx, 2026-11-09: no way round open from here: back up and look
+         * again (the only backing up for room), then wait */
+        if ((g.rescans < S5_MAX_RESCANS) &&
+            (s5_back_room() >= (float)S5_RESCAN_BACK_MM))
+        {
+            g.rescans++;
+            S5_LOG("[VC-S5] no room on either side from here: backing up "
+                   "%d mm to look again\n",
+                   (int)S5_RESCAN_BACK_MM);
+            s5_back_by((float)S5_RESCAN_BACK_MM, S5_THEN_SCAN);
+            return S5_AVOID_RUNNING;
+        }
         s5_block("no room on either side");
         return S5_AVOID_RUNNING;
     }
@@ -1506,13 +1652,29 @@ static s5_avoid_result_t s5_decide(void)
         }
     }
     g.b_blocked = false;
+    if (g.b_out_pivot)
+    {
+        /* nyx, 2026-11-09 */
+        S5_LOG("[VC-S5] going %s: axle %d mm off the line; too close for a "
+               "ramp: turn %d deg on the spot, out %d mm, turn back; back "
+               "in from %d mm past the face\n",
+               s5_side_name(side), (int)s5_mm(g.path.a),
+               (int)s5_deg(s5_absf(g.out_th)),
+               (int)s5_mm(s5_absf(g.path.a - g.odo.y) /
+                          s5_absf(s5_sinf(g.out_th))),
+               (int)s5_mm(g.path.x_back - g.box.x_near));
+        g.out_step = 0U;
+        s5_enter(S5_PH_OUT);
+        return S5_AVOID_RUNNING;
+    }
     S5_LOG("[VC-S5] going %s: axle %d mm off the line, ramps %d / %d mm, "
            "back in from %d mm past the face\n",
            s5_side_name(side), (int)s5_mm(g.path.a), (int)s5_mm(g.path.l_out),
            (int)s5_mm(g.path.l_in), (int)s5_mm(g.path.x_back - g.box.x_near));
     if (g.path.x0 < (g.odo.x - 5.0f))
     {
-        S5_LOG("[VC-S5] backing up %d mm first, for room to turn out\n",
+        S5_LOG("[VC-S5] no room to turn out even on the spot: backing up "
+               "%d mm first\n",
                (int)s5_mm(g.odo.x - g.path.x0));
         g.back_then = S5_THEN_BYPASS;
         g.back_from = g.odo.x;
@@ -2477,7 +2639,7 @@ static bool s5_cap_watch(bool b_ir_l, bool b_ir_r)
             if (b_other)
             {
                 /* both black, where the other one met it not seen: on a
-                 * line along ours that takes a steep crossing (30 mm between
+                 * line along ours that takes a steep crossing (25 mm between
                  * the IRs, 18 mm tape) */
                 float xc;
                 float yc;
@@ -2589,8 +2751,46 @@ static s5_avoid_result_t s5_cap_start(const motion_status_t *p_m, bool b_ir_l,
     g.cap_step = 0U;
     g.cap_from = g.odo.dist;
     g.b_cap_seen = false;
+    g.b_cap_wide = false;
+    g.b_cap_back = false;
     s5_enter(S5_PH_CAPTURE);
     return s5_do_capture(p_m, b_ir_l, b_ir_r);
+}
+
+/* both wheels under S5_STILL_MM_S for S5_STILL_MS (g.still_ms counts) */
+static bool s5_standing(const motion_status_t *p_m)
+{
+    const bool b_still = (p_m->speed_l_mmps < S5_STILL_MM_S) &&
+                         (p_m->speed_l_mmps > -S5_STILL_MM_S) &&
+                         (p_m->speed_r_mmps < S5_STILL_MM_S) &&
+                         (p_m->speed_r_mmps > -S5_STILL_MM_S);
+
+    g.still_ms = b_still ? (g.still_ms + g.dt_ms) : 0U;
+    return (g.still_ms >= (uint32_t)S5_STILL_MS);
+}
+
+/* nyx, 2026-11-09: the turn onto the line has ended: stand still, then
+ * Buddy 3 takes over. Handed over while still turning, the car on the
+ * track went on turning past the line (Buddy 2 lets the wheel that was
+ * going backwards coast down before it drives it forwards) */
+static s5_avoid_result_t s5_cap_end(const char *p_why)
+{
+    g.p_cap_why = p_why;
+    g.cap_step = 4U;
+    s5_enter(S5_PH_CAPTURE); /* the stop's own clock */
+    return S5_AVOID_RUNNING;  /* wheels 0 */
+}
+
+/* turning onto the line: "straight" is pointing the IRs back at the line
+ * from where the axle ended up, up to S5_CAP_AIM_DEG (rad) */
+static float s5_cap_aim(void)
+{
+    const float lim = S5_CAP_AIM_DEG * S5_DEG2RAD_F;
+    float aim = s5_atan2f(g.line_y - g.odo.y, (float)S5_IR_AHEAD_MM);
+
+    aim = (aim > lim) ? lim : aim;
+    aim = (aim < -lim) ? -lim : aim;
+    return aim;
 }
 
 static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
@@ -2617,6 +2817,14 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
              (s5_absf(yn - g.line_y) <= S5_CAP_GATE_MM);
     b_far = ((g.cap_dir > 0) ? b_ir_l : b_ir_r) &&
             (s5_absf(yf - g.line_y) <= S5_CAP_GATE_MM);
+    if (g.b_search || (g.b_cap_phi && !g.b_cap_wide))
+    {
+        /* nyx, 2026-11-09: the line may be a bend, which is not where the
+         * straight line through the crossing runs: the IRs themselves
+         * decide (S5_CAP_BEND_DEG) */
+        b_near = (g.cap_dir > 0) ? b_ir_r : b_ir_l;
+        b_far = (g.cap_dir > 0) ? b_ir_l : b_ir_r;
+    }
 
     if (0U == g.cap_step)
     {
@@ -2657,14 +2865,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
          * has to reverse straight from driving on gave no ticks for 0.6 s
          * (Buddy 2 lets it coast down before it turns it the other way);
          * the turn from standing at the start of a bypass never did. */
-        const bool b_still = (p_m->speed_l_mmps < S5_STILL_MM_S) &&
-                             (p_m->speed_l_mmps > -S5_STILL_MM_S) &&
-                             (p_m->speed_r_mmps < S5_STILL_MM_S) &&
-                             (p_m->speed_r_mmps > -S5_STILL_MM_S);
-
-        g.still_ms = b_still ? (g.still_ms + g.dt_ms) : 0U;
-        if ((g.still_ms < (uint32_t)S5_STILL_MS) &&
-            (g.ph_ms < (uint32_t)S5_STOP_WAIT_MS))
+        if (!s5_standing(p_m) && (g.ph_ms < (uint32_t)S5_STOP_WAIT_MS))
         {
             return S5_AVOID_RUNNING;
         }
@@ -2672,25 +2873,140 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
         g.b_ir_black[0] = b_ir_l;
         g.b_ir_black[1] = b_ir_r;
         s5_enter(S5_PH_CAPTURE); /* the turn's own clock */
+        if (!g.b_search && g.b_cap_phi && (b_ir_l != b_ir_r) &&
+            (((float)g.cap_dir * (psi - s5_cap_aim())) <=
+             (S5_CAP_BEND_DEG * S5_DEG2RAD_F)))
+        {
+            /* nyx, 2026-11-09: an IR is on the line already, and the car
+             * is near its direction: the line bends that way. Turn
+             * towards that IR until the tape is between the IRs, as a
+             * line search does (host test C66) */
+            const int32_t dir = b_ir_l ? -1 : 1;
+
+            if (dir != g.cap_dir)
+            {
+                S5_LOG("[VC-S5] IR_%c is on the line already (it bends "
+                       "that way): turning %s until the tape is between "
+                       "the IRs\n",
+                       b_ir_l ? 'L' : 'R', s5_side_name(b_ir_l ? 1 : -1));
+                g.cap_dir = dir;
+                g.b_cap_back = true;
+                g.cap_psi0 = psi;
+                g.b_cap_seen = true;
+                return S5_AVOID_RUNNING; /* near and far swapped */
+            }
+            g.b_cap_seen = true;
+        }
     }
-    if ((1U == g.cap_step) && g.b_cap_phi)
+    if (4U == g.cap_step)
+    {
+        if (!s5_standing(p_m) && (g.ph_ms < (uint32_t)S5_STOP_WAIT_MS))
+        {
+            return S5_AVOID_RUNNING;
+        }
+        return s5_done(g.p_cap_why);
+    }
+    if ((1U == g.cap_step) &&
+        (g.b_search || (g.b_cap_phi && !g.b_cap_wide)))
+    {
+        /* still to turn to the direction the crossing gave (a search) or
+         * to pointing the IRs back at the line from where the axle is */
+        float left = (float)g.cap_dir * psi;
+        float past = (float)S5_SEARCH_PAST_DEG * S5_DEG2RAD_F;
+
+        if (g.b_cap_back)
+        {
+            /* turned back towards the line: at most S5_CAP_BEND_DEG */
+            left = (float)g.cap_dir * (psi - g.cap_psi0);
+            past = S5_CAP_BEND_DEG * S5_DEG2RAD_F;
+        }
+        else if (!g.b_search)
+        {
+            left = (float)g.cap_dir * (psi - s5_cap_aim());
+            past = S5_CAP_BEND_DEG * S5_DEG2RAD_F;
+            if (left > past)
+            {
+                /* not near the line's direction yet: a junction's branch */
+                b_near = false;
+                b_far = false;
+            }
+            else if (b_far && (b_near || !g.b_cap_seen))
+            {
+                /* nyx, 2026-11-09: black wider than the IRs are apart, or
+                 * under the far IR before the near one met any: not our
+                 * line crossed, a junction (host tests C53, C54) */
+                S5_LOG("[VC-S5] IR_%c black %s while turning onto the "
+                       "line: a junction there, turning to where the IRs "
+                       "had the line run\n",
+                       (g.cap_dir > 0) ? 'L' : 'R',
+                       b_near ? "with the other" : "before the other");
+                g.b_cap_wide = true;
+                g.b_cap_seen = false;
+                b_near = false;
+                b_far = false;
+            }
+            else
+            {
+                /* the IRs count */
+            }
+        }
+        /* nyx, 2026-11-09 (nyx's idea): the turn onto the line (a
+         * search's, and a bypass's) stops on the IRs, not at an angle.
+         * The IR on the side the car turns towards going black means the
+         * line is there; the turn
+         * stops when the other IR goes black, or once the tape is between
+         * them and the car has turned S5_CAP_EXTRA_DEG more (which allows
+         * for the wheels running on). The IRs, 125 mm ahead of the axle,
+         * meet a bend where its chord runs, up to asin(125 / 2R) off the
+         * direction worked out from the crossing (R300: 12 deg, R200:
+         * 18 deg): turning to that direction, as the bypass did, lost
+         * every bend (host tests Q32..Q46, C61..C68). The direction only
+         * limits the turn (S5_SEARCH_PAST_DEG or S5_CAP_BEND_DEG past
+         * it). */
+        if (b_near)
+        {
+            g.b_cap_seen = true;
+        }
+        if (b_far)
+        {
+            return s5_cap_end(g.b_search
+                                  ? "back on the line (line search: the first "
+                                    "IR met the tape, the turn stopped at the "
+                                    "other)"
+                                  : "back on the line (the first IR met the "
+                                    "tape, the turn stopped at the other)");
+        }
+        if (g.b_cap_seen && !b_near)
+        {
+            /* the tape is between the IRs now: a little more */
+            g.cap_step = 2U;
+            g.cap_psi = psi;
+        }
+        else if ((left < -past) ||
+                 (g.ph_ms > (g.b_search ? (uint32_t)S5_SEARCH_PIVOT_MS
+                                        : S5_PIVOT_MS)))
+        {
+            return s5_cap_end(g.b_search
+                                  ? "back on the line (line search: the turn "
+                                    "did not find the tape, Buddy 3 looks)"
+                                  : "back on the line (the turn did not find "
+                                    "the tape, Buddy 3 looks)");
+        }
+        else
+        {
+            /* still turning */
+        }
+    }
+    else if ((1U == g.cap_step) && g.b_cap_phi)
     {
         /* nyx, 2026-11-08: the line's direction is known from where the
          * two IRs met it, and the encoders' frame turned to it. At a
          * junction the IRs see its branch while the car turns, so they
          * count only near straight (or near pointing back at the line,
          * S5_CAP_AIM_DEG), and the encoders stop the turn a little past
-         * it if they have not. */
-        float aim = s5_atan2f(g.line_y - g.odo.y, (float)S5_IR_AHEAD_MM);
-        float left;
-
-        aim = (aim > (S5_CAP_AIM_DEG * S5_DEG2RAD_F))
-                  ? (S5_CAP_AIM_DEG * S5_DEG2RAD_F)
-                  : aim;
-        aim = (aim < -(S5_CAP_AIM_DEG * S5_DEG2RAD_F))
-                  ? -(S5_CAP_AIM_DEG * S5_DEG2RAD_F)
-                  : aim;
-        left = (float)g.cap_dir * (psi - aim); /* still to turn */
+         * it if they have not. nyx, 2026-11-09: only once both IRs were
+         * black at once (g.b_cap_wide); else the IRs decide, above */
+        const float left = (float)g.cap_dir * (psi - s5_cap_aim());
 
         if (left <= (S5_CAP_IR_DEG * S5_DEG2RAD_F))
         {
@@ -2700,8 +3016,8 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
             }
             if (b_far && !b_near)
             {
-                return s5_done("back on the line (picked up by the IRs, "
-                               "the tape under the far IR)");
+                return s5_cap_end("back on the line (picked up by the IRs, "
+                                  "the tape under the far IR)");
             }
             if (g.b_cap_seen && !b_near)
             {
@@ -2713,15 +3029,15 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
         if ((1U == g.cap_step) &&
             (left <= -(S5_CAP_PAST_DEG * S5_DEG2RAD_F)))
         {
-            return s5_done("back on the line (picked up by the IRs, turned "
-                           "to where they had it run)");
+            return s5_cap_end("back on the line (picked up by the IRs, turned "
+                              "to where they had it run)");
         }
         if ((1U == g.cap_step) &&
             (g.ph_ms > (g.b_search ? (uint32_t)S5_SEARCH_PIVOT_MS
                                    : S5_PIVOT_MS)))
         {
-            return s5_done("back on the line (picked up by the IRs; the "
-                           "turn took too long, Buddy 3 looks)");
+            return s5_cap_end("back on the line (picked up by the IRs; the "
+                              "turn took too long, Buddy 3 looks)");
         }
     }
     else if (1U == g.cap_step)
@@ -2732,8 +3048,8 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
         }
         if (b_far && !b_near)
         {
-            return s5_done("back on the line (picked up by the IRs, the "
-                           "tape under the far IR)");
+            return s5_cap_end("back on the line (picked up by the IRs, the "
+                              "tape under the far IR)");
         }
         if (g.b_cap_seen && !b_near)
         {
@@ -2745,8 +3061,8 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
                      -(S5_CAP_OVER_DEG * S5_DEG2RAD_F) ||
                  (g.ph_ms > S5_PIVOT_MS))
         {
-            return s5_done("back on the line (picked up by the IRs; the "
-                           "turn did not find the tape, Buddy 3 looks)");
+            return s5_cap_end("back on the line (picked up by the IRs; the "
+                              "turn did not find the tape, Buddy 3 looks)");
         }
         else
         {
@@ -2758,13 +3074,13 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
         if ((s5_absf(psi - g.cap_psi) >= (S5_CAP_EXTRA_DEG * S5_DEG2RAD_F)) ||
             b_far)
         {
-            return s5_done("back on the line (picked up by the IRs)");
+            return s5_cap_end("back on the line (picked up by the IRs)");
         }
     }
     /* nyx, 2026-11-08: a line search turns up to 90 deg, so it slows
      * down further out (S5_SEARCH_SLOW_DEG): a car that turns 10 % more
      * than the encoders say was still at full speed when it got there */
-    w = ((2U == g.cap_step) ||
+    w = ((2U == g.cap_step) || g.b_cap_seen ||
          (g.b_cap_phi &&
           (s5_absf(psi) < ((g.b_search ? (float)S5_SEARCH_SLOW_DEG
                                        : S5_PIVOT_SLOW_DEG) *
@@ -2869,8 +3185,28 @@ static s5_avoid_result_t s5_do_search(bool b_ir_l, bool b_ir_r,
         g.b_search_first = false;
         if (b_ir_l != b_ir_r)
         {
-            return s5_done("line search: an IR is on a line already, "
-                           "Buddy 3 follows it");
+            /* nyx, 2026-11-09: started with one IR on a line. Turn on
+             * the spot towards that IR until the tape is between the IRs
+             * (nyx's rule, s5_do_capture()), so Buddy 3 starts with the
+             * line in the middle: on a bend the line was soon past the IR
+             * and Buddy 3, seeing both white, went straight on (host test
+             * Q22, IRs 25 mm apart) */
+            S5_LOG("[VC-S5] line search: IR_%c is on a line already: "
+                   "turning %s on the spot until the tape is between the "
+                   "IRs\n",
+                   b_ir_l ? 'L' : 'R', s5_side_name(b_ir_l ? 1 : -1));
+            g.cap_dir = b_ir_l ? -1 : 1; /* > 0 turns right */
+            g.b_mag = false;
+            s5_odom_set_pose(&g.odo, g.odo.x, g.odo.y, 0.0f);
+            g.line_y = 0.0f;
+            g.b_line = true;
+            g.line_seen = g.odo.dist;
+            g.path.y_end = g.line_y;
+            g.cap_from = g.odo.dist;
+            g.cap_step = 3U; /* stand, then turn */
+            g.b_cap_seen = true;
+            s5_enter(S5_PH_CAPTURE);
+            return s5_do_capture(p_m, b_ir_l, b_ir_r);
         }
     }
     if (b_new[0] && b_new[1])
@@ -3051,6 +3387,79 @@ static s5_avoid_result_t s5_do_turn(void)
     return S5_AVOID_RUNNING;
 }
 
+/* nyx, 2026-11-09: too close for a ramp out (s5_plan()): turn on the
+ * spot to g.out_th, stand, drive straight out until the axle is at the
+ * pass, stand, turn back on the spot to along the line, stand, then
+ * follow the rest of the path. Stands between, as before the turn onto
+ * the line: Buddy 2 lets a wheel that changes direction coast down
+ * first. */
+static s5_avoid_result_t s5_do_out(const motion_status_t *p_m)
+{
+    const float psi = g.odo.psi;
+
+    if ((1U == g.out_step) || (3U == g.out_step) || (5U == g.out_step))
+    {
+        if (!s5_standing(p_m) && (g.ph_ms < (uint32_t)S5_STOP_WAIT_MS))
+        {
+            return S5_AVOID_RUNNING; /* wheels 0 */
+        }
+        if (5U == g.out_step)
+        {
+            /* the pass from here: the ramp is only what is left over */
+            g.path.x0 = g.odo.x;
+            g.path.y0 = g.odo.y;
+            g.path.l_out = s5_path_ramp_len(g.path.a - g.odo.y);
+            s5_plan_back(g.odo.x);
+            s5_start_bypass();
+            return S5_AVOID_RUNNING;
+        }
+        g.out_step++;
+        g.out_from = g.odo.dist;
+        s5_enter(S5_PH_OUT);
+        return S5_AVOID_RUNNING;
+    }
+    if (2U == g.out_step)
+    {
+        const float s0 = (float)S5_TRACK_DIST_MM;
+        const float rate = ((2.0f * (float)S5_SLOW_MM_S) / s0) *
+                           s5_sinf(g.out_th - psi);
+
+        /* at the pass, or (the encoders' heading off) 1.5 times as far
+         * as planned: (S5_MAX_OFFSET_MM / sin 45) */
+        if ((((float)g.side * (g.odo.y - g.path.a)) >= 0.0f) ||
+            ((g.odo.dist - g.out_from) >
+             (1.5f * (float)S5_MAX_OFFSET_MM * 1.42f)))
+        {
+            g.out_step = 3U;
+            s5_enter(S5_PH_OUT);
+            return S5_AVOID_RUNNING;
+        }
+        s5_wheels((float)S5_SLOW_MM_S, rate / (float)S5_SLOW_MM_S);
+        return S5_AVOID_RUNNING;
+    }
+    {
+        /* 0: turning out, 4: turning back */
+        const float want = (0U == g.out_step) ? g.out_th : 0.0f;
+        const float err = s5_wrapf(want - psi); /* + = turn left */
+        const float ae = s5_absf(err);
+        int16_t w;
+
+        if ((ae <= (S5_PIVOT_DONE_DEG * S5_DEG2RAD_F)) ||
+            (g.ph_ms > S5_PIVOT_MS))
+        {
+            g.out_step++;
+            s5_enter(S5_PH_OUT);
+            return S5_AVOID_RUNNING;
+        }
+        w = (ae > (S5_PIVOT_SLOW_DEG * S5_DEG2RAD_F))
+                ? (int16_t)S5_PIVOT_MM_S
+                : (int16_t)S5_PIVOT_SLOW_MM_S;
+        g.cmd_l = (err > 0.0f) ? (int16_t)(-w) : w;
+        g.cmd_r = (err > 0.0f) ? w : (int16_t)(-w);
+    }
+    return S5_AVOID_RUNNING;
+}
+
 static s5_avoid_result_t s5_do_stop(const motion_status_t *p_m, uint32_t dt)
 {
     const bool b_still = (p_m->speed_l_mmps < S5_STILL_MM_S) &&
@@ -3071,13 +3480,14 @@ static s5_avoid_result_t s5_do_stop(const motion_status_t *p_m, uint32_t dt)
         {
             float d = 0.0f;
 
+            /* nyx, 2026-11-09: however close it is, the sweep is from
+             * here (it backed off to S5_SCAN_DIST_MM under S5_SCAN_MIN_MM);
+             * the car backs up only when no way round is open */
             if (s5_get_ping(&p) && (0 == p.ddeg) && p.b_valid && s5_fresh(&p) &&
                 (0U != p.mm) && (p.mm < (uint16_t)S5_SCAN_MIN_MM))
             {
-                S5_LOG("[VC-S5] only %d mm away: backing off to %d mm "
-                       "first\n",
-                       (int)p.mm, (int)S5_SCAN_DIST_MM);
-                d = (float)(S5_SCAN_DIST_MM - (int32_t)p.mm);
+                S5_LOG("[VC-S5] only %d mm away: sweeping from here\n",
+                       (int)p.mm);
             }
             if (s5_absf(g.odo.psi) > (S5_SQUARE_DEG * S5_DEG2RAD_F))
             {
@@ -3389,6 +3799,9 @@ static const char *s5_ph_name(void)
         case S5_PH_SEARCH:
             p_name = "looking for a line (line search)";
             break;
+        case S5_PH_OUT:
+            p_name = "turning out on the spot";
+            break;
         default:
             p_name = "idle";
             break;
@@ -3527,6 +3940,9 @@ s5_avoid_result_t s5_avoid_step(const motion_status_t *p_m, bool b_ir_l,
                 break;
             case S5_PH_SEARCH:
                 res = s5_do_search(b_ir_l, b_ir_r, p_m);
+                break;
+            case S5_PH_OUT:
+                res = s5_do_out(p_m);
                 break;
             case S5_PH_IDLE:
             default:

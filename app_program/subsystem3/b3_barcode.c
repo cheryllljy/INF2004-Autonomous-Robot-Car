@@ -191,6 +191,55 @@ static bool finish(b3_barcode_t *p_scan, b3_edge_t current,
  * Once all B3_BARCODE_RUNS widths have been
  * collected, try to decode Code 39.
  */
+/*
+ * Decode one set of widths into p_scan->decoded, retrying with the outer
+ * bars trimmed (B3_TRIM_OUTER_BARS).
+ */
+static bool decode_widths(b3_barcode_t *p_scan, const uint32_t *p_src)
+{
+    if (b3_code39_decode(p_src, &p_scan->decoded))
+    {
+        return true;
+    }
+#if B3_TRIM_OUTER_BARS
+    {
+        /*
+         * Retry (nyx, 2026-11-04): on the car the first and last bars read
+         * 3-4x too long while every other element was fine (B278 ... B237
+         * with narrow bars ~60 ms). In the start/stop '*' the first, ninth,
+         * 21st and last elements are narrow bars whichever way the car
+         * drives, so the outer bar is trimmed to its partner and decoded
+         * again. The middle letter is still checked in full.
+         */
+        uint32_t trimmed[B3_BARCODE_RUNS];
+        size_t i;
+
+        for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+        {
+            trimmed[i] = p_src[i];
+        }
+
+        if (trimmed[0] > trimmed[8])
+        {
+            trimmed[0] = trimmed[8];
+        }
+
+        if (trimmed[B3_BARCODE_RUNS - 1U] > trimmed[B3_BARCODE_RUNS - 9U])
+        {
+            trimmed[B3_BARCODE_RUNS - 1U] = trimmed[B3_BARCODE_RUNS - 9U];
+        }
+
+        if (b3_code39_decode(trimmed, &p_scan->decoded))
+        {
+            ++p_scan->trimmed;
+            return true;
+        }
+    }
+#endif
+    return false;
+}
+
+
 static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
 {
     bool enough_ticks;
@@ -228,47 +277,21 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
      *
      * time widths
      */
-    if (!b3_code39_decode(enough_ticks ? p_scan->tick_widths
-                                       : p_scan->time_widths,
-                          &p_scan->decoded))
+    if (!decode_widths(p_scan, enough_ticks ? p_scan->tick_widths
+                                            : p_scan->time_widths))
     {
-#if B3_TRIM_OUTER_BARS
-        /*
-         * Retry (nyx, 2026-11-04): on the car the first and last bars read
-         * 3-4x too long while every other element was fine (B278 ... B237
-         * with narrow bars ~60 ms). In the start/stop '*' the first, ninth,
-         * 21st and last elements are narrow bars whichever way the car
-         * drives, so the outer bar is trimmed to its partner and decoded
-         * again. The middle letter is still checked in full.
-         */
-        uint32_t trimmed[B3_BARCODE_RUNS];
-        const uint32_t *p_src =
-            enough_ticks ? p_scan->tick_widths : p_scan->time_widths;
-
-        for (i = 0U; i < B3_BARCODE_RUNS; ++i)
-        {
-            trimmed[i] = p_src[i];
-        }
-
-        if (trimmed[0] > trimmed[8])
-        {
-            trimmed[0] = trimmed[8];
-        }
-
-        if (trimmed[B3_BARCODE_RUNS - 1U] > trimmed[B3_BARCODE_RUNS - 9U])
-        {
-            trimmed[B3_BARCODE_RUNS - 1U] = trimmed[B3_BARCODE_RUNS - 9U];
-        }
-
-        if (!b3_code39_decode(trimmed, &p_scan->decoded))
+        /* nyx, 2026-11-09: the car rejected scans (reason 6) whose time
+         * widths decode cleanly ('Z' read back to front): the encoder
+         * distances were off (a wheel missing ticks or slipping at 30
+         * mm/s). Code 39 is ratio-based, so the time widths are tried
+         * before giving up; the quiet zones are then measured in time. */
+        if (!enough_ticks || !decode_widths(p_scan, p_scan->time_widths))
         {
             return B3_REJECT_DECODE;
         }
-
-        ++p_scan->trimmed;
-#else
-        return B3_REJECT_DECODE;
-#endif
+        enough_ticks = false;
+        p_scan->used_encoder = false;
+        ++p_scan->timed_fallbacks;
     }
 
 
@@ -297,9 +320,19 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
      * Required trailing quiet zone is based
      * on the decoded narrow element.
      */
-    p_scan->required_trailing = p_scan->decoded.last_narrow *
-                                /* was B3_QUIET_NARROW_MULTIPLE (2026-11-05) */
-                                B3_TRAILING_NARROW_MULTIPLE;
+    /* nyx, 2026-11-09: with both '*' read nothing can follow: Code 39 has
+     * no data after the stop '*', and a longer barcode would have put a
+     * letter, not '*', third. The barcode ended with its last bar, so no
+     * trailing white is needed (the car rejected 29/29 decodes because IR_B
+     * met black 4 mm after the last bar). With one '*' spoiled the third
+     * symbol may be a letter of a longer barcode: the white is still
+     * needed. */
+    p_scan->required_trailing =
+        p_scan->decoded.both_stars
+            ? 0U
+            : (p_scan->decoded.last_narrow *
+               /* was B3_QUIET_NARROW_MULTIPLE (2026-11-05) */
+               B3_TRAILING_NARROW_MULTIPLE);
 
 
     p_scan->pending = true;

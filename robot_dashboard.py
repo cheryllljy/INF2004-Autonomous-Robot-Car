@@ -1,7 +1,8 @@
 
-"""Live, read-only MQTT dashboard for the INF2004 robot car."""
+"""Live MQTT dashboard for the INF2004 robot car (with test buttons)."""
 
 import ipaddress
+import os
 import re
 import time
 import threading
@@ -21,10 +22,54 @@ TOPIC_TELEMETRY = "inf2004/robot/telemetry"
 TOPIC_HEARTBEAT = "inf2004/robot/heartbeat"
 TOPIC_TEST = "inf2004/robot/test"
 
+# nyx, 2026-11-09: start/stop buttons for testing. The same FR2 command
+# robot.ps1 sends (Buddy 1): 3 bytes = version 1, command, sequence
+# 0..255. The car ignores a sequence that is not newer than the last one,
+# so the counter is shared with robot.ps1 (%TEMP%\inf2004_seq.txt) and
+# both can be used side by side.
+TOPIC_COMMAND = "inf2004/robot/command"
+FR2_VERSION = 1
+CMD_START = 1
+CMD_STOP = 2
+CMD_RESET = 3
+CMD_SEARCH = 4
+SEQ_FILE = Path(
+    os.environ.get("TEMP") or os.environ.get("TMP") or "."
+) / "inf2004_seq.txt"
+SEQ_LOCK = threading.Lock()
+
 MAP_LINE = re.compile(
     r"^([A-Z])\s*->\s*(FORWARD|LEFT|RIGHT|U-TURN)$",
     re.MULTILINE
 )
+
+
+def next_sequence():
+    """Next command sequence number, shared with robot.ps1."""
+    with SEQ_LOCK:
+        value = 0
+
+        try:
+            raw = SEQ_FILE.read_bytes()
+            text = raw.decode(
+                "utf-16" if b"\x00" in raw else "ascii",
+                errors="ignore"
+            )
+            match = re.search(r"\d+", text)
+
+            if match is not None:
+                value = int(match.group(0))
+        except OSError:
+            pass
+
+        value = (value + 1) % 256
+
+        try:
+            SEQ_FILE.write_text(f"{value}\r\n", encoding="ascii")
+        except OSError:
+            pass
+
+        return value
 
 
 def load_broker_config():
@@ -89,7 +134,7 @@ except (OSError, ValueError) as error:
 
 
 class RobotFeed:
-    """Receive real MQTT messages without publishing robot commands."""
+    """Receive real MQTT messages; send start/stop commands on request."""
 
     def __init__(self, host, port):
         self.lock = threading.Lock()
@@ -298,6 +343,32 @@ class RobotFeed:
                 + payload[:120].replace("\n", " ")
             )
 
+    def send_command(self, code, name):
+        """Publish one FR2 command, as robot.ps1 does."""
+        seq = next_sequence()
+        info = self.client.publish(
+            TOPIC_COMMAND,
+            bytes([FR2_VERSION, code, seq]),
+            qos=1
+        )
+
+        if info.rc == mqtt.MQTT_ERR_SUCCESS:
+            self.add_event(f"Sent {name.upper()} (seq {seq})")
+        else:
+            self.add_event(
+                f"Could not send {name.upper()}: "
+                f"{mqtt.error_string(info.rc)}"
+            )
+
+    def send_after_reset(self, code, name):
+        """RESET, wait 2 s, then the command (robot.ps1 go / search)."""
+        def run():
+            self.send_command(CMD_RESET, "reset")
+            time.sleep(2.0)
+            self.send_command(code, name)
+
+        threading.Thread(target=run, daemon=True).start()
+
     def snapshot(self):
         with self.lock:
             return {
@@ -328,11 +399,35 @@ feed = create_feed(BROKER, PORT)
 st.title("INF2004 | Robotic Car Telemetry")
 
 st.caption(
-    "Buddy 1 | Read-only MQTT dashboard | "
-    "Live robot messages"
+    "Buddy 1 | MQTT dashboard | "
+    "Live robot messages, start/stop buttons for testing"
 )
 
 st.write(f"Broker from project config: `{BROKER}:{PORT}`")
+
+# nyx, 2026-11-09: drive the car from here for testing (same commands as
+# robot.ps1 go / search / stop).
+st.subheader("Drive the car (testing)")
+
+go_col, search_col, stop_col = st.columns(3)
+
+if go_col.button("Start (reset + go)"):
+    feed.send_after_reset(CMD_START, "start")
+    go_col.caption("Reset sent; start follows in 2 s.")
+
+if search_col.button("Line search (reset + search)"):
+    feed.send_after_reset(CMD_SEARCH, "search")
+    search_col.caption("Reset sent; search follows in 2 s.")
+
+if stop_col.button("STOP", type="primary"):
+    feed.send_command(CMD_STOP, "stop")
+    stop_col.caption("Stop sent.")
+
+st.caption(
+    "Start = robot.ps1 go (also clears a latched E-stop). "
+    "Line search: start the car off the line. "
+    "Sent commands show under Recent MQTT events."
+)
 
 
 @st.fragment(run_every="1s")

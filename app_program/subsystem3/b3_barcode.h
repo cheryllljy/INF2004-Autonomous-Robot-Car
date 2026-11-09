@@ -49,6 +49,9 @@ typedef struct
     uint32_t glitches;
     /* scans decoded only after trimming the outer bars */ /* blips shorter than B3_MIN_EDGE_US absorbed */
     uint32_t trimmed;
+    /* nyx, 2026-11-09: scans decoded from the time widths after the
+     * encoder widths failed */
+    uint32_t timed_fallbacks;
     bool prev_valid;
     /* time of a black edge seen in the trailing white */
     uint32_t glitch_us;

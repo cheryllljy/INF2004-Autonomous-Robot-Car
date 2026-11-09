@@ -96,7 +96,7 @@ void sim_reset(uint32_t seed)
     g_sim.no_echo_ms = 38.0;
     g_sim.servo_dps = 450.0;
     g_sim.ir_ahead = 125.0;
-    g_sim.ir_half = 15.0;
+    g_sim.ir_half = 12.5; /* nyx, 2026-11-09: 25 mm apart (was 15) */
     g_sim.n_lane = 1;
     g_sim.mag_on = 1;
     g_sim.mag_r = 2500.0;

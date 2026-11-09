@@ -44,7 +44,8 @@
  * --------------------------------------------------------------------- */
 #define S5_SONAR_AHEAD_MM    (70)  /* sensor face (nyx, 2026-11-07) */
 #define S5_IR_AHEAD_MM       (125) /* IR_L / IR_R pair (nyx, 2026-11-06) */
-#define S5_IR_HALF_GAP_MM    (15)  /* each IR this far off the centre */
+/* nyx, 2026-11-09: 25 mm apart, measured (was 15, a guess) */
+#define S5_IR_HALF_GAP_MM    (12.5f) /* each IR this far off the centre */
 #define S5_LINE_HALF_MM      (9)   /* 18 mm tape */
 #define S5_CAR_FRONT_MM      (135) /* front of the car */
 #define S5_CAR_REAR_MM       (45)  /* back of the car (behind the axle) */
@@ -115,10 +116,14 @@
 #define S5_FACE_CONE_DDEG (300)
 /* a return this far behind the face is something else, not the object */
 #define S5_EDGE_DEPTH_MM (120)
-/* closer than this, the edges may be outside the sweep: back off first */
+/* closer than this, the edges may be outside the sweep: back off first.
+ * nyx, 2026-11-09: no longer used (the car sweeps from where it stopped,
+ * however close; it backs up only when no way round is open) */
 #define S5_SCAN_MIN_MM  (150)
 #define S5_SCAN_DIST_MM (250) /* ... to here */
-/* an edge outside the sweep: back off this much more and scan again */
+/* an edge outside the sweep: back off this much more and scan again.
+ * nyx, 2026-11-09: only when neither side is open (no edge seen on an
+ * open side), and when no way round is open at all */
 #define S5_RESCAN_BACK_MM  (150)
 #define S5_MAX_RESCANS     (2U)
 #define S5_SCAN_TIMEOUT_MS (5000)
@@ -143,6 +148,15 @@
 /* Both sides within this of each other: pick one at random. */
 #define S5_TIE_MM (10)
 
+/* nyx, 2026-11-09: the sonar hears the floor 54-71 cm out on every
+ * bearing the box does not cover (2026-11-08/09 track logs; it moves
+ * with the car). A side only "maybe blocked" (beam edge) by an echo at
+ * least this far is still taken at the first object when it is the
+ * shorter way round (s5_pick()); a nearer echo still rules it out. */
+#ifndef S5_FLOOR_MIN_MM
+#define S5_FLOOR_MIN_MM (530)
+#endif
+
 /* ---------------------------------------------------------------------
  *  Bypass path. Smooth "potential field" shape on a straight line: the
  *  line pulls the car back, the object pushes it out. Planned as
@@ -157,6 +171,13 @@
  * the object): a steeper one, down to this, before backing up at all */
 #define S5_STEEP_HEADING_DEG (60)
 #define S5_STEEP_RADIUS_MM   (110)
+/* nyx, 2026-11-09: no backing up for room to turn out. Too close for the
+ * steep ramp: turn on the spot towards the side, by as little as clears
+ * the object (from S5_OUT_PIVOT_MIN_DEG up to 90 deg, in steps of
+ * S5_OUT_PIVOT_STEP_DEG), drive straight out to the pass, turn back on
+ * the spot. The car backs up only when not even that is open. */
+#define S5_OUT_PIVOT_MIN_DEG  (45)
+#define S5_OUT_PIVOT_STEP_DEG (15)
 /* nyx, 2026-11-08: the ramp back in, sharper than the ramp out (less for
  * the encoders to drift over; the IRs pick the line up) */
 #ifndef S5_IN_HEADING_DEG
@@ -226,12 +247,17 @@
 /* nyx, 2026-11-08: a line the IRs cross more than this off the direction
  * of ours (from where each IR met it, in the encoders' frame) is a
  * junction's branch, not ours. The encoders drift a few degrees on the
- * way round. */
-#define S5_CAP_LINE_DEG (20)
+ * way round. nyx, 2026-11-09: 20 -> 30, a bend behind the box runs 24 deg
+ * off 80 mm into a R200 (host tests C61..C67, L3, L4); a branch at 45 deg
+ * still stays out (C56) */
+#ifndef S5_CAP_LINE_DEG
+#define S5_CAP_LINE_DEG (30)
+#endif
 /* ... and both IRs black at once is our line only with the car crossing
- * at least this steeply (30 mm between the IRs, 18 mm tape: 53 deg, less
- * the drift); less steep, a line across ours */
-#define S5_CAP_BOTH_DEG (45)
+ * at least this steeply (nyx, 2026-11-09: 25 mm between the IRs, 18 mm
+ * tape: 44 deg, less the drift; was 45 for 30 mm); less steep, a line
+ * across ours */
+#define S5_CAP_BOTH_DEG (36)
 /* line not met at the end of the ramp: carry on at this angle ... */
 /* nyx, 2026-11-08: 12 -> 30. On the track the car ended 5 cm beside the
  * line with the encoders some degrees off; at 12 deg it never got there */
@@ -330,7 +356,7 @@
 #define S5_SEARCH_MM_S (60)   /* straight on at this speed */
 #define S5_SEARCH_MAX_MM (2000) /* no line within this: stop (fault 0x40) */
 /* one IR black: the other must meet the line within this (lines from
- * 11 deg to the car up; shallower ones Buddy 3 takes) ... */
+ * 10 deg to the car up; shallower ones Buddy 3 takes) ... */
 #define S5_SEARCH_PAIR_MM (150)
 /* ... and one IR black this long with the other still white is a line
  * running along the car (or the car started on one): Buddy 3 follows it.
@@ -350,6 +376,13 @@
 #endif
 /* the turn on the spot onto the line (up to 90 deg) may take this long */
 #define S5_SEARCH_PIVOT_MS (8000)
+/* nyx, 2026-11-09: the turn onto the line stops on the IRs (the first
+ * one black, then the other); without them it goes on to this far past
+ * the direction worked out from the crossing (a bend's chord can be 25
+ * deg further round), then Buddy 3 looks */
+#ifndef S5_SEARCH_PAST_DEG
+#define S5_SEARCH_PAST_DEG (30)
+#endif
 
 /* ---------------------------------------------------------------------
  *  Calibration build (testing/subsystem5/CALIBRATION.md): make S5CAL=1

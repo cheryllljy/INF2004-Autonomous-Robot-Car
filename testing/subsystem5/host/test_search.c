@@ -65,7 +65,7 @@ typedef struct
     double box_gone_ms; /* ... taken away this long after the start */
     double track_err;   /* the real track is wider: wheels turn the car
                          * 1 / (1 + this) as far as asked */
-    double ir_half;     /* real IRs this far off the centre (0: 15) */
+    double ir_half;     /* real IRs this far off the centre (0: 12.5) */
 } scen_t;
 
 static const scen_t g_scen[] =
@@ -111,10 +111,47 @@ static const scen_t g_scen[] =
       3000, -400, 60, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.10 },
     { "Q29", "30 deg, real track 10 % narrower",
       3000, -300, 30, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.10 },
-    { "Q30", "straight across, real IRs 12 mm off the centre (not 15)",
+    { "Q30", "straight across, real IRs 12 mm off the centre (not 12.5)",
       3000, -400, 90, -1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 12.0 },
-    { "Q31", "45 deg, real IRs 12 mm off the centre (not 15)",
+    { "Q31", "45 deg, real IRs 12 mm off the centre (not 12.5)",
       3000, -400, 45, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 12.0 },
+    /* nyx, 2026-11-09: the line at the start is a bend (R300 left 90
+     * from x 2800) */
+    { "Q32", "across a R300 left bend, 48 deg to it, from outside",
+      3000, -300, 90, 0, 0.0, 0.0, 300.0, 90.0, 2800.0 },
+    { "Q33", "across a R300 left bend from inside, 60 deg to it",
+      2950, 250, -90, 0, 0.0, 0.0, 300.0, 90.0, 2800.0 },
+    { "Q34", "near a R300 left bend, outside, IRs 6 cm off, 40 deg in",
+      2937, -130, 70, 0, 0.0, 0.0, 300.0, 90.0, 2800.0 },
+    { "Q35", "beside a R300 left bend, inside, IRs 6 cm off, on tangent",
+      2812, 30, 30, 0, 0.0, 0.0, 300.0, 90.0, 2800.0 },
+    { "Q36", "across a R300 left bend from outside, wheels turn 30 % less",
+      3000, -300, 90, 0, 0.0, 0.0, 300.0, 90.0, 2800.0, 0.0, 0.0, 0.30 },
+    { "Q37", "square across a R300 left bend from inside: LEFT, along it",
+      2950, 250, -60, 0, 0.0, 0.0, 300.0, 90.0, 2800.0 },
+    { "Q38", "across a R300 RIGHT bend, 48 deg to it, from outside",
+      3000, 300, -90, 0, 0.0, 0.0, 300.0, -90.0, 2800.0 },
+    { "Q39", "near a R300 RIGHT bend, outside, IRs 6 cm off, 40 deg in",
+      2937, 130, -70, 0, 0.0, 0.0, 300.0, -90.0, 2800.0 },
+    { "Q40", "across a R200 left bend, from outside",
+      2950, -300, 90, 0, 0.0, 0.0, 200.0, 90.0, 2800.0 },
+    { "Q41", "across a R200 RIGHT bend, from outside",
+      2950, 300, -90, 0, 0.0, 0.0, 200.0, -90.0, 2800.0 },
+    { "Q42", "square across a R200 left bend from inside: LEFT, along it",
+      2839, 154, -50, 0, 0.0, 0.0, 200.0, 90.0, 2800.0 },
+    { "Q43", "across a R200 left bend from outside, wheels turn 20 % less",
+      2950, -300, 90, 0, 0.0, 0.0, 200.0, 90.0, 2800.0, 0.0, 0.0, 0.20 },
+    { "Q44", "square across a R200 left bend from inside, turn 20 % less",
+      2839, 154, -50, 0, 0.0, 0.0, 200.0, 90.0, 2800.0, 0.0, 0.0, 0.20 },
+    { "Q45", "across a R300 RIGHT bend from outside, IRs 12 mm off centre",
+      3000, 300, -90, 0, 0.0, 0.0, 300.0, -90.0, 2800.0, 0.0, 0.0, 0.0,
+      12.0 },
+    { "Q46", "across a R200 RIGHT bend, encoders 2 % long, L/R 0.5 %",
+      2950, 300, -90, 0, 0.02, 0.005, 200.0, -90.0, 2800.0 },
+    { "Q47", "started on a straight line 8 mm right of it, IR_L on the tape",
+      500, -8, 0, 1 },
+    { "Q48", "started on the line in a R400 RIGHT bend, IR_R on the tape",
+      3000, 0, 0, 0, 0.0, 0.0, 400.0, -60.0, 3000.0 },
     { "none", "facing away from the line: stops with the fault",
       3000, -300, -90, 9 },
 };
@@ -434,7 +471,7 @@ int main(int argc, char **argv)
     }
     (void)printf("Line search: IRs %d mm ahead, %d mm apart; search %d mm/s, "
                  "line speed %d mm/s\n",
-                 (int)S5_IR_AHEAD_MM, 2 * (int)S5_IR_HALF_GAP_MM,
+                 (int)S5_IR_AHEAD_MM, (int)(2.0f * S5_IR_HALF_GAP_MM),
                  (int)S5_SEARCH_MM_S, (int)B3_BASE_SPEED_MM_S);
     for (i = 0; i < N_SCEN; i++)
     {

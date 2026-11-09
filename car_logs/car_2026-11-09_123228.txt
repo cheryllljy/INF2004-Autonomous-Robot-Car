@@ -1,0 +1,22 @@
+12:32:44.304 [VC] line sensors black L 17 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+12:32:45.409 [VC] HUMP_DONE peak side-height=49 mm (seq 10)
+12:32:50.220 [VC] MQTT RESET received seq=81
+12:32:50.359 [VC] state 5 -> 0
+12:32:52.236 [VC] MQTT SEARCH received seq=82: line search, then line following
+12:32:52.302 [VC] state 0 -> 3
+12:32:52.315 [VC-S5] line search: straight on at 60 mm/s until the IRs meet a line (at most 2000 mm), then onto it and along it
+12:32:54.116 [VC-S5] line search: both IRs met a line straight across (2 mm apart): onto it, then turning LEFT to face along it (S5_SEARCH_TURN)
+12:32:54.219 [VC] junction #9 reached, letter '-', turn STRAIGHT (none)
+12:32:56.119 [VC-S5] axle on the line (119 mm on): turning on the spot to face along it
+12:32:58.516 [VC-S5] back on the line (picked up by the IRs): line following again (236 mm, 4.4 s)
+12:32:58.597 [VC] state 3 -> 1
+12:33:00.221 [VC] barcode scan started
+12:33:00.827 [VC] junction #10 reached, letter '-', turn STRAIGHT (none)
+12:33:03.461 [VC] HUMP_DONE peak side-height=9 mm (seq 11)
+12:33:03.606 [VC] barcode rejected (total 6): 0/29 elements, last element 2006247 us, reason 3: element too long
+12:33:05.240 [VC] barcode scan started
+12:33:05.299 [VC] junction #11 reached, letter '-', turn STRAIGHT (none)
+12:33:07.213 [VC] barcode rejected (total 7): 0/29 elements, last element 2006835 us, reason 3: element too long
+12:33:09.579 [VC] MQTT STOP received seq=83
+12:33:09.668 [VC] state 1 -> 4
+12:33:11.584 [VC] HUMP_DONE peak side-height=29 mm (seq 12)

@@ -1,0 +1,29 @@
+Buddy 3 host tests, 2026-11-09 09:53 UTC, gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+Source: nyx's PC state (2026-11-09, branch 37) plus: a barcode whose encoder widths do not decode is decoded from its time widths (b3_barcode.c); new test with the car's reason-6 widths of 09:50 UTC; not committed
+
+$ cd testing/subsystem3/buddy3_host && python3 run_tests.py
+--- core
+PASS: all four school PDF samples, both reading directions
+PASS: 43 symbols at three time scales, jitter and reverse scans
+PASS: malformed framing, bad gaps, missing pulses and bad width ratios
+PASS: leading/trailing quiet zones and exactly one event per frame
+PASS: encoder width fusion and low-resolution encoder fallback
+PASS: noise rejection, stuck-input timeout and 32-bit timer rollover
+PASS: any barcode size from 0.03 mm to 25 mm bars; relative long-element abort; skewed car scan
+PASS: slowing down over a barcode is rescaled by measured speed
+PASS: sub-200 us sensor blips inside a barcode are absorbed
+PASS: a blip just before the first bar keeps the white before it
+PASS: a black mark 10-13 cm before a barcode at 50 mm/s does not shorten its leading white
+PASS: car scan with stretched outer bars decodes as 'Z' after trimming
+PASS: car scan whose encoder widths fail decodes from its time widths ('Z', reason 6 on 2026-11-09)
+PASS: straddle line rules, steering direction, filtering and crossings
+PASS: smooth steering nudges, learns the curve, slows, keeps the inner wheel turning, pivots in a hairpin, fades, holds
+PASS: both IRs black in a learnt bend keep the curve and nudge inward; on a straight they drive on
+All 5451 checks passed. Host logic tests; no hardware timing claim.
+--- adapters
+PASS: ISR filtering, queue overflow, coalesced edges and quiet-zone race guard
+PASS: micro T-Kernel adapter startup, bounded task pass and stale-context stop
+PASS: letter held until a 25 mm/s junction, speed dips tolerated, short patch reported, cleared on request, faults latch a stop
+All 4137 adapter checks passed using test doubles.
+PASS: Buddy3 port adapter mock compile-check
+exit code 0

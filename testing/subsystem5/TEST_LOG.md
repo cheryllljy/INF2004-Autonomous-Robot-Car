@@ -32,7 +32,7 @@ real Buddy 3 line follower (`b3_line.c`).
 | S5-H18 | dead reckoning: quarter circle R300 | FR24 | auto | `make unit` | ends at (300, 300), 90 deg |
 | S5-H19 | ping timing: 14+ pings/s, a box at 250 mm reads 250 +- 8 mm and counts as close, a 150 ms no-echo pulse is not a dead sensor, LOOK keeps pinging while its angle creeps at 10 and 60 deg/s | FR21, NFR12 | auto | `make unit` (also `build/test_s5_unit -p 20`) | `[PASS] S5-H19` at 10 and 20 ms polls |
 | S5-H20 | no ECHO pulse at all: dead within 1 s; a working sensor is not | FR25 | auto | `make unit` | `[PASS] S5-H20` |
-| S5-H21 | whole episodes on a simulated car (S5 task, bypass in the VC's task, Buddy 3, Buddy 2 with 60 ms lag), scenarios C1..C60 below, 3 seeds each (10 for a full run) | FR21-FR25 | auto | `make car`; full: `build/test_s5_car -s 10` and `-s 10 -p 20` | no contact, 10 mm clearance or more, handed back within 12 mm of OUR line, stays on it (24 mm) for 300 mm after; L1..L3 shown only |
+| S5-H21 | whole episodes on a simulated car (S5 task, bypass in the VC's task, Buddy 3, Buddy 2 with 60 ms lag), scenarios C1..C70 below (C61..C67 added 2026-11-09: the line bends behind the box; C68..C70 added 2026-11-09: box put down close, no backing up), 3 seeds each (10 for a full run) | FR21-FR25 | auto | `make car`; full: `build/test_s5_car -s 10` and `-s 10 -p 20` | no contact, 10 mm clearance or more, handed back within 12 mm of OUR line, stays on it (24 mm) for 300 mm after; L1..L4 shown only |
 
 S5-H21 scenarios:
 
@@ -70,6 +70,21 @@ S5-H21 scenarios:
 | C54 | junction where the car turns onto the line (going right): the turn is not cut short | C59 | compass up to 6 deg off with heading (poor calibration), encoders 1 % apart |
 | C55 | junction's branch on the side the car comes back from (going right): left alone | C60 | iron in the box pulls the field 30 % near it: the compass is not used there |
 | C56 | junction's branch at 45 deg across the way back (going left): left alone | L3 | LIMIT: the IRs cross our line right where a junction's branch meets it |
+| C61 | line bends left R300 behind the box, car comes back from the left (2026-11-09) | C65 | line bends left R200 behind the box, car comes back from the left |
+| C62 | line bends right R300 behind the box, car comes back from the left | C66 | line bends left R500 from the box's back, car from the left, encoders 1 % apart |
+| C63 | line bends left R300 behind the box, car comes back from the right | C67 | line bends right R500 from the box's back, car from the left, encoders 1 % apart |
+| C64 | line bends right R300 behind the box, car comes back from the right | L4 | LIMIT: line bends right R200 behind the box, car from the left (one IR meets its edge, the bend takes it away) |
+| C68 | box put down 150 mm in front: turns out on the spot, no backing up (2026-11-09) | C70 | 25 cm wide box put down 200 mm in front, encoders 1 % apart: no backing up |
+| C69 | box put down 150 mm in front, 40 mm left: no backing up |  |  |
+
+nyx, 2026-11-09: the car backs up only when no way round is open (both
+sides blocked, or an edge outside the sweep and no side open), or when
+not even a turn on the spot clears the box. Too close for a ramp, it
+turns out on the spot (45, 60, 75 or 90 deg), drives straight out to
+the pass offset and turns back. C68..C70 allow 1 mm of reversing; C8
+(box 100 mm from the car's front) now goes round with none. A box 50 mm
+from the front (C9) has its edges outside the +-60 deg sweep, so the car
+still backs off 160 mm to see it.
 
 nyx, 2026-11-08: C52..C56 have encoders 1 % apart, so the car comes back
 off the line, past or onto a junction's branch (tape across our line from
@@ -87,7 +102,7 @@ it stops (two boxes even closer, wider ones) end waiting with fault bit
 
 | ID | What is tested | Requirement / interface | Method | Steps / how | Expected result |
 |---|---|---|---|---|---|
-| S5-H22 | line search (`robot.ps1 search`, nyx 2026-11-08): from a white start the car drives straight until the IRs meet a line, then lines up along it and Buddy 3 follows it; scenarios Q1..Q31 and none below, 5 seeds each (10 for a full run) | VC start, Buddy 3 hand-over | auto | `make search`; full: `build/test_search -s 10` | handed to Buddy 3, then 300..700 mm followed with the IR centre within 15 mm of the line, heading within 12 deg of along it; "none" stops with `no line within` |
+| S5-H22 | line search (`robot.ps1 search`, nyx 2026-11-08): from a white start the car drives straight until the IRs meet a line, then lines up along it and Buddy 3 follows it; scenarios Q1..Q48 and none below (Q32..Q48 added 2026-11-09: the line is a bend, or an IR starts on it), 5 seeds each (10 for a full run) | VC start, Buddy 3 hand-over | auto | `make search`; full: `build/test_search -s 10` | handed to Buddy 3, then 300..700 mm followed with the IR centre within 15 mm of the line, heading within 12 deg of along it; "none" stops with `no line within` |
 
 S5-H22 scenarios (angle = the line to the car's heading at the start):
 
@@ -102,7 +117,30 @@ S5-H22 scenarios (angle = the line to the car's heading at the start):
 | Q15 / Q16 / Q17 | 20 / 15 / 10 deg: Buddy 3 takes it from one IR | Q25 | a box in the way, taken away after 4 s, then the line |
 | Q18 | -30 deg, coming from the left of the line | Q26 / Q27 | straight across, real track 10 % wider / narrower |
 | none | facing away from the line: stops with the fault (0x40) after 2 m | Q28 / Q29 | 60 deg track 10 % wider / 30 deg track 10 % narrower |
-|  |  | Q30 / Q31 | straight across / 45 deg, real IRs 12 mm off the centre (not 15) |
+|  |  | Q30 / Q31 | straight across / 45 deg, real IRs 12 mm off the centre (not 15; since 2026-11-09 the config says 12.5) |
+
+Added 2026-11-09 (nyx: the car did not pick up a curved line at the start). The line bends 90 deg from 40 cm before the car's x (Q47: a straight line; Q48: a 60 deg bend from the car's x):
+
+| ID | Scenario | ID | Scenario |
+|---|---|---|---|
+| Q32 / Q38 | across a R300 left / right bend, 48 deg to it, from outside | Q40 / Q41 | across a R200 left / right bend, from outside |
+| Q33 | across a R300 left bend from inside, 60 deg to it | Q42 | square across a R200 left bend from inside: LEFT, along it |
+| Q34 / Q39 | near a R300 left / right bend, outside, IRs 6 cm off, 40 deg in | Q43 / Q44 | Q40 / Q42 with wheels that turn the car 20 % less |
+| Q35 | beside a R300 left bend, inside, IRs 6 cm off, on its tangent | Q45 | Q38 with real IRs 12 mm off the centre |
+| Q36 | Q32 with wheels that turn the car 30 % less | Q46 | Q41 with encoders 2 % long and L/R 0.5 % apart |
+| Q37 | square across a R300 left bend from inside: LEFT, along it | Q47 | started on a straight line 8 mm right of it, IR_L on the tape |
+|  |  | Q48 | started on the line in a R400 right bend, IR_R on the tape (Q22 mirrored) |
+
+Buddy 3's line following on a simulated car (`make follow`, `test_follow.c`
+with the real `b3_line.c` and `motion_mock.c`): scenarios F1..F36 (straights,
+bends R150..R500, S-curves, a circle, a hairpin, standing starts on a bend
+F31..F36; F23..F30 are bends tighter than R130, shown only, LIMIT when lost).
+
+| ID | What is tested | Requirement / interface | Method | Steps / how | Expected result |
+|---|---|---|---|---|---|
+| B3-H10 | line following with Buddy 2's 20 ms goal, ramp and a 60 ms wheel lag; IRs 12.5 mm (as built) and 20 mm off the centre | FR11 | auto | `make follow` (`test_follow -n`, `-s 20 -n`) | `All line-following scenarios passed` |
+| B3-H11 | as B3-H10 with Buddy 2's real PI wheel loop on a motor fitted to the car's `[VC] curve:` log of 2026-11-09 (15 % more drive per mm/s than the feed-forward, turning load 20 pm; added 2026-11-09) | FR11 | auto | `make follow` (`test_follow -m 50,1.15 -y 20,10 -n`) | `All line-following scenarios passed`; the curve log line is shown |
+| B3-H12 | both IRs black for 60 mm inside a bend, as the car logged (added 2026-11-09) | FR11 | auto, shown only | `make follow` (`test_follow -x 200,60 -n -q`, also with `-m 50,1`) | shown: lines lost (the IRs see nothing useful for 60 mm) |
 
 ### On-target tests: `cd build_make && make TEST=1 -j8`
 
@@ -152,3 +190,7 @@ Add a new row for every run. Never edit or delete old rows.
 | 2026-11-08 | S5-H11..H21 | not committed (nyx's PC) | nyx (generated run) | 1179 PASS, 1 FAIL | `logs/2026-11-08_host_tests_4.txt` | After nyx's third track run (the car took a junction's branch 5 cm from our line): the line's direction from where the two IRs met the tape; a crossing more than 20 deg off it, or both IRs black at once under 45 deg, is a junction and left alone; the turn onto the line counts the IRs only within 6 deg of straight. H21 (C1..C56, L1..L3): 590 runs at 10 ms, 1 failed (C36 seed 4, as before); 590 at 20 ms, 0 failed. L3 (crossing where a branch meets our line, shown only) got round in this run |
 | 2026-11-08 | S5-H11..H21 | not committed (nyx's PC) | nyx (generated run) | 1259 PASS, 1 FAIL | `logs/2026-11-08_host_tests_5.txt` | The compass (Buddy 4's magnetometer, `make S5CAL=2` calibrates it) pulls the encoders' heading back when the two are more than 3 deg apart; the drive onto the line stops 15 mm short (the wheels ran on 8 mm past it) and the turn ends with the IRs pointed at the line, 1 deg past (C45 had handed over 14 mm off). H21 (C1..C60, L1..L3): 630 runs at 10 ms, 1 failed (C36 seed 4, as before); 630 at 20 ms, 0 failed; L3 got round in every run. Correcting at every degree of a compass 2 deg off put the car into the second box in C35 and C38; that is why the 3 deg dead band. The simulated compass's noise has its own random numbers, so other noise per seed is as in `_4` |
 | 2026-11-08 | S5-H11..H22 | not committed (nyx's PC) | nyx (generated run) | 1579 PASS, 1 FAIL | `logs/2026-11-08_host_tests_6.txt` | New S5-H22: line search (`robot.ps1 search`): from white the car drives straight until the IRs meet a line, lines up along it and hands over to Buddy 3. 320 runs (Q1..Q31 and none, 10 seeds), 0 failed. Also the junction rule now counts each IR's own black run (Buddy 3). H21: 630 runs at 10 ms, 1 failed (C36 seed 4, as before); 630 at 20 ms, 0 failed |
+| 2026-11-09 | S5-H11..H22 | not committed (nyx's PC) | nyx (generated run) | 1749 PASS, 1 FAIL | `logs/2026-11-09_host_tests_7.txt` | nyx: the search did not pick up a curved line at the start, and the IRs are 25 mm apart (S5_IR_HALF_GAP_MM 15 -> 12.5, simulators too; S5_CAP_BOTH_DEG 45 -> 36 to match). The search's turn onto the line now stops on the IRs (nyx's idea: the IR on the side turned towards black, then stop when the other goes black or the tape is centred), not at the angle from the crossing (a bend's chord is up to 25 deg off it); a start with one IR on a line turns onto it the same way. New Q32..Q48; with the old turn 7 of the 15 bend cases failed. H22: 490 runs (Q1..Q48 and none, 10 seeds), 0 failed; 980 at 20 seeds, 0 failed. H21: 630 runs at 10 ms, 1 failed (C36 seed 4, as before); 630 at 20 ms, 0 failed. B3-H10 shown-only default run at 25 mm: 8 scenarios over the weaving limit (4 at 30 mm), no line lost |
+| 2026-11-09 | S5-H11..H22 | not committed (nyx's PC, branch 37) | nyx (generated run) | 1909 PASS, 1 FAIL | `logs/2026-11-09_host_tests_8.txt` | nyx: after a bypass the car found the line but did not line up along it well and sometimes went off it; use the search's IR rule. The bypass's turn onto the line now stops on the IRs too (the IR on the side turned towards black, then the other, or the tape centred), counted from 25 deg before the crossing's direction (S5_CAP_BEND_DEG); black under both IRs at once, or under the far one first, is a junction, and the turn goes by the angle as before; an IR already on the line at the start of the turn turns towards it. The car stands still before Buddy 3 takes over (it was handed over still turning). S5_CAP_LINE_DEG 20 -> 30 (a R200 bend runs 24 deg off 80 mm in). motion_mock: STOPPING ends as Buddy 2's does (setpoints under 5 mm/s for 60 ms, was wheels exactly 0, 1.2 s with lag). New C61..C67 (the line bends behind the box) and L4: the old turn failed 46 of their 70 runs (10 seeds). H21: 710 runs at 10 ms, 1 failed (C36 seed 4, as before); 710 at 20 ms, 0 failed; shown only: L1 1/10, L2 10/10, L3 9/10, L4 9/10 got round. H22: 490 runs, 0 failed |
+| 2026-11-09 | S5-H11..H22 | not committed (nyx's PC, branch 37) | nyx (generated run) | 1977 PASS, 8 FAIL (all 8 in the shown-only B3-H10 smoothness run) | `logs/2026-11-09_host_tests_9.txt` | nyx: the car reversed when it stopped close to the box; reverse only when no way round is open. Too close for a ramp, the car now turns out on the spot (45, 60, 75 or 90 deg, the first that clears the box), drives straight out to the pass offset and turns back, instead of backing up for room. No backing off before the sweep when close, and none to see the other edge while one side is open. It backs up only with both sides blocked (then sweeps again, then waits with fault bit 0x40 as before), an edge outside the sweep and no side open, or no room even to turn on the spot. New C68..C70 (box put down 150-200 mm in front, 1 mm of reversing allowed). C8 (100 mm in front) no longer backs up; C9 (50 mm) still backs off 160 mm because the box's edges are outside the sweep. H21: 740 runs at 10 ms, 0 failed (C36 seed 4 now passes); 740 at 20 ms, 0 failed; shown only: L1 2/10, L2 10/10, L3 10/10, L4 6/10 got round (C68..C70 shift the L cases' random numbers; at 30 seeds L4 is 24/30 and L1 2/30 with both the old and the new code). H22: 490 runs, 0 failed. VC-H01: 222 runs, 0 failed |
+| 2026-11-09 | S5-H11..H22, B3-H10..H12 | not committed (nyx's PC, branch 37) | nyx (generated run) | 2025 PASS, 16 FAIL (15 in the shown-only B3-H10 smoothness run, 1 in the shown-only 1/1.6 turning run) | `logs/2026-11-09_host_tests_10.txt` | nyx: line following on curves still really bad, also when starting on the curve. The car's `[VC] curve:` log: at each bend entry the inner wheel ran 9-20 % faster than asked for about 100 mm, and the worst windows had both IRs black, which Buddy 3 treated as a crossing (curve forgotten, car straightened). Now both IRs black while a curve of R670 or tighter is learnt keep the curve and after 30 mm nudge inward (`b3_line.c`, B3_STEER_BB_*); Buddy 2's MOTION_SPEED_KP 0.5 -> 1.6 (`motion_config.h`, for Buddy 2's owner to confirm; `motion_mock.c` MM_KP); bends at 35 mm/s with an inner wheel floor of 19 (was 30 / 15; with KP 0.5 go back to those). New F31..F36 (standing starts on a bend), B3-H11 (Buddy 2's PI loop on a motor fitted to the car's curve log): 0 lost; B3-H12 (both black for 60 mm in a bend, shown): 0 lost with ideal wheels, 7 with the PI loop. Wheel-model bench (not in make): lines lost 30 -> 2 over 10 wheel models and 43 -> 2 over 8 car-fitted ones, about 9 % faster. H21: 740 runs at 10 ms, 0 failed; 740 at 20 ms, 0 failed; shown only L1 2/10, L2 10/10, L3 10/10, L4 6/10 (as before). H22: 490 runs, 0 failed. VC-H01: all passed. Smoothness (shown only): 15 FAIL, 6 of them the new standing starts; the old code gives 14 on the same scenarios. Buddy 3 host tests (`testing/subsystem3/logs/2026-11-09_buddy3_host_tests.txt`): 5413 + 4137 checks passed, new checks for both black in a bend and for the barcode change: a 29/29 decode with both '*' read needs no trailing white (the car rejected such decodes with reason 8 when IR_B met black 4 mm after the last bar); with one '*' spoiled 4 narrow of white is still needed. Firmware MQTT and MQTT TEST builds: 0 warnings |
