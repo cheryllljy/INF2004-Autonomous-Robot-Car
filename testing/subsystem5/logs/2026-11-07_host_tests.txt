@@ -1,0 +1,1321 @@
+Subsystem 5 host tests, 2026-11-08 05:03 UTC, cc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+Source: nyx's PC, 7851685 plus patches 13-23 (not committed); same output as the 2026-11-08 01:15 UTC run in the cloud
+
+$ make clean && make
+=== subsystem 5 parts (S5-H11..H20) ===
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -DS5_HOST -Wno-missing-field-initializers -Wno-float-conversion -Imock -I../../../app_program/subsystem5 -I. -I../../../app_program/subsystem2 -I../../../app_program/vehicle_controller -I../../../app_program/subsystem3 s5_sim.c motion_mock.c ../../../app_program/subsystem5/s5_sensor.c ../../../app_program/subsystem5/s5_scan.c ../../../app_program/subsystem5/s5_path.c ../../../app_program/subsystem5/s5_odom.c ../../../app_program/subsystem5/s5_math.c \
+    test_s5_unit.c -lm -o build/test_s5_unit
+S5 task polls every 10 ms
+[PASS] S5-H11  sin, cos, tan, atan2, sqrt, round, wrap without libm
+[PASS] S5-H12  real sweep: boxes 8..32 cm wide at 20..38 cm, width within 20 mm, each edge within 15 mm, under 4 s
+[PASS] S5-H13  15 % missed echoes: the 21 cm box still reads 21 cm +- 25 mm
+[PASS] S5-H14  another box or a wall where the car would pass rules that side out, and only that side; one well out of the way does not
+[PASS] S5-H15  ramps of 1..400 mm: no steeper than 40 deg, no tighter than R150, smooth, end where asked
+[PASS] S5-H16  footprint check agrees with a dense outline-to-box distance (30 mm margin, -3 / +6 mm)
+[PASS] S5-H17  steering: starts 12 mm / 5 deg off, follows a 215 mm bypass within 6 mm, ends on the line
+[PASS] S5-H18  dead reckoning: quarter circle R300 to the left ends at (300, 300), 90 deg
+[PASS] S5-H19  pings: 14+ per second, a box at 250 mm reads 250 +- 8 and is close, a slow no-echo pulse is not a dead sensor, LOOK keeps pinging
+[PASS] S5-H20  no ECHO pulse at all: dead within 1 s (FR25); a working sensor is not
+
+subsystem 5 unit tests: 0 failed
+
+=== obstacle episodes on a simulated car (S5-H21) ===
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -DS5_HOST -Wno-missing-field-initializers -Imock -I../../../app_program/subsystem5 -I. -I../../../app_program/subsystem2 -I../../../app_program/vehicle_controller -I../../../app_program/subsystem3 s5_sim.c motion_mock.c ../../../app_program/subsystem5/s5_sensor.c ../../../app_program/subsystem5/s5_scan.c ../../../app_program/subsystem5/s5_path.c ../../../app_program/subsystem5/s5_odom.c ../../../app_program/subsystem5/s5_math.c ../../../app_program/subsystem5/s5_avoid.c \
+    ../../../app_program/subsystem3/b3_line.c test_s5_car.c -lm -o build/test_s5_car
+S5 task polls every 10 ms
+     scenario                                                    side wide  clear max y  hand  after   time    ok
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  206     38   214    -2    6.1  18.4s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  207     39   214    -1    6.2  18.5s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  200     35   211     2    6.1  18.3s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  210     42   158     2    6.1  13.2s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     1    6.1  12.8s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     2    6.1  12.9s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  208     42   157    -2    6.1  13.3s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  202     36   152    -2    6.1  12.9s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  201     36   152    -2    6.1  13.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  16.7s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  16.7s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  203     39   189     1    6.1  16.8s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   96     41   160    -1    6.1  13.4s PASS 
+C5   narrow 10x10 cm box                                         LEFT   94     40   158     2    6.1  13.3s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   96     41   159    -1    6.1  13.4s PASS 
+C6   wide 30 cm box                                             RIGHT  305     39   263    -1    6.1  22.1s PASS 
+C6   wide 30 cm box                                             RIGHT  303     40   262    -1    6.1  22.1s PASS 
+C6   wide 30 cm box                                              LEFT  305     39   263     2    6.1  22.1s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  202     37   224     2    6.1  21.1s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  201     36   211     1    6.1  20.7s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  202     37   212     2    6.1  20.8s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  208     37   215     2    6.1  22.3s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  206     38   214    -2    6.1  22.3s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  211     40   217     1    6.1  22.5s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  212     19   217    -1    6.1  23.5s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  127     19   215    -2    6.1  23.6s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  211     19   217     2    6.1  23.4s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  422     36   211     1    6.1  31.4s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  417     36   211     2    6.1  31.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  416     36   211     2    6.1  31.3s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   8.4s PASS 
+C11  walls both sides: wait, then the box is taken away             -  417    165     0     0    0.0   8.8s PASS 
+C11  walls both sides: wait, then the box is taken away             -  419    165     0     0    0.0   8.8s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     36   228    -2    6.1  19.4s PASS 
+C12  second box beside it on the left: goes right               RIGHT  204     39   229    -2    6.1  19.5s PASS 
+C12  second box beside it on the left: goes right               RIGHT  206     34   226    -1    6.1  19.2s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  203     36   212     1    6.1  18.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  202     36   212     2    6.1  18.6s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  201     35   211    -1    6.1  18.3s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  202     19   201     1    6.0  18.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  206     21   201    -2    6.0  18.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  213     24   199     1    6.0  18.5s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  203     58   235    -1    6.1  19.2s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  214     64   241    -1    6.1  19.6s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  202     58   234    -1    6.1  19.1s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  170     23   204    -2    6.1  17.4s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  169     23   206    -2    6.1  17.5s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  172     23   205     2    6.1  17.4s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  234     51   227    -2    6.1  19.4s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  235     50   228     2    6.1  19.4s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  233     51   227    -1    6.1  19.4s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  232     40   214     2    6.1  18.8s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  227     38   212     2    6.1  18.7s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  226     37   211     2    6.1  18.6s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  200     35   211     2    6.1  19.8s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  202     35   212     2    6.1  19.7s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  202     36   212     1    6.1  19.8s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  201     34   211     1    6.1  18.3s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     36   212    -1    6.1  18.3s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     35   212    -2    6.1  18.3s PASS 
+C21  box right after a R500 left bend                           RIGHT  207     38   738     1    6.1  18.8s PASS 
+C21  box right after a R500 left bend                           RIGHT  210     41   742     1    6.1  19.0s PASS 
+C21  box right after a R500 left bend                           RIGHT  208     37   736     1    6.2  18.8s PASS 
+C22  box turned 15 deg                                           LEFT  184     27   215     2    6.1  17.9s PASS 
+C22  box turned 15 deg                                           LEFT  185     26   213     1    6.1  17.7s PASS 
+C22  box turned 15 deg                                           LEFT  185     28   216     1    6.1  17.9s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  210     38   216    -2    6.1  18.5s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  211     41   217    -2    6.1  18.6s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  207     38   215    -3    6.1  18.5s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     1    6.1  17.6s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     2    6.1  17.6s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     2    6.1  17.6s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  201     37   211    -4    6.1  17.1s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  201     37   211     1    6.1  17.3s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  202     34   212     1    6.1  17.3s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    200     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  204     39   213    -2    6.1  18.7s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  203     37   212     2    6.1  18.9s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  198     34   210     2    6.1  18.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  190     40    97     1    6.1  11.3s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.1  11.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.2  11.4s PASS 
+C31  second box 56 cm behind the first                           LEFT  202     36   215     1    6.1  36.1s PASS 
+C31  second box 56 cm behind the first                          RIGHT  202     36   214    -2    6.1  36.1s PASS 
+C31  second box 56 cm behind the first                          RIGHT  201     35   214    -2    6.1  36.0s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  201     35   211    -2    6.1  34.1s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  200     35   211    -2    6.1  31.9s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  199     35   210    -2    6.1  34.5s PASS 
+C33  second box 40 cm behind the first                           LEFT  203     24   219     2    6.1  30.8s PASS 
+C33  second box 40 cm behind the first                          RIGHT  202     27   216    -2    6.1  30.8s PASS 
+C33  second box 40 cm behind the first                          RIGHT  201     24   214    -2    6.1  30.4s PASS 
+C34  second box 30 cm behind the first                           LEFT  202     36   221     1    6.1  32.8s PASS 
+C34  second box 30 cm behind the first                           LEFT  200     35   219     2    6.1  26.0s PASS 
+C34  second box 30 cm behind the first                          RIGHT  202     36   220    -2    6.1  33.0s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  201     36   278     2    6.1  27.0s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  206     40   214    -2    6.1  23.7s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  202     36   279     1    6.1  27.1s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  213     39   217     1    6.1  29.7s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  201     37   211     2    6.1  24.7s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  200     32   211     2    6.1  29.0s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  201     26   264    -1    6.1  31.9s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  202     21   261    -1    6.1  31.9s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  202     24   261    -2    6.2  32.0s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     26   217     1    6.1  33.2s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  206     28   221     1    6.1  33.3s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     25   220     2    6.1  32.9s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  202     35   248     2    6.1  42.9s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  203     37   245    -1    6.1  41.8s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  201     35   247     2    6.1  42.8s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  210     40   269     2    6.1  27.2s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  212     37   265     1    6.1  24.4s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  211     37   265     1    6.1  24.4s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     41   336     1    6.0  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  212     42   335     0    5.4  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  209     41   336     0    5.0  29.6s PASS 
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  140      9   199     2    6.1  16.8s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  141      9   203     2    6.1  17.0s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  144      9   183    -1    6.1  16.4s LIMIT only 9 mm from the box
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  270     68   245    -2    6.1  20.9s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  269     69   245     2    6.1  20.9s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  268     66   244    -1    6.1  20.9s PASS 
+
+129 runs, 0 failed
+
+=== junction turns (VC-H01) ===
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -Imock -I../../../app_program/subsystem5 -I. -I../../../app_program/subsystem2 -I../../../app_program/vehicle_controller -I../../../app_program/subsystem3 motion_mock.c ../../../app_program/vehicle_controller/vc_turn.c ../../../app_program/subsystem3/b3_line.c test_turn.c -lm -o build/test_turn
+Junction turns: IRs 125 mm ahead of the axle, track 112 mm, line speed 100 mm/s, arc 40 mm/s, U-turn 45 deg/s
+J1 LEFT at a T                                     PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.7 mm /  0.6 deg off, IRs on the line
+J2 RIGHT at a T                                    PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.7 mm /  0.6 deg off, IRs on the line
+J3 LEFT at a cross                                 PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.7 mm /  0.6 deg off, IRs on the line
+J4 RIGHT at a cross                                PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.7 mm /  0.6 deg off, IRs on the line
+J5 LEFT at a left-hand corner                      LIMIT (no junction patch at an L corner)  turn  0.0 s, slowest   0.0 mm/s, IR   0.0 mm off at handover, then axle   0.0 mm /  0.0 deg off, IRs OFF the line
+J6 U-TURN at a T                                   PASS  turn  5.2 s, slowest   0.0 mm/s, IR   0.2 mm off at handover, then axle   0.2 mm /  0.2 deg off, IRs on the line
+J7 U-TURN at a cross                               PASS  turn  5.2 s, slowest   0.0 mm/s, IR   0.2 mm off at handover, then axle   0.2 mm /  0.2 deg off, IRs on the line
+J8 LEFT, car 6 deg off and 5 mm aside              PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.0 mm off at handover, then axle   0.8 mm /  0.5 deg off, IRs on the line
+J9 RIGHT, car 6 deg off the other way              PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.0 mm off at handover, then axle   0.8 mm /  0.5 deg off, IRs on the line
+J10 LEFT, IRs 140 mm ahead (VC: 125)               PASS  turn  2.4 s, slowest  30.0 mm/s, IR   0.7 mm off at handover, then axle   2.0 mm /  1.6 deg off, IRs on the line
+J11 RIGHT, IRs 110 mm ahead (VC: 125)              PASS  turn  2.8 s, slowest  30.0 mm/s, IR   0.4 mm off at handover, then axle   0.4 mm /  0.0 deg off, IRs on the line
+J12 LEFT, encoders 3 % long, track 5 % wide        PASS  turn  2.7 s, slowest  31.0 mm/s, IR   1.2 mm off at handover, then axle   0.5 mm /  0.5 deg off, IRs on the line
+J13 RIGHT, encoders 3 % short, track 5 % narrow    PASS  turn  2.5 s, slowest  29.0 mm/s, IR   1.3 mm off at handover, then axle   0.7 mm /  1.2 deg off, IRs on the line
+J14 LEFT, junction reported 40 ms late             PASS  turn  2.7 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.6 mm /  0.0 deg off, IRs on the line
+J15 U-TURN, encoders 3 % long, track 5 % wide      PASS  turn  5.7 s, slowest   0.0 mm/s, IR   0.0 mm off at handover, then axle   0.3 mm /  0.4 deg off, IRs on the line
+J16 U-TURN, car 6 deg off                          PASS  turn  5.0 s, slowest   0.0 mm/s, IR   0.1 mm off at handover, then axle   0.7 mm /  0.1 deg off, IRs on the line
+J17 LEFT, track 10 % wide (tyres scrub)            PASS  turn  2.9 s, slowest  30.0 mm/s, IR   1.1 mm off at handover, then axle   0.4 mm /  0.4 deg off, IRs on the line
+J18 RIGHT, track 10 % narrow                       PASS  turn  2.3 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle   0.6 mm /  0.0 deg off, IRs on the line
+J19 U-TURN, track 10 % wide                        PASS  turn  6.0 s, slowest   0.0 mm/s, IR   0.5 mm off at handover, then axle   0.3 mm /  0.1 deg off, IRs on the line
+J20 U-TURN, track 10 % narrow                      PASS  turn  4.5 s, slowest   0.0 mm/s, IR   1.0 mm off at handover, then axle   0.1 mm /  1.8 deg off, IRs on the line
+J21 LEFT, IRs 150 mm ahead, 6 deg off              PASS  turn  2.2 s, slowest  30.0 mm/s, IR   0.8 mm off at handover, then axle   2.3 mm /  1.0 deg off, IRs on the line
+J22 RIGHT, IRs 100 mm ahead, 6 deg off             PASS  turn  2.9 s, slowest  30.0 mm/s, IR   0.7 mm off at handover, then axle   0.5 mm /  0.1 deg off, IRs on the line
+J23 LEFT, branch bends left R400 at once           PASS  turn  3.3 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle  17.9 mm /  4.0 deg off, IRs on the line
+J24 LEFT, branch bends right R400 at once          PASS  turn  2.2 s, slowest  30.0 mm/s, IR   0.8 mm off at handover, then axle  18.0 mm /  0.6 deg off, IRs on the line
+J25 RIGHT, branch bends right R400 at once         PASS  turn  3.3 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle  17.9 mm /  4.0 deg off, IRs on the line
+J26 RIGHT, branch bends left R400 at once          PASS  turn  2.2 s, slowest  30.0 mm/s, IR   0.8 mm off at handover, then axle  18.0 mm /  0.6 deg off, IRs on the line
+J27 LEFT, branch bends left R300 after 60 mm       PASS  turn  2.9 s, slowest  30.0 mm/s, IR   0.2 mm off at handover, then axle  12.7 mm /  6.2 deg off, IRs on the line
+J28 LEFT, branch bends right R300 after 60 mm      PASS  turn  2.4 s, slowest  30.0 mm/s, IR   0.8 mm off at handover, then axle  18.2 mm /  8.3 deg off, IRs on the line
+J29 RIGHT, branch bends right R250 after 100 mm    PASS  turn  2.7 s, slowest  30.0 mm/s, IR   0.1 mm off at handover, then axle  11.6 mm /  5.5 deg off, IRs on the line
+J30 LEFT at a cross, branch bends left R500        PASS  turn  3.1 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle   7.8 mm /  4.0 deg off, IRs on the line
+J31 LEFT, branch bends right R130 after 30 mm      PASS  turn  1.9 s, slowest  30.0 mm/s, IR   0.5 mm off at handover, then axle   2.5 mm /  1.4 deg off, IRs on the line
+J32 LEFT, branch bends right R130 after 60 mm      PASS  turn  2.2 s, slowest  30.0 mm/s, IR   0.6 mm off at handover, then axle   3.2 mm /  1.6 deg off, IRs on the line
+J33 RIGHT, branch bends left R130 after 30 mm      PASS  turn  1.9 s, slowest  30.0 mm/s, IR   0.5 mm off at handover, then axle   2.5 mm /  1.4 deg off, IRs on the line
+J34 LEFT, branch bends left R130 after 30 mm       PASS  turn  5.5 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle   0.9 mm /  1.9 deg off, IRs on the line
+J35 LEFT, wheels turn the car 1/1.4 as tightly     PASS  turn  4.0 s, slowest  30.0 mm/s, IR   0.6 mm off at handover, then axle   0.1 mm /  0.3 deg off, IRs on the line
+J36 RIGHT, wheels 1/1.4, branch bends left R130 after 30 mm PASS  turn  2.7 s, slowest  30.0 mm/s, IR   0.4 mm off at handover, then axle   1.9 mm /  1.3 deg off, IRs on the line
+J37 U-TURN, wheels turn the car 1/1.4 as tightly   PASS  turn  8.1 s, slowest   0.0 mm/s, IR   0.3 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J38 U-TURN at a cross, wheels 1/1.6                PASS  turn  9.6 s, slowest   0.0 mm/s, IR   0.5 mm off at handover, then axle   0.9 mm /  0.1 deg off, IRs on the line
+J39 U-TURN, wheels 1/1.3, car 6 deg off            PASS  turn  7.4 s, slowest   0.0 mm/s, IR   0.2 mm off at handover, then axle   0.6 mm /  0.0 deg off, IRs on the line
+O1 old turn: LEFT at a T, stop and pivot where the IRs meet it misses, as expected  turn  1.6 s, slowest   0.0 mm/s, IR 114.4 mm off at handover, then axle 115.7 mm /  0.2 deg off, IRs OFF the line
+O2 old turn: U-TURN at a T (on the line, but stop + fast spin) (old, for comparison)  turn  2.6 s, slowest   0.0 mm/s, IR   0.4 mm off at handover, then axle   0.6 mm /  0.0 deg off, IRs on the line
+All junction turn scenarios passed.
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -Imock -I../../../app_program/subsystem5 -I. -I../../../app_program/subsystem2 -I../../../app_program/vehicle_controller -I../../../app_program/subsystem3 -DB3_BASE_SPEED_MM_S=25 motion_mock.c ../../../app_program/vehicle_controller/vc_turn.c ../../../app_program/subsystem3/b3_line.c test_turn.c -lm \
+    -o build/test_turn_25
+Junction turns: IRs 125 mm ahead of the axle, track 112 mm, line speed 25 mm/s, arc 25 mm/s, U-turn 45 deg/s
+J1 LEFT at a T                                     PASS  turn  2.9 s, slowest  25.0 mm/s, IR   1.2 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J2 RIGHT at a T                                    PASS  turn  2.9 s, slowest  25.0 mm/s, IR   1.2 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J3 LEFT at a cross                                 PASS  turn  2.9 s, slowest  25.0 mm/s, IR   1.2 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J4 RIGHT at a cross                                PASS  turn  2.9 s, slowest  25.0 mm/s, IR   1.2 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J5 LEFT at a left-hand corner                      LIMIT (no junction patch at an L corner)  turn  0.0 s, slowest   0.0 mm/s, IR   0.0 mm off at handover, then axle   0.0 mm /  0.0 deg off, IRs OFF the line
+J6 U-TURN at a T                                   PASS  turn  4.7 s, slowest   0.0 mm/s, IR   0.2 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J7 U-TURN at a cross                               PASS  turn  4.7 s, slowest   0.0 mm/s, IR   0.2 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J8 LEFT, car 6 deg off and 5 mm aside              PASS  turn  2.9 s, slowest  25.0 mm/s, IR   1.4 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J9 RIGHT, car 6 deg off the other way              PASS  turn  2.9 s, slowest  25.0 mm/s, IR   1.4 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J10 LEFT, IRs 140 mm ahead (VC: 125)               PASS  turn  2.7 s, slowest  25.0 mm/s, IR   0.4 mm off at handover, then axle   1.1 mm /  0.9 deg off, IRs on the line
+J11 RIGHT, IRs 110 mm ahead (VC: 125)              PASS  turn  3.1 s, slowest  25.0 mm/s, IR   0.3 mm off at handover, then axle   0.5 mm /  0.2 deg off, IRs on the line
+J12 LEFT, encoders 3 % long, track 5 % wide        PASS  turn  3.0 s, slowest  25.5 mm/s, IR   1.2 mm off at handover, then axle   0.0 mm /  0.5 deg off, IRs on the line
+J13 RIGHT, encoders 3 % short, track 5 % narrow    PASS  turn  2.8 s, slowest  24.0 mm/s, IR   0.9 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J14 LEFT, junction reported 40 ms late             PASS  turn  2.9 s, slowest  25.0 mm/s, IR   1.1 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J15 U-TURN, encoders 3 % long, track 5 % wide      PASS  turn  5.2 s, slowest   0.0 mm/s, IR   0.2 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J16 U-TURN, car 6 deg off                          PASS  turn  4.7 s, slowest   0.0 mm/s, IR   0.4 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J17 LEFT, track 10 % wide (tyres scrub)            PASS  turn  3.2 s, slowest  25.0 mm/s, IR   0.9 mm off at handover, then axle   0.0 mm /  0.4 deg off, IRs on the line
+J18 RIGHT, track 10 % narrow                       PASS  turn  2.6 s, slowest  25.0 mm/s, IR   0.5 mm off at handover, then axle   0.2 mm /  0.5 deg off, IRs on the line
+J19 U-TURN, track 10 % wide                        PASS  turn  5.5 s, slowest   0.0 mm/s, IR   0.5 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J20 U-TURN, track 10 % narrow                      PASS  turn  4.0 s, slowest   0.0 mm/s, IR   1.0 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J21 LEFT, IRs 150 mm ahead, 6 deg off              PASS  turn  2.6 s, slowest  25.0 mm/s, IR   0.2 mm off at handover, then axle   2.1 mm /  1.2 deg off, IRs on the line
+J22 RIGHT, IRs 100 mm ahead, 6 deg off             PASS  turn  3.3 s, slowest  25.0 mm/s, IR   0.7 mm off at handover, then axle   0.8 mm /  0.1 deg off, IRs on the line
+J23 LEFT, branch bends left R400 at once           PASS  turn  3.6 s, slowest  25.0 mm/s, IR   0.6 mm off at handover, then axle  17.9 mm /  3.9 deg off, IRs on the line
+J24 LEFT, branch bends right R400 at once          PASS  turn  2.5 s, slowest  25.0 mm/s, IR   1.1 mm off at handover, then axle  17.9 mm /  0.9 deg off, IRs on the line
+J25 RIGHT, branch bends right R400 at once         PASS  turn  3.6 s, slowest  25.0 mm/s, IR   0.6 mm off at handover, then axle  17.9 mm /  3.9 deg off, IRs on the line
+J26 RIGHT, branch bends left R400 at once          PASS  turn  2.5 s, slowest  25.0 mm/s, IR   1.1 mm off at handover, then axle  17.9 mm /  0.9 deg off, IRs on the line
+J27 LEFT, branch bends left R300 after 60 mm       PASS  turn  3.2 s, slowest  25.0 mm/s, IR   0.2 mm off at handover, then axle  12.6 mm /  6.2 deg off, IRs on the line
+J28 LEFT, branch bends right R300 after 60 mm      PASS  turn  2.7 s, slowest  25.0 mm/s, IR   1.3 mm off at handover, then axle  18.4 mm /  8.4 deg off, IRs on the line
+J29 RIGHT, branch bends right R250 after 100 mm    PASS  turn  3.0 s, slowest  25.0 mm/s, IR   0.2 mm off at handover, then axle  11.5 mm /  5.7 deg off, IRs on the line
+J30 LEFT at a cross, branch bends left R500        PASS  turn  3.5 s, slowest  25.0 mm/s, IR   0.7 mm off at handover, then axle   7.8 mm /  3.8 deg off, IRs on the line
+J31 LEFT, branch bends right R130 after 30 mm      PASS  turn  2.3 s, slowest  25.0 mm/s, IR   0.7 mm off at handover, then axle   2.3 mm /  1.5 deg off, IRs on the line
+J32 LEFT, branch bends right R130 after 60 mm      PASS  turn  2.5 s, slowest  25.0 mm/s, IR   0.9 mm off at handover, then axle   2.9 mm /  1.8 deg off, IRs on the line
+J33 RIGHT, branch bends left R130 after 30 mm      PASS  turn  2.3 s, slowest  25.0 mm/s, IR   0.7 mm off at handover, then axle   2.3 mm /  1.5 deg off, IRs on the line
+J34 LEFT, branch bends left R130 after 30 mm       PASS  turn  5.9 s, slowest  25.0 mm/s, IR   1.0 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J35 LEFT, wheels turn the car 1/1.4 as tightly     PASS  turn  4.3 s, slowest  25.0 mm/s, IR   0.6 mm off at handover, then axle   0.4 mm /  0.3 deg off, IRs on the line
+J36 RIGHT, wheels 1/1.4, branch bends left R130 after 30 mm PASS  turn  3.0 s, slowest  25.0 mm/s, IR   0.7 mm off at handover, then axle   1.9 mm /  1.3 deg off, IRs on the line
+J37 U-TURN, wheels turn the car 1/1.4 as tightly   PASS  turn  7.6 s, slowest   0.0 mm/s, IR   0.3 mm off at handover, then axle   0.2 mm /  0.0 deg off, IRs on the line
+J38 U-TURN at a cross, wheels 1/1.6                PASS  turn  9.1 s, slowest   0.0 mm/s, IR   0.5 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J39 U-TURN, wheels 1/1.3, car 6 deg off            PASS  turn  6.9 s, slowest   0.0 mm/s, IR   0.4 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+O1 old turn: LEFT at a T, stop and pivot where the IRs meet it misses, as expected  turn  1.5 s, slowest   0.0 mm/s, IR 125.4 mm off at handover, then axle 126.7 mm /  0.2 deg off, IRs OFF the line
+O2 old turn: U-TURN at a T (on the line, but stop + fast spin) (old, for comparison)  turn  2.5 s, slowest   0.0 mm/s, IR   0.4 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+All junction turn scenarios passed.
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -Imock -I../../../app_program/subsystem5 -I. -I../../../app_program/subsystem2 -I../../../app_program/vehicle_controller -I../../../app_program/subsystem3 -DB3_BASE_SPEED_MM_S=80 motion_mock.c ../../../app_program/vehicle_controller/vc_turn.c ../../../app_program/subsystem3/b3_line.c test_turn.c -lm \
+    -o build/test_turn_80
+Junction turns: IRs 125 mm ahead of the axle, track 112 mm, line speed 80 mm/s, arc 40 mm/s, U-turn 45 deg/s
+J1 LEFT at a T                                     PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.5 mm /  0.6 deg off, IRs on the line
+J2 RIGHT at a T                                    PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.5 mm /  0.6 deg off, IRs on the line
+J3 LEFT at a cross                                 PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.5 mm /  0.6 deg off, IRs on the line
+J4 RIGHT at a cross                                PASS  turn  2.6 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.5 mm /  0.6 deg off, IRs on the line
+J5 LEFT at a left-hand corner                      LIMIT (no junction patch at an L corner)  turn  0.0 s, slowest   0.0 mm/s, IR   0.0 mm off at handover, then axle   0.0 mm /  0.0 deg off, IRs OFF the line
+J6 U-TURN at a T                                   PASS  turn  5.1 s, slowest   0.0 mm/s, IR   0.0 mm off at handover, then axle   0.5 mm /  0.1 deg off, IRs on the line
+J7 U-TURN at a cross                               PASS  turn  5.1 s, slowest   0.0 mm/s, IR   0.0 mm off at handover, then axle   0.5 mm /  0.1 deg off, IRs on the line
+J8 LEFT, car 6 deg off and 5 mm aside              PASS  turn  2.7 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.2 mm /  0.3 deg off, IRs on the line
+J9 RIGHT, car 6 deg off the other way              PASS  turn  2.7 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.2 mm /  0.3 deg off, IRs on the line
+J10 LEFT, IRs 140 mm ahead (VC: 125)               PASS  turn  2.5 s, slowest  30.0 mm/s, IR   1.1 mm off at handover, then axle   1.5 mm /  0.8 deg off, IRs on the line
+J11 RIGHT, IRs 110 mm ahead (VC: 125)              PASS  turn  2.8 s, slowest  30.0 mm/s, IR   0.4 mm off at handover, then axle   0.4 mm /  0.3 deg off, IRs on the line
+J12 LEFT, encoders 3 % long, track 5 % wide        PASS  turn  2.8 s, slowest  31.0 mm/s, IR   1.4 mm off at handover, then axle   0.2 mm /  0.3 deg off, IRs on the line
+J13 RIGHT, encoders 3 % short, track 5 % narrow    PASS  turn  2.5 s, slowest  29.0 mm/s, IR   1.5 mm off at handover, then axle   0.3 mm /  0.6 deg off, IRs on the line
+J14 LEFT, junction reported 40 ms late             PASS  turn  2.7 s, slowest  30.0 mm/s, IR   1.4 mm off at handover, then axle   0.3 mm /  0.6 deg off, IRs on the line
+J15 U-TURN, encoders 3 % long, track 5 % wide      PASS  turn  5.5 s, slowest   0.0 mm/s, IR   0.2 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J16 U-TURN, car 6 deg off                          PASS  turn  5.1 s, slowest   0.0 mm/s, IR   0.6 mm off at handover, then axle   0.2 mm /  0.0 deg off, IRs on the line
+J17 LEFT, track 10 % wide (tyres scrub)            PASS  turn  2.9 s, slowest  30.0 mm/s, IR   1.1 mm off at handover, then axle   0.1 mm /  0.5 deg off, IRs on the line
+J18 RIGHT, track 10 % narrow                       PASS  turn  2.3 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle   0.5 mm /  0.6 deg off, IRs on the line
+J19 U-TURN, track 10 % wide                        PASS  turn  5.8 s, slowest   0.0 mm/s, IR   0.4 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J20 U-TURN, track 10 % narrow                      PASS  turn  4.4 s, slowest   0.0 mm/s, IR   0.8 mm off at handover, then axle   0.1 mm /  1.3 deg off, IRs on the line
+J21 LEFT, IRs 150 mm ahead, 6 deg off              PASS  turn  2.4 s, slowest  30.0 mm/s, IR   0.5 mm off at handover, then axle   2.2 mm /  1.2 deg off, IRs on the line
+J22 RIGHT, IRs 100 mm ahead, 6 deg off             PASS  turn  3.0 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle   0.4 mm /  0.1 deg off, IRs on the line
+J23 LEFT, branch bends left R400 at once           PASS  turn  3.3 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle  17.9 mm /  4.0 deg off, IRs on the line
+J24 LEFT, branch bends right R400 at once          PASS  turn  2.2 s, slowest  30.0 mm/s, IR   1.1 mm off at handover, then axle  18.0 mm /  0.7 deg off, IRs on the line
+J25 RIGHT, branch bends right R400 at once         PASS  turn  3.3 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle  17.9 mm /  4.0 deg off, IRs on the line
+J26 RIGHT, branch bends left R400 at once          PASS  turn  2.2 s, slowest  30.0 mm/s, IR   1.1 mm off at handover, then axle  18.0 mm /  0.7 deg off, IRs on the line
+J27 LEFT, branch bends left R300 after 60 mm       PASS  turn  2.9 s, slowest  30.0 mm/s, IR   0.2 mm off at handover, then axle  12.6 mm /  6.2 deg off, IRs on the line
+J28 LEFT, branch bends right R300 after 60 mm      PASS  turn  2.4 s, slowest  30.0 mm/s, IR   0.8 mm off at handover, then axle  18.2 mm /  8.3 deg off, IRs on the line
+J29 RIGHT, branch bends right R250 after 100 mm    PASS  turn  2.7 s, slowest  30.0 mm/s, IR   0.1 mm off at handover, then axle  11.5 mm /  5.7 deg off, IRs on the line
+J30 LEFT at a cross, branch bends left R500        PASS  turn  3.2 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle   7.7 mm /  3.9 deg off, IRs on the line
+J31 LEFT, branch bends right R130 after 30 mm      PASS  turn  2.0 s, slowest  30.0 mm/s, IR   0.5 mm off at handover, then axle   2.4 mm /  1.4 deg off, IRs on the line
+J32 LEFT, branch bends right R130 after 60 mm      PASS  turn  2.2 s, slowest  30.0 mm/s, IR   0.6 mm off at handover, then axle   3.0 mm /  1.7 deg off, IRs on the line
+J33 RIGHT, branch bends left R130 after 30 mm      PASS  turn  2.0 s, slowest  30.0 mm/s, IR   0.5 mm off at handover, then axle   2.4 mm /  1.4 deg off, IRs on the line
+J34 LEFT, branch bends left R130 after 30 mm       PASS  turn  5.5 s, slowest  30.0 mm/s, IR   0.9 mm off at handover, then axle   0.4 mm /  0.4 deg off, IRs on the line
+J35 LEFT, wheels turn the car 1/1.4 as tightly     PASS  turn  4.0 s, slowest  30.0 mm/s, IR   0.6 mm off at handover, then axle   0.3 mm /  0.3 deg off, IRs on the line
+J36 RIGHT, wheels 1/1.4, branch bends left R130 after 30 mm PASS  turn  2.7 s, slowest  30.0 mm/s, IR   0.4 mm off at handover, then axle   1.8 mm /  1.3 deg off, IRs on the line
+J37 U-TURN, wheels turn the car 1/1.4 as tightly   PASS  turn  8.0 s, slowest   0.0 mm/s, IR   0.3 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J38 U-TURN at a cross, wheels 1/1.6                PASS  turn  9.5 s, slowest   0.0 mm/s, IR   0.1 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+J39 U-TURN, wheels 1/1.3, car 6 deg off            PASS  turn  7.3 s, slowest   0.0 mm/s, IR   0.1 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+O1 old turn: LEFT at a T, stop and pivot where the IRs meet it misses, as expected  turn  1.6 s, slowest   0.0 mm/s, IR 118.0 mm off at handover, then axle 119.3 mm /  0.2 deg off, IRs OFF the line
+O2 old turn: U-TURN at a T (on the line, but stop + fast spin) (old, for comparison)  turn  2.6 s, slowest   0.0 mm/s, IR   0.4 mm off at handover, then axle   0.9 mm /  0.0 deg off, IRs on the line
+All junction turn scenarios passed.
+
+=== line following (B3-H10) ===
+cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion -O1 -g -Imock -I../../../app_program/subsystem5 -I. -I../../../app_program/subsystem2 -I../../../app_program/vehicle_controller -I../../../app_program/subsystem3 motion_mock.c ../../../app_program/subsystem3/b3_line.c test_follow.c -lm -o build/test_follow
+Line following: IRs 125 mm ahead, 15 mm each side of the centre, 18 mm tape, line speed 100 mm/s, wheel lag 60 ms
+F1 straight                                    PASS   16.6 s, IR off <=  0.0, axle <=   0.0 mm, wobble   0.0 deg/s,  0.0 reversals/m, changes     0 mm/s per m, inner >= 100, kicks 0, slowest 100
+F2 straight, start 15 deg off (handover)       PASS   17.9 s, IR off <=  6.3, axle <=   7.1 mm, wobble   0.9 deg/s,  0.0 reversals/m, changes   102 mm/s per m, inner >=  48, kicks 0, slowest  65
+F3 straight, start 30 deg off (handover)       PASS   20.5 s, IR off <=  6.3, axle <=  19.3 mm, wobble   1.8 deg/s,  2.0 reversals/m, changes   377 mm/s per m, inner >=  45, kicks 0, slowest  45
+F4 straight, start -30 deg off, 8 mm aside     PASS   20.4 s, IR off <=  6.3, axle <=  16.6 mm, wobble   1.8 deg/s,  3.3 reversals/m, changes   376 mm/s per m, inner >=  45, kicks 0, slowest  45
+F5 bend R500 left 90                           PASS   27.7 s, IR off <=  7.3, axle <=  11.2 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes  1253 mm/s per m, inner >=  21, kicks 0, slowest  30
+F6 bend R300 left 90                           PASS   24.8 s, IR off <=  7.8, axle <=  21.6 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes   818 mm/s per m, inner >=  19, kicks 0, slowest  30
+F7 bend R200 right 90                          PASS   21.2 s, IR off <=  8.5, axle <=  32.3 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes   763 mm/s per m, inner >=  17, kicks 0, slowest  30
+F8 bend R150 left 120                          PASS   20.8 s, IR off <=  9.0, axle <=  49.0 mm, wobble   2.4 deg/s,  0.0 reversals/m, changes   787 mm/s per m, inner >=   0, kicks 1, slowest  30
+F9 S-curve R300 left 90, right 90              PASS   37.3 s, IR off <=  8.1, axle <=  21.6 mm, wobble   2.7 deg/s,  1.2 reversals/m, changes  1030 mm/s per m, inner >=  19, kicks 0, slowest  30
+F10 S-curve R200 right 90, left 90             PASS   29.5 s, IR off <=  8.5, axle <=  32.0 mm, wobble   2.7 deg/s,  0.8 reversals/m, changes   932 mm/s per m, inner >=  17, kicks 0, slowest  30
+F11 circle R250, 300 deg                       PASS   50.1 s, IR off <=  8.1, axle <=  29.4 mm, wobble   2.5 deg/s,  0.0 reversals/m, changes   787 mm/s per m, inner >=  18, kicks 0, slowest  30
+F12 hairpin R140 left 180                      PASS   23.6 s, IR off <=  9.4, axle <=  60.4 mm, wobble   3.5 deg/s,  0.0 reversals/m, changes   910 mm/s per m, inner >=   0, kicks 3, slowest  30
+F13 wiggle R400 +-45 x4                        PASS   71.4 s, IR off <=  8.1, axle <=  15.1 mm, wobble   2.7 deg/s,  1.3 reversals/m, changes  1335 mm/s per m, inner >=  20, kicks 0, slowest  30
+F14 bend R300 left 90 at 30 mm/s               PASS   43.4 s, IR off <=  6.7, axle <=  21.6 mm, wobble   1.6 deg/s,  0.0 reversals/m, changes   424 mm/s per m, inner >=  19, kicks 0, slowest  30
+F15 bend R200 right 90 at 60 mm/s              PASS   26.4 s, IR off <=  7.5, axle <=  32.3 mm, wobble   1.9 deg/s,  0.0 reversals/m, changes   530 mm/s per m, inner >=  17, kicks 0, slowest  30
+F16 straight at 30 mm/s, start 20 deg off      PASS   55.1 s, IR off <=  6.1, axle <=   9.6 mm, wobble   0.3 deg/s,  0.0 reversals/m, changes    65 mm/s per m, inner >=  26, kicks 0, slowest  30
+F17 S-curve R250 at 150 mm/s                   PASS   30.8 s, IR off <= 11.5, axle <=  26.1 mm, wobble   2.8 deg/s,  1.4 reversals/m, changes  1442 mm/s per m, inner >=  17, kicks 0, slowest  30
+F18 bend R300 left 90, start 25 deg off        PASS   28.0 s, IR off <=  6.9, axle <=  21.6 mm, wobble   2.3 deg/s,  0.9 reversals/m, changes   974 mm/s per m, inner >=  19, kicks 0, slowest  30
+F19 S-curve R130 left 90, right 90             PASS   23.3 s, IR off <=  9.4, axle <=  43.2 mm, wobble   2.7 deg/s,  0.9 reversals/m, changes   993 mm/s per m, inner >=  16, kicks 0, slowest  30
+F20 S-curve R130 right 90, left 90             PASS   23.3 s, IR off <=  9.4, axle <=  43.2 mm, wobble   2.7 deg/s,  0.9 reversals/m, changes   993 mm/s per m, inner >=  16, kicks 0, slowest  30
+F21 S-curve R150 left 90, right 90             PASS   25.1 s, IR off <=  9.0, axle <=  39.4 mm, wobble   2.7 deg/s,  0.9 reversals/m, changes   972 mm/s per m, inner >=  16, kicks 0, slowest  30
+F22 S-curve R140 left 180, right 180           PASS   34.2 s, IR off <=  9.4, axle <=  60.0 mm, wobble   3.7 deg/s,  2.2 reversals/m, changes  1122 mm/s per m, inner >=   0, kicks 5, slowest  30
+F23 bend R40 left 90                           LIMIT    5.1 s, IR off <= 150.5, axle <=  29.9 mm, wobble   3.1 deg/s,  0.0 reversals/m, changes  1064 mm/s per m, inner >=  22, kicks 0, slowest  34  did NOT finish
+F24 bend R60 right 90                          LIMIT    7.3 s, IR off <= 150.3, axle <=  35.4 mm, wobble   2.7 deg/s,  0.0 reversals/m, changes   925 mm/s per m, inner >=  18, kicks 0, slowest  30  did NOT finish
+F25 bend R80 left 90                           PASS   16.0 s, IR off <= 15.6, axle <=  52.4 mm, wobble   3.8 deg/s,  0.0 reversals/m, changes   811 mm/s per m, inner >=   0, kicks 1, slowest  30
+F26 bend R100 right 90                         PASS   17.2 s, IR off <= 10.5, axle <=  50.5 mm, wobble   2.8 deg/s,  0.0 reversals/m, changes   810 mm/s per m, inner >=   0, kicks 1, slowest  30
+F27 bend R120 left 90                          PASS   17.6 s, IR off <=  9.5, axle <=  48.4 mm, wobble   2.6 deg/s,  0.0 reversals/m, changes   798 mm/s per m, inner >=   0, kicks 1, slowest  30
+F28 hairpin R100 left 180                      PASS   19.3 s, IR off <= 13.9, axle <=  76.0 mm, wobble   4.0 deg/s,  0.0 reversals/m, changes   835 mm/s per m, inner >=   0, kicks 2, slowest  30
+F29 bend R60 left 90 at 60 mm/s                LIMIT   10.4 s, IR off <= 150.1, axle <=  43.7 mm, wobble   2.1 deg/s,  0.0 reversals/m, changes   449 mm/s per m, inner >=  16, kicks 0, slowest  30  did NOT finish
+F30 bend R40 right 90 at 60 mm/s               LIMIT    8.3 s, IR off <= 150.1, axle <=  29.5 mm, wobble   2.2 deg/s,  0.0 reversals/m, changes   504 mm/s per m, inner >=  20, kicks 0, slowest  30  did NOT finish
+All line-following scenarios passed (4 tight bends lost: LIMIT, not counted).
+Line following: IRs 125 mm ahead, 20 mm each side of the centre, 18 mm tape, line speed 100 mm/s, wheel lag 60 ms
+F1 straight                                    PASS   16.6 s, IR off <=  0.0, axle <=   0.0 mm, wobble   0.0 deg/s,  0.0 reversals/m, changes     0 mm/s per m, inner >= 100, kicks 0, slowest 100
+F2 straight, start 15 deg off (handover)       PASS   17.9 s, IR off <= 11.3, axle <=   4.5 mm, wobble   1.0 deg/s,  0.0 reversals/m, changes   110 mm/s per m, inner >=  45, kicks 0, slowest  63
+F3 straight, start 30 deg off (handover)       PASS   20.3 s, IR off <= 11.2, axle <=  15.5 mm, wobble   1.2 deg/s,  0.7 reversals/m, changes   242 mm/s per m, inner >=  31, kicks 0, slowest  31
+F4 straight, start -30 deg off, 8 mm aside     PASS   20.3 s, IR off <= 11.2, axle <=  13.7 mm, wobble   1.2 deg/s,  0.7 reversals/m, changes   226 mm/s per m, inner >=  43, kicks 0, slowest  43
+F5 bend R500 left 90                           PASS   28.0 s, IR off <= 12.7, axle <=   6.3 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes  1254 mm/s per m, inner >=  21, kicks 0, slowest  30
+F6 bend R300 left 90                           PASS   25.1 s, IR off <= 13.5, axle <=  16.8 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes   761 mm/s per m, inner >=  19, kicks 0, slowest  30
+F7 bend R200 right 90                          PASS   21.0 s, IR off <= 14.0, axle <=  27.8 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes   676 mm/s per m, inner >=  17, kicks 0, slowest  30
+F8 bend R150 left 120                          PASS   21.4 s, IR off <= 14.9, axle <=  43.0 mm, wobble   2.2 deg/s,  0.0 reversals/m, changes   702 mm/s per m, inner >=  16, kicks 0, slowest  30
+F9 S-curve R300 left 90, right 90              PASS   38.2 s, IR off <= 13.7, axle <=  16.8 mm, wobble   2.5 deg/s,  0.6 reversals/m, changes   874 mm/s per m, inner >=  19, kicks 0, slowest  30
+F10 S-curve R200 right 90, left 90             PASS   29.9 s, IR off <= 14.0, axle <=  27.6 mm, wobble   2.7 deg/s,  0.8 reversals/m, changes   909 mm/s per m, inner >=  17, kicks 0, slowest  30
+F11 circle R250, 300 deg                       PASS   50.8 s, IR off <= 13.5, axle <=  24.5 mm, wobble   2.5 deg/s,  0.0 reversals/m, changes   790 mm/s per m, inner >=  18, kicks 0, slowest  30
+F12 hairpin R140 left 180                      PASS   24.1 s, IR off <= 15.1, axle <=  56.9 mm, wobble   3.2 deg/s,  0.0 reversals/m, changes   841 mm/s per m, inner >=   0, kicks 3, slowest  30
+F13 wiggle R400 +-45 x4                        PASS   75.4 s, IR off <= 13.7, axle <=  10.3 mm, wobble   2.6 deg/s,  1.3 reversals/m, changes  1200 mm/s per m, inner >=  20, kicks 0, slowest  30
+F14 bend R300 left 90 at 30 mm/s               PASS   43.6 s, IR off <= 11.9, axle <=  16.7 mm, wobble   1.6 deg/s,  0.0 reversals/m, changes   404 mm/s per m, inner >=  19, kicks 0, slowest  30
+F15 bend R200 right 90 at 60 mm/s              PASS   26.3 s, IR off <= 12.8, axle <=  27.8 mm, wobble   1.9 deg/s,  0.0 reversals/m, changes   485 mm/s per m, inner >=  17, kicks 0, slowest  30
+F16 straight at 30 mm/s, start 20 deg off      PASS   55.1 s, IR off <= 11.1, axle <=  10.8 mm, wobble   0.3 deg/s,  0.0 reversals/m, changes    68 mm/s per m, inner >=  26, kicks 0, slowest  30
+F17 S-curve R250 at 150 mm/s                   PASS   30.1 s, IR off <= 20.3, axle <=  22.3 mm, wobble   2.7 deg/s,  0.7 reversals/m, changes  1088 mm/s per m, inner >=  16, kicks 0, slowest  30
+F18 bend R300 left 90, start 25 deg off        PASS   28.1 s, IR off <= 11.7, axle <=  16.7 mm, wobble   2.2 deg/s,  0.0 reversals/m, changes   896 mm/s per m, inner >=  19, kicks 0, slowest  30
+F19 S-curve R130 left 90, right 90             PASS   23.7 s, IR off <= 15.5, axle <=  39.1 mm, wobble   2.6 deg/s,  0.9 reversals/m, changes   840 mm/s per m, inner >=  16, kicks 0, slowest  30
+F20 S-curve R130 right 90, left 90             PASS   23.7 s, IR off <= 15.5, axle <=  39.1 mm, wobble   2.6 deg/s,  0.9 reversals/m, changes   840 mm/s per m, inner >=  16, kicks 0, slowest  30
+F21 S-curve R150 left 90, right 90             PASS   25.7 s, IR off <= 14.9, axle <=  35.0 mm, wobble   2.7 deg/s,  0.9 reversals/m, changes   904 mm/s per m, inner >=  16, kicks 0, slowest  30
+F22 S-curve R140 left 180, right 180           PASS   34.3 s, IR off <= 15.1, axle <=  56.7 mm, wobble   3.4 deg/s,  0.7 reversals/m, changes  1013 mm/s per m, inner >=   0, kicks 5, slowest  30
+F23 bend R40 left 90                           LIMIT    4.8 s, IR off <= 150.5, axle <=  30.3 mm, wobble   3.3 deg/s,  0.0 reversals/m, changes   853 mm/s per m, inner >=  32, kicks 0, slowest  48  did NOT finish
+F24 bend R60 right 90                          LIMIT    5.9 s, IR off <= 150.6, axle <=  34.1 mm, wobble   2.9 deg/s,  0.0 reversals/m, changes   995 mm/s per m, inner >=  21, kicks 0, slowest  30  did NOT finish
+F25 bend R80 left 90                           LIMIT    8.6 s, IR off <= 150.4, axle <=  45.4 mm, wobble   2.6 deg/s,  0.0 reversals/m, changes   810 mm/s per m, inner >=  16, kicks 0, slowest  30  did NOT finish
+F26 bend R100 right 90                         PASS   16.6 s, IR off <= 17.4, axle <=  47.0 mm, wobble   3.3 deg/s,  0.0 reversals/m, changes   758 mm/s per m, inner >=   0, kicks 1, slowest  30
+F27 bend R120 left 90                          PASS   18.1 s, IR off <= 16.0, axle <=  42.1 mm, wobble   2.5 deg/s,  0.0 reversals/m, changes   763 mm/s per m, inner >=   0, kicks 1, slowest  30
+F28 hairpin R100 left 180                      PASS   19.1 s, IR off <= 17.4, axle <=  74.9 mm, wobble   4.0 deg/s,  0.0 reversals/m, changes   705 mm/s per m, inner >=   0, kicks 2, slowest  30
+F29 bend R60 left 90 at 60 mm/s                LIMIT    9.2 s, IR off <= 150.4, axle <=  33.6 mm, wobble   2.1 deg/s,  0.0 reversals/m, changes   466 mm/s per m, inner >=  19, kicks 0, slowest  30  did NOT finish
+F30 bend R40 right 90 at 60 mm/s               LIMIT    7.8 s, IR off <= 150.5, axle <=  29.9 mm, wobble   2.1 deg/s,  0.0 reversals/m, changes   509 mm/s per m, inner >=  21, kicks 0, slowest  31  did NOT finish
+All line-following scenarios passed (5 tight bends lost: LIMIT, not counted).
+smoothness (reversals per metre), shown only:
+Line following: IRs 125 mm ahead, 15 mm each side of the centre, 18 mm tape, line speed 100 mm/s, wheel lag 60 ms
+F1 straight                                    PASS   16.6 s, IR off <=  0.0, axle <=   0.0 mm, wobble   0.0 deg/s,  0.0 reversals/m, changes     0 mm/s per m, inner >= 100, kicks 0, slowest 100
+F2 straight, start 15 deg off (handover)       PASS   17.9 s, IR off <=  6.3, axle <=   7.1 mm, wobble   0.9 deg/s,  0.0 reversals/m, changes   102 mm/s per m, inner >=  48, kicks 0, slowest  65
+F3 straight, start 30 deg off (handover)       PASS   20.5 s, IR off <=  6.3, axle <=  19.3 mm, wobble   1.8 deg/s,  2.0 reversals/m, changes   377 mm/s per m, inner >=  45, kicks 0, slowest  45
+F4 straight, start -30 deg off, 8 mm aside     FAIL   20.4 s, IR off <=  6.3, axle <=  16.6 mm, wobble   1.8 deg/s,  3.3 reversals/m, changes   376 mm/s per m, inner >=  45, kicks 0, slowest  45
+F5 bend R500 left 90                           PASS   27.7 s, IR off <=  7.3, axle <=  11.2 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes  1253 mm/s per m, inner >=  21, kicks 0, slowest  30
+F6 bend R300 left 90                           PASS   24.8 s, IR off <=  7.8, axle <=  21.6 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes   818 mm/s per m, inner >=  19, kicks 0, slowest  30
+F7 bend R200 right 90                          PASS   21.2 s, IR off <=  8.5, axle <=  32.3 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes   763 mm/s per m, inner >=  17, kicks 0, slowest  30
+F8 bend R150 left 120                          FAIL   20.8 s, IR off <=  9.0, axle <=  49.0 mm, wobble   2.4 deg/s,  0.0 reversals/m, changes   787 mm/s per m, inner >=   0, kicks 1, slowest  30
+F9 S-curve R300 left 90, right 90              PASS   37.3 s, IR off <=  8.1, axle <=  21.6 mm, wobble   2.7 deg/s,  1.2 reversals/m, changes  1030 mm/s per m, inner >=  19, kicks 0, slowest  30
+F10 S-curve R200 right 90, left 90             PASS   29.5 s, IR off <=  8.5, axle <=  32.0 mm, wobble   2.7 deg/s,  0.8 reversals/m, changes   932 mm/s per m, inner >=  17, kicks 0, slowest  30
+F11 circle R250, 300 deg                       PASS   50.1 s, IR off <=  8.1, axle <=  29.4 mm, wobble   2.5 deg/s,  0.0 reversals/m, changes   787 mm/s per m, inner >=  18, kicks 0, slowest  30
+F12 hairpin R140 left 180                      FAIL   23.6 s, IR off <=  9.4, axle <=  60.4 mm, wobble   3.5 deg/s,  0.0 reversals/m, changes   910 mm/s per m, inner >=   0, kicks 3, slowest  30
+F13 wiggle R400 +-45 x4                        PASS   71.4 s, IR off <=  8.1, axle <=  15.1 mm, wobble   2.7 deg/s,  1.3 reversals/m, changes  1335 mm/s per m, inner >=  20, kicks 0, slowest  30
+F14 bend R300 left 90 at 30 mm/s               PASS   43.4 s, IR off <=  6.7, axle <=  21.6 mm, wobble   1.6 deg/s,  0.0 reversals/m, changes   424 mm/s per m, inner >=  19, kicks 0, slowest  30
+F15 bend R200 right 90 at 60 mm/s              PASS   26.4 s, IR off <=  7.5, axle <=  32.3 mm, wobble   1.9 deg/s,  0.0 reversals/m, changes   530 mm/s per m, inner >=  17, kicks 0, slowest  30
+F16 straight at 30 mm/s, start 20 deg off      PASS   55.1 s, IR off <=  6.1, axle <=   9.6 mm, wobble   0.3 deg/s,  0.0 reversals/m, changes    65 mm/s per m, inner >=  26, kicks 0, slowest  30
+F17 S-curve R250 at 150 mm/s                   PASS   30.8 s, IR off <= 11.5, axle <=  26.1 mm, wobble   2.8 deg/s,  1.4 reversals/m, changes  1442 mm/s per m, inner >=  17, kicks 0, slowest  30
+F18 bend R300 left 90, start 25 deg off        PASS   28.0 s, IR off <=  6.9, axle <=  21.6 mm, wobble   2.3 deg/s,  0.9 reversals/m, changes   974 mm/s per m, inner >=  19, kicks 0, slowest  30
+F19 S-curve R130 left 90, right 90             PASS   23.3 s, IR off <=  9.4, axle <=  43.2 mm, wobble   2.7 deg/s,  0.9 reversals/m, changes   993 mm/s per m, inner >=  16, kicks 0, slowest  30
+F20 S-curve R130 right 90, left 90             PASS   23.3 s, IR off <=  9.4, axle <=  43.2 mm, wobble   2.7 deg/s,  0.9 reversals/m, changes   993 mm/s per m, inner >=  16, kicks 0, slowest  30
+F21 S-curve R150 left 90, right 90             PASS   25.1 s, IR off <=  9.0, axle <=  39.4 mm, wobble   2.7 deg/s,  0.9 reversals/m, changes   972 mm/s per m, inner >=  16, kicks 0, slowest  30
+F22 S-curve R140 left 180, right 180           FAIL   34.2 s, IR off <=  9.4, axle <=  60.0 mm, wobble   3.7 deg/s,  2.2 reversals/m, changes  1122 mm/s per m, inner >=   0, kicks 5, slowest  30
+F23 bend R40 left 90                           LIMIT    5.1 s, IR off <= 150.5, axle <=  29.9 mm, wobble   3.1 deg/s,  0.0 reversals/m, changes  1064 mm/s per m, inner >=  22, kicks 0, slowest  34  did NOT finish
+F24 bend R60 right 90                          LIMIT    7.3 s, IR off <= 150.3, axle <=  35.4 mm, wobble   2.7 deg/s,  0.0 reversals/m, changes   925 mm/s per m, inner >=  18, kicks 0, slowest  30  did NOT finish
+F25 bend R80 left 90                           PASS   16.0 s, IR off <= 15.6, axle <=  52.4 mm, wobble   3.8 deg/s,  0.0 reversals/m, changes   811 mm/s per m, inner >=   0, kicks 1, slowest  30
+F26 bend R100 right 90                         PASS   17.2 s, IR off <= 10.5, axle <=  50.5 mm, wobble   2.8 deg/s,  0.0 reversals/m, changes   810 mm/s per m, inner >=   0, kicks 1, slowest  30
+F27 bend R120 left 90                          PASS   17.6 s, IR off <=  9.5, axle <=  48.4 mm, wobble   2.6 deg/s,  0.0 reversals/m, changes   798 mm/s per m, inner >=   0, kicks 1, slowest  30
+F28 hairpin R100 left 180                      PASS   19.3 s, IR off <= 13.9, axle <=  76.0 mm, wobble   4.0 deg/s,  0.0 reversals/m, changes   835 mm/s per m, inner >=   0, kicks 2, slowest  30
+F29 bend R60 left 90 at 60 mm/s                LIMIT   10.4 s, IR off <= 150.1, axle <=  43.7 mm, wobble   2.1 deg/s,  0.0 reversals/m, changes   449 mm/s per m, inner >=  16, kicks 0, slowest  30  did NOT finish
+F30 bend R40 right 90 at 60 mm/s               LIMIT    8.3 s, IR off <= 150.1, axle <=  29.5 mm, wobble   2.2 deg/s,  0.0 reversals/m, changes   504 mm/s per m, inner >=  20, kicks 0, slowest  30  did NOT finish
+4 line-following scenario(s) FAILED
+wheels turn the car 1/1.6 as tightly as asked (slip, caster), shown only:
+Line following: IRs 125 mm ahead, 15 mm each side of the centre, 18 mm tape, line speed 100 mm/s, wheel lag 60 ms
+F1 straight                                    PASS   16.6 s, IR off <=  0.0, axle <=   0.0 mm, wobble   0.0 deg/s,  0.0 reversals/m, changes     0 mm/s per m, inner >= 100, kicks 0, slowest 100
+F2 straight, start 15 deg off (handover)       PASS   19.6 s, IR off <=  6.2, axle <=   6.8 mm, wobble   0.6 deg/s,  0.0 reversals/m, changes   185 mm/s per m, inner >=  47, kicks 0, slowest  53
+F3 straight, start 30 deg off (handover)       PASS   21.9 s, IR off <=  8.8, axle <=  18.1 mm, wobble   1.4 deg/s,  1.3 reversals/m, changes   551 mm/s per m, inner >=  21, kicks 1, slowest  30
+F4 straight, start -30 deg off, 8 mm aside     PASS   20.8 s, IR off <=  7.3, axle <=  15.3 mm, wobble   1.6 deg/s,  2.0 reversals/m, changes   409 mm/s per m, inner >=  30, kicks 1, slowest  47
+F5 bend R500 left 90                           PASS   35.4 s, IR off <=  7.6, axle <=  10.6 mm, wobble   1.4 deg/s,  0.0 reversals/m, changes   768 mm/s per m, inner >=  20, kicks 0, slowest  30
+F6 bend R300 left 90                           PASS   26.8 s, IR off <=  8.3, axle <=  20.9 mm, wobble   1.5 deg/s,  0.0 reversals/m, changes   741 mm/s per m, inner >=  16, kicks 0, slowest  30
+F7 bend R200 right 90                          PASS   22.6 s, IR off <=  9.4, axle <=  32.0 mm, wobble   1.3 deg/s,  0.0 reversals/m, changes   688 mm/s per m, inner >=   0, kicks 1, slowest  30
+F8 bend R150 left 120                          PASS   22.8 s, IR off <= 11.0, axle <=  45.6 mm, wobble   2.4 deg/s,  0.0 reversals/m, changes   814 mm/s per m, inner >=   0, kicks 4, slowest  30
+F9 S-curve R300 left 90, right 90              PASS   40.8 s, IR off <=  8.6, axle <=  20.9 mm, wobble   1.6 deg/s,  0.6 reversals/m, changes   864 mm/s per m, inner >=  16, kicks 0, slowest  30
+F10 S-curve R200 right 90, left 90             PASS   31.7 s, IR off <=  9.4, axle <=  32.0 mm, wobble   1.6 deg/s,  0.8 reversals/m, changes   972 mm/s per m, inner >=   0, kicks 1, slowest  30
+F11 circle R250, 300 deg                       PASS   52.2 s, IR off <=  8.8, axle <=  28.8 mm, wobble   1.3 deg/s,  0.0 reversals/m, changes   733 mm/s per m, inner >=  16, kicks 0, slowest  30
+F12 hairpin R140 left 180                      PASS   25.6 s, IR off <= 12.0, axle <=  58.6 mm, wobble   2.6 deg/s,  0.0 reversals/m, changes   866 mm/s per m, inner >=   0, kicks 5, slowest  30
+F13 wiggle R400 +-45 x4                        PASS   86.5 s, IR off <=  8.0, axle <=  14.4 mm, wobble   1.7 deg/s,  1.3 reversals/m, changes  1061 mm/s per m, inner >=  18, kicks 0, slowest  30
+F14 bend R300 left 90 at 30 mm/s               PASS   43.4 s, IR off <=  7.1, axle <=  21.0 mm, wobble   1.1 deg/s,  0.0 reversals/m, changes   469 mm/s per m, inner >=  16, kicks 0, slowest  30
+F15 bend R200 right 90 at 60 mm/s              PASS   27.5 s, IR off <=  8.2, axle <=  31.9 mm, wobble   1.2 deg/s,  0.0 reversals/m, changes   532 mm/s per m, inner >=   0, kicks 1, slowest  30
+F16 straight at 30 mm/s, start 20 deg off      PASS   55.1 s, IR off <=  6.1, axle <=   9.8 mm, wobble   0.3 deg/s,  0.0 reversals/m, changes    87 mm/s per m, inner >=  23, kicks 0, slowest  30
+F17 S-curve R250 at 150 mm/s                   PASS   33.7 s, IR off <= 13.7, axle <=  26.0 mm, wobble   1.6 deg/s,  0.7 reversals/m, changes  1230 mm/s per m, inner >=  16, kicks 0, slowest  30
+F18 bend R300 left 90, start 25 deg off        PASS   30.3 s, IR off <=  9.1, axle <=  21.4 mm, wobble   1.4 deg/s,  0.0 reversals/m, changes   841 mm/s per m, inner >=  16, kicks 0, slowest  30
+F19 S-curve R130 left 90, right 90             PASS   24.7 s, IR off <= 12.9, axle <=  40.6 mm, wobble   2.5 deg/s,  0.9 reversals/m, changes  1047 mm/s per m, inner >=   0, kicks 3, slowest  30
+F20 S-curve R130 right 90, left 90             PASS   24.7 s, IR off <= 12.9, axle <=  40.6 mm, wobble   2.5 deg/s,  0.9 reversals/m, changes  1047 mm/s per m, inner >=   0, kicks 3, slowest  30
+F21 S-curve R150 left 90, right 90             PASS   26.4 s, IR off <= 11.0, axle <=  38.3 mm, wobble   2.3 deg/s,  0.9 reversals/m, changes  1010 mm/s per m, inner >=   0, kicks 3, slowest  30
+F22 S-curve R140 left 180, right 180           PASS   37.1 s, IR off <= 12.0, axle <=  58.2 mm, wobble   2.9 deg/s,  0.7 reversals/m, changes   998 mm/s per m, inner >=   0, kicks 8, slowest  30
+F23 bend R40 left 90                           LIMIT    4.9 s, IR off <= 150.1, axle <=  30.7 mm, wobble   2.0 deg/s,  0.0 reversals/m, changes   977 mm/s per m, inner >=  27, kicks 0, slowest  41  did NOT finish
+F24 bend R60 right 90                          LIMIT    6.2 s, IR off <= 150.6, axle <=  34.8 mm, wobble   1.8 deg/s,  0.0 reversals/m, changes  1000 mm/s per m, inner >=  20, kicks 0, slowest  30  did NOT finish
+F25 bend R80 left 90                           LIMIT    7.6 s, IR off <= 150.6, axle <=  37.9 mm, wobble   1.6 deg/s,  0.0 reversals/m, changes   895 mm/s per m, inner >=  18, kicks 0, slowest  30  did NOT finish
+F26 bend R100 right 90                         LIMIT    9.8 s, IR off <= 150.1, axle <=  43.7 mm, wobble   1.5 deg/s,  0.0 reversals/m, changes   730 mm/s per m, inner >=  16, kicks 0, slowest  30  did NOT finish
+F27 bend R120 left 90                          PASS   19.5 s, IR off <= 15.0, axle <=  43.3 mm, wobble   2.3 deg/s,  0.0 reversals/m, changes   783 mm/s per m, inner >=   0, kicks 2, slowest  30
+F28 hairpin R100 left 180                      LIMIT    9.7 s, IR off <= 150.0, axle <=  40.0 mm, wobble   1.5 deg/s,  0.0 reversals/m, changes   728 mm/s per m, inner >=  16, kicks 0, slowest  30  did NOT finish
+F29 bend R60 left 90 at 60 mm/s                LIMIT    9.1 s, IR off <= 150.3, axle <=  33.8 mm, wobble   1.3 deg/s,  0.0 reversals/m, changes   478 mm/s per m, inner >=  19, kicks 0, slowest  30  did NOT finish
+F30 bend R40 right 90 at 60 mm/s               LIMIT    8.0 s, IR off <= 150.3, axle <=  30.4 mm, wobble   1.3 deg/s,  0.0 reversals/m, changes   506 mm/s per m, inner >=  21, kicks 0, slowest  30  did NOT finish
+All line-following scenarios passed (7 tight bends lost: LIMIT, not counted).
+IRs 10 mm off the centre (1 mm of white each side), shown only:
+failed 18 lost_ms 30240 unfinished 6 kicks 20  wobble 5.8 flips 15.31 change 3442 time 847.8
+
+All subsystem 5 host tests passed.
+exit 0
+
+$ build/test_s5_unit -p 20      # S5 task polled every 20 ms (no cyclic handler)
+S5 task polls every 20 ms
+[PASS] S5-H11  sin, cos, tan, atan2, sqrt, round, wrap without libm
+[PASS] S5-H12  real sweep: boxes 8..32 cm wide at 20..38 cm, width within 20 mm, each edge within 15 mm, under 4 s
+[PASS] S5-H13  15 % missed echoes: the 21 cm box still reads 21 cm +- 25 mm
+[PASS] S5-H14  another box or a wall where the car would pass rules that side out, and only that side; one well out of the way does not
+[PASS] S5-H15  ramps of 1..400 mm: no steeper than 40 deg, no tighter than R150, smooth, end where asked
+[PASS] S5-H16  footprint check agrees with a dense outline-to-box distance (30 mm margin, -3 / +6 mm)
+[PASS] S5-H17  steering: starts 12 mm / 5 deg off, follows a 215 mm bypass within 6 mm, ends on the line
+[PASS] S5-H18  dead reckoning: quarter circle R300 to the left ends at (300, 300), 90 deg
+[PASS] S5-H19  pings: 14+ per second, a box at 250 mm reads 250 +- 8 and is close, a slow no-echo pulse is not a dead sensor, LOOK keeps pinging
+[PASS] S5-H20  no ECHO pulse at all: dead within 1 s (FR25); a working sensor is not
+
+subsystem 5 unit tests: 0 failed
+exit 0
+
+$ build/test_s5_car -s 10       # S5-H21, 10 seeds
+S5 task polls every 10 ms
+     scenario                                                    side wide  clear max y  hand  after   time    ok
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  206     38   214    -2    6.1  18.4s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  207     39   214    -1    6.2  18.5s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  200     35   211     2    6.1  18.3s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  201     37   211    -2    6.1  18.4s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  214     41   218     2    6.1  18.8s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  202     37   212    -1    6.1  18.4s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  202     35   212     1    6.1  18.3s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  202     38   217     1    6.1  18.7s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  201     36   211     1    6.1  18.4s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  214     40   218    -2    6.1  18.7s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  210     42   158     2    6.1  13.2s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     1    6.1  12.8s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     2    6.1  12.9s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  203     36   153     2    6.1  12.8s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  202     36   152     2    6.2  12.8s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  204     37   153     2    6.1  12.9s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  206     37   153     2    6.1  12.9s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  206     37   153     1    6.1  12.9s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  202     36   152     2    6.1  12.8s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  202     36   152     1    6.1  12.8s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  208     42   157    -2    6.1  13.3s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  202     36   152    -2    6.1  12.9s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  201     36   152    -2    6.1  13.0s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  203     36   152    -2    6.1  13.0s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  202     36   152    -2    6.1  13.0s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  200     36   152    -2    6.1  12.9s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  214     43   158    -2    6.1  13.4s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  203     36   153    -2    6.1  13.0s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  215     43   159    -2    6.1  13.4s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  203     36   153    -1    6.1  13.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  16.7s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  16.7s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  203     39   189     1    6.1  16.8s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  203     39   189     1    6.1  16.8s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  207     37   187     1    6.1  16.9s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  204     40   189     1    6.1  16.8s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  16.8s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  16.8s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  201     38   188     2    6.1  16.7s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  203     39   189     1    6.1  16.8s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   96     41   160    -1    6.1  13.4s PASS 
+C5   narrow 10x10 cm box                                         LEFT   94     40   158     2    6.1  13.3s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   96     41   159    -1    6.1  13.4s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   96     41   160    -1    6.1  13.4s PASS 
+C5   narrow 10x10 cm box                                         LEFT   96     41   160     1    6.1  13.4s PASS 
+C5   narrow 10x10 cm box                                         LEFT   97     42   160     1    6.1  13.4s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   95     41   159    -2    6.1  13.3s PASS 
+C5   narrow 10x10 cm box                                         LEFT   99     42   161     1    6.1  13.5s PASS 
+C5   narrow 10x10 cm box                                         LEFT   97     42   160     1    6.1  13.4s PASS 
+C5   narrow 10x10 cm box                                         LEFT   96     41   159     1    6.1  13.3s PASS 
+C6   wide 30 cm box                                             RIGHT  305     39   263    -1    6.1  22.1s PASS 
+C6   wide 30 cm box                                             RIGHT  303     40   262    -1    6.1  22.1s PASS 
+C6   wide 30 cm box                                              LEFT  305     39   263     2    6.1  22.1s PASS 
+C6   wide 30 cm box                                             RIGHT  303     39   262    -2    6.1  22.1s PASS 
+C6   wide 30 cm box                                              LEFT  303     42   262     2    6.2  22.2s PASS 
+C6   wide 30 cm box                                              LEFT  292     35   256     1    6.1  21.6s PASS 
+C6   wide 30 cm box                                             RIGHT  303     41   262    -2    6.1  22.1s PASS 
+C6   wide 30 cm box                                             RIGHT  298     38   259    -2    6.2  22.0s PASS 
+C6   wide 30 cm box                                              LEFT  305     41   263     1    6.1  22.2s PASS 
+C6   wide 30 cm box                                             RIGHT  292     35   256    -1    6.1  21.6s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  202     37   224     2    6.1  21.1s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  201     36   211     1    6.1  20.7s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  202     37   212     2    6.1  20.8s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  203     38   220     2    6.1  21.1s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  202     37   225    -1    6.1  21.2s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  203     36   212    -2    6.1  20.7s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  200     36   211    -1    6.1  20.7s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  203     38   213    -2    6.1  20.8s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  202     37   212    -1    6.1  20.8s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  200     35   211     2    6.1  20.8s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  208     37   215     2    6.1  22.3s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  206     38   214    -2    6.1  22.3s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  211     40   217     1    6.1  22.5s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  209     39   215    -2    6.1  22.4s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  209     40   215     1    6.1  22.4s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  211     41   216    -2    6.1  22.5s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  211     38   216    -2    6.1  22.4s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  211     40   216    -2    6.1  22.5s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  209     38   215     1    6.1  22.4s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  206     38   214    -2    6.1  22.4s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  212     19   217    -1    6.1  23.5s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  127     19   215    -2    6.1  23.6s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  211     19   217     2    6.1  23.4s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  208     19   215    -2    6.1  23.4s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  208     19   215     2    6.1  23.3s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  208     19   215    -1    6.2  23.3s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  211     19   216    -2    6.1  23.4s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  208     19   215     2    6.1  23.3s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  209     19   215     2    6.1  23.4s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  206     19   214    -2    6.1  23.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  422     36   211     1    6.1  31.4s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  417     36   211     2    6.1  31.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  416     36   211     2    6.1  31.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  408     34   210     2    6.1  31.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  414     35   211     2    6.1  31.4s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  414     37   211     2    6.1  31.5s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  414     36   215     2    6.1  31.7s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  420     36   210     1    6.1  31.4s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  416     35   211     1    6.1  31.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  416     36   211     2    6.1  31.9s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   8.4s PASS 
+C11  walls both sides: wait, then the box is taken away             -  417    165     0     0    0.0   8.8s PASS 
+C11  walls both sides: wait, then the box is taken away             -  419    165     0     0    0.0   8.8s PASS 
+C11  walls both sides: wait, then the box is taken away             -  419    165     0     0    0.0   8.4s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   8.8s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   8.4s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   8.8s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   8.8s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   9.8s PASS 
+C11  walls both sides: wait, then the box is taken away             -  417    165     0     0    0.0   8.8s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     36   228    -2    6.1  19.4s PASS 
+C12  second box beside it on the left: goes right               RIGHT  204     39   229    -2    6.1  19.5s PASS 
+C12  second box beside it on the left: goes right               RIGHT  206     34   226    -1    6.1  19.2s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     36   227    -1    6.1  19.4s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     35   228    -2    6.1  19.4s PASS 
+C12  second box beside it on the left: goes right               RIGHT  206     40   230    -1    6.1  19.6s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     36   228    -2    6.1  19.4s PASS 
+C12  second box beside it on the left: goes right               RIGHT  205     35   225    -1    6.1  19.4s PASS 
+C12  second box beside it on the left: goes right               RIGHT  201     38   227    -2    6.1  19.5s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     37   228    -1    6.1  19.4s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  203     36   212     1    6.1  18.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  202     36   212     2    6.1  18.6s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  201     35   211    -1    6.1  18.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  203     36   212     1    6.2  18.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  202     36   212    -2    6.1  18.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  200     35   211    -2    6.1  18.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  202     35   212     2    6.1  18.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  202     35   212     1    6.1  18.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  206     38   214     2    6.1  18.4s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  206     38   214    -1    6.1  18.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  202     19   201     1    6.0  18.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  206     21   201    -2    6.0  18.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  213     24   199     1    6.0  18.5s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  203     19   202    -1    6.0  18.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  203     19   201     1    6.0  18.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  201     19   197     2    6.1  18.2s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  200     19   202    -1    6.0  18.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  203     19   200    -1    6.0  18.3s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  203     19   198     1    6.0  18.3s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  201     19   200     1    6.0  18.4s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  203     58   235    -1    6.1  19.2s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  214     64   241    -1    6.1  19.6s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  202     58   234    -1    6.1  19.1s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  203     58   235    -1    6.1  19.2s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  201     58   234     1    6.2  19.1s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  202     58   234    -1    6.1  19.1s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  203     58   235    -1    6.1  19.2s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  200     58   234     1    6.2  19.1s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  201     58   234    -1    6.2  19.1s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  200     58   234    -1    6.2  19.1s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  170     23   204    -2    6.1  17.4s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  169     23   206    -2    6.1  17.5s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  172     23   205     2    6.1  17.4s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  170     23   208     1    6.2  17.6s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  174     25   205    -2    6.1  17.5s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  169     23   211    -1    6.1  17.7s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  169     23   208     2    6.1  17.7s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  171     23   207    -2    6.1  17.5s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  171     23   205    -2    6.1  17.5s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  169     23   206    -2    6.1  17.6s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  234     51   227    -2    6.1  19.4s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  235     50   228     2    6.1  19.4s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  233     51   227    -1    6.1  19.4s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  247     55   234    -2    6.1  19.9s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  233     52   227    -2    6.1  19.5s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  246     57   233    -2    6.2  20.0s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  234     51   228     2    6.1  19.4s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  240     53   230     2    6.1  19.6s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  232     50   227    -2    6.1  19.4s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  238     52   230    -1    6.1  19.5s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  232     40   214     2    6.1  18.8s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  227     38   212     2    6.1  18.7s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  226     37   211     2    6.1  18.6s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  226     37   211     2    6.1  18.6s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  227     38   212     2    6.1  18.7s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  231     39   214     2    6.1  18.7s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  220     35   209     2    6.1  18.5s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  226     37   211     2    6.1  18.6s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  228     38   213     2    6.1  18.8s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  224     37   211     2    6.1  18.7s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  200     35   211     2    6.1  19.8s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  202     35   212     2    6.1  19.7s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  202     36   212     1    6.1  19.8s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)               RIGHT  200     37   211    -1    6.1  19.8s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  203     36   212     2    6.1  19.8s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  199     35   210     2    6.1  19.9s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  202     36   212     1    6.1  19.8s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)               RIGHT  215     42   218    -2    6.1  19.9s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  214     43   218     2    6.1  20.1s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  204     37   213     2    6.1  19.8s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  201     34   211     1    6.1  18.3s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     36   212    -1    6.1  18.3s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     35   212    -2    6.1  18.3s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  206     37   214    -2    6.1  18.4s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     36   212    -1    6.1  18.3s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     38   212    -2    6.1  18.4s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  203     36   212     1    6.1  18.3s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  202     37   212     2    6.1  18.4s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  200     35   211     2    6.1  18.3s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  203     37   212     2    6.1  18.4s PASS 
+C21  box right after a R500 left bend                           RIGHT  207     38   738     1    6.1  18.8s PASS 
+C21  box right after a R500 left bend                           RIGHT  210     41   742     1    6.1  19.0s PASS 
+C21  box right after a R500 left bend                           RIGHT  208     37   736     1    6.2  18.8s PASS 
+C21  box right after a R500 left bend                            LEFT  209     39   732     4    6.1  17.7s PASS 
+C21  box right after a R500 left bend                            LEFT  207     39   733     3    6.1  17.7s PASS 
+C21  box right after a R500 left bend                            LEFT  212     40   733     4    6.1  17.7s PASS 
+C21  box right after a R500 left bend                            LEFT  211     40   733     3    6.1  17.7s PASS 
+C21  box right after a R500 left bend                            LEFT  212     38   729     3    6.1  17.6s PASS 
+C21  box right after a R500 left bend                            LEFT  208     39   733     4    6.1  17.7s PASS 
+C21  box right after a R500 left bend                           RIGHT  212     42   744     1    6.1  19.0s PASS 
+C22  box turned 15 deg                                           LEFT  184     27   215     2    6.1  17.9s PASS 
+C22  box turned 15 deg                                           LEFT  185     26   213     1    6.1  17.7s PASS 
+C22  box turned 15 deg                                           LEFT  185     28   216     1    6.1  17.9s PASS 
+C22  box turned 15 deg                                           LEFT  189     25   213     1    6.1  17.7s PASS 
+C22  box turned 15 deg                                           LEFT  185     26   214     1    6.1  17.8s PASS 
+C22  box turned 15 deg                                           LEFT  185     27   215     2    6.1  18.5s PASS 
+C22  box turned 15 deg                                           LEFT  185     23   211     2    6.1  17.6s PASS 
+C22  box turned 15 deg                                           LEFT  185     26   213     2    6.1  17.7s PASS 
+C22  box turned 15 deg                                           LEFT  185     28   217     2    6.1  17.9s PASS 
+C22  box turned 15 deg                                           LEFT  186     26   214     2    6.1  17.8s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  210     38   216    -2    6.1  18.5s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  211     41   217    -2    6.1  18.6s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  207     38   215    -3    6.1  18.5s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  211     37   215     1    6.2  18.6s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  211     36   216     1    6.1  18.5s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  211     39   215     1    6.1  18.6s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  206     36   213     0    6.1  18.6s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  210     40   216    -2    6.1  18.5s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  211     39   217    -2    6.1  18.5s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  211     40   215     1    6.2  18.7s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     1    6.1  17.6s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     2    6.1  17.6s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     2    6.1  17.6s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  205     31   205     1    6.2  17.7s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  205     27   202     2    6.1  17.6s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  208     32   207     2    6.1  17.7s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  209     29   203     2    6.1  17.6s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  211     29   204     2    6.1  17.5s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  211     30   204     2    6.1  17.6s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  209     30   207     2    6.1  17.9s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  201     37   211    -4    6.1  17.1s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  201     37   211     1    6.1  17.3s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  202     34   212     1    6.1  17.3s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  203     35   212     1    6.1  17.4s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  202     36   212     1    6.1  17.4s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  201     36   211    -4    6.1  17.1s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  206     37   214    -4    6.1  17.0s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  201     37   211    -4    6.1  17.1s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  202     36   212    -4    6.1  17.1s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  205     39   213    -4    6.1  17.1s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up         LEFT  221    125    12     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up         LEFT  219    125    12     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    198     0     0    0.0   0.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    200     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    212     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    212     0     0    0.0   2.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.0s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  204     39   213    -2    6.1  18.7s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  203     37   212     2    6.1  18.9s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  198     34   210     2    6.1  18.4s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  206     42   223    -2    6.1  19.3s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  202     35   212     2    6.1  18.6s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  201     36   211    -1    6.1  18.4s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  196     37   220    -2    6.1  18.9s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  211     39   216     2    6.1  19.0s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  203     36   212     1    6.1  18.4s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  210     41   216     2    6.1  18.8s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  190     40    97     1    6.1  11.3s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.1  11.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.2  11.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  192     40    97     0    6.1  11.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.1  11.3s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  185     40    97     1    6.1  11.3s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  192     40    97     1    6.1  11.3s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  191     40    97     1    6.1  11.3s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.1  11.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  192     40    97     1    6.2  11.4s PASS 
+C31  second box 56 cm behind the first                           LEFT  202     36   215     1    6.1  36.1s PASS 
+C31  second box 56 cm behind the first                          RIGHT  202     36   214    -2    6.1  36.1s PASS 
+C31  second box 56 cm behind the first                          RIGHT  201     35   214    -2    6.1  36.0s PASS 
+C31  second box 56 cm behind the first                          RIGHT  202     34   218    -1    6.1  36.6s PASS 
+C31  second box 56 cm behind the first                           LEFT  202     35   214     2    6.1  35.9s PASS 
+C31  second box 56 cm behind the first                          RIGHT  214     38   218    -1    6.1  36.4s PASS 
+C31  second box 56 cm behind the first                           LEFT  200     36   216     2    6.1  36.2s PASS 
+C31  second box 56 cm behind the first                          RIGHT  205     37   217    -2    6.1  36.2s PASS 
+C31  second box 56 cm behind the first                          RIGHT  202     36   215    -2    6.1  36.1s PASS 
+C31  second box 56 cm behind the first                           LEFT  201     36   215     1    6.2  36.5s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  201     35   211    -2    6.1  34.1s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  200     35   211    -2    6.1  31.9s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  199     35   210    -2    6.1  34.5s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  201     33   211    -2    6.1  32.0s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  202     37   212    -2    6.1  34.2s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  203     36   212    -1    6.1  34.2s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  201     37   211    -1    6.1  31.8s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  200     35   211    -2    6.1  34.1s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  200     35   211    -1    6.1  34.2s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  201     36   211    -2    6.1  31.8s PASS 
+C33  second box 40 cm behind the first                           LEFT  203     24   219     2    6.1  30.8s PASS 
+C33  second box 40 cm behind the first                          RIGHT  202     27   216    -2    6.1  30.8s PASS 
+C33  second box 40 cm behind the first                          RIGHT  201     24   214    -2    6.1  30.4s PASS 
+C33  second box 40 cm behind the first                           LEFT  203     24   220     2    6.1  31.1s PASS 
+C33  second box 40 cm behind the first                          RIGHT  206     25   215    -1    6.1  31.3s PASS 
+C33  second box 40 cm behind the first                           LEFT  207     28   217     1    6.1  30.9s PASS 
+C33  second box 40 cm behind the first                          RIGHT  201     28   221    -1    6.1  31.1s PASS 
+C33  second box 40 cm behind the first                          RIGHT  203     26   220    -2    6.1  30.5s PASS 
+C33  second box 40 cm behind the first                           LEFT  206     28   216     2    6.1  30.9s PASS 
+C33  second box 40 cm behind the first                          RIGHT  202     27   215    -2    6.1  30.4s PASS 
+C34  second box 30 cm behind the first                           LEFT  202     36   221     1    6.1  32.8s PASS 
+C34  second box 30 cm behind the first                           LEFT  200     35   219     2    6.1  26.0s PASS 
+C34  second box 30 cm behind the first                          RIGHT  202     36   220    -2    6.1  33.0s PASS 
+C34  second box 30 cm behind the first                           LEFT  202     36   219     2    6.1  32.8s PASS 
+C34  second box 30 cm behind the first                           LEFT  202     36   221     2    6.1  32.8s PASS 
+C34  second box 30 cm behind the first                          RIGHT  202     36   220    -1    6.1  33.0s PASS 
+C34  second box 30 cm behind the first                          RIGHT  212     43   217    -2    6.1  25.0s PASS 
+C34  second box 30 cm behind the first                           LEFT  200     35   220     2    6.1  26.0s PASS 
+C34  second box 30 cm behind the first                           LEFT  201     36   218     2    6.1  26.0s PASS 
+C34  second box 30 cm behind the first                           LEFT  201     36   217     2    6.1  26.0s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  201     36   278     2    6.1  27.0s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  206     40   214    -2    6.1  23.7s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  202     36   279     1    6.1  27.1s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  200     35   276     1    6.1  27.0s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  202     38   212    -2    6.1  23.6s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  201     35   275     1    6.1  27.1s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  203     38   212    -1    6.2  23.6s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  205     40   213    -2    6.1  23.7s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  200     37   211    -1    6.1  23.6s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  202     36   279     1    6.1  27.1s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  213     39   217     1    6.1  29.7s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  201     37   211     2    6.1  24.7s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  200     32   211     2    6.1  29.0s PASS 
+C36  second box 40 cm behind, 100 mm right                      RIGHT  203     23   319    -1    6.1  33.4s PASS 
+C36  second box 40 cm behind, 100 mm right                      RIGHT  201     23   318    -1    6.1  33.3s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  203     35   212     1    6.1  29.3s PASS 
+C36  second box 40 cm behind, 100 mm right                      RIGHT  200     35   319    -1    6.1  35.8s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  202     38   212     2    6.1  24.7s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  201     37   211     2    6.1  24.7s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  200     34   211     1    6.1  29.1s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  201     26   264    -1    6.1  31.9s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  202     21   261    -1    6.1  31.9s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  202     24   261    -2    6.2  32.0s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  202     23   263     1    6.2  32.0s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  200     23   263     1    6.1  32.0s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  203     26   262    -2    6.1  31.9s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  201     35   264    -1    6.1  31.9s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  204     23   261     2    6.1  32.1s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  201     24   262    -1    6.1  31.9s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  202     24   265     2    6.1  32.0s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     26   217     1    6.1  33.2s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  206     28   221     1    6.1  33.3s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     25   220     2    6.1  32.9s PASS 
+C38  second box 40 cm behind, 40 cm deep                        RIGHT  202     26   218    -1    6.1  32.8s PASS 
+C38  second box 40 cm behind, 40 cm deep                        RIGHT  206     26   214    -2    6.1  33.3s PASS 
+C38  second box 40 cm behind, 40 cm deep                        RIGHT  201     26   217    -2    6.1  33.2s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     27   216     2    6.1  33.2s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     25   220     2    6.2  33.3s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  200     24   221     2    6.1  33.2s PASS 
+C38  second box 40 cm behind, 40 cm deep                        RIGHT  214     31   219    -2    6.1  33.8s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  202     35   248     2    6.1  42.9s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  203     37   245    -1    6.1  41.8s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  201     35   247     2    6.1  42.8s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  203     35   247    -1    6.1  42.1s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  201     36   246    -2    6.1  42.0s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  201     36   250    -2    6.1  42.0s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  201     36   247    -1    6.1  41.8s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  203     37   247     1    6.1  40.6s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  200     37   247     2    6.1  42.5s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  200     36   249     2    6.1  42.7s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  210     40   269     2    6.1  27.2s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  212     37   265     1    6.1  24.4s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  211     37   265     1    6.1  24.4s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  210     37   266     2    6.1  24.8s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  210     37   266     1    6.1  24.4s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  212     37   265     1    6.1  24.4s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  211     37   265     1    6.1  24.5s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  211     40   268     1    6.1  27.4s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  205     34   268     2    6.1  24.5s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  209     36   269     1    6.1  24.5s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     41   336     1    6.0  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  212     42   335     0    5.4  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  209     41   336     0    5.0  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     41   337     1    6.1  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     39   346     0    4.5  29.8s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  209     41   335     0    5.3  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  211     41   336     1    6.0  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  211     40   353    -0    3.8  32.7s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  211     42   335     1    6.0  29.6s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     41   336     1    6.0  29.6s PASS 
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  140      9   199     2    6.1  16.8s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  141      9   203     2    6.1  17.0s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  144      9   183    -1    6.1  16.4s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  140      9   201    -2    6.1  16.8s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  139      9   197    -1    6.1  16.7s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  140      9   199    -1    6.1  16.8s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  140      9   201    -2    6.1  16.9s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  141      9   198     1    6.1  16.8s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  140      9   197     2    6.1  16.7s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  140      9   197     1    6.1  16.7s LIMIT only 9 mm from the box
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  270     68   245    -2    6.1  20.9s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  269     69   245     2    6.1  20.9s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  268     66   244    -1    6.1  20.9s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  267     67   244    -1    6.2  20.9s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  276     70   248     2    6.1  21.0s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  275     70   248    -2    6.2  21.0s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  269     68   245    -1    6.2  20.9s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  264     65   242     1    6.1  21.0s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  276     72   248     1    6.1  21.1s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  268     67   244    -2    6.2  20.9s PASS 
+
+430 runs, 0 failed
+exit 0
+
+$ build/test_s5_car -s 10 -p 20 # S5-H21, 10 seeds, 20 ms polls
+S5 task polls every 20 ms
+     scenario                                                    side wide  clear max y  hand  after   time    ok
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  206     38   214    -1    6.1  18.7s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  207     39   214    -1    6.1  18.7s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  200     35   211     2    6.1  18.5s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  201     37   217    -2    6.1  18.9s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  214     40   218     1    6.1  19.0s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  202     36   212    -2    6.1  18.6s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  202     37   212     2    6.1  18.6s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  202     38   216     1    6.1  18.9s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  201     37   211     1    6.1  18.6s PASS 
+C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  214     41   218    -1    6.1  19.0s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  210     42   158     2    6.1  13.5s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     2    6.1  13.1s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     2    6.1  13.1s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  203     36   153     2    6.1  13.1s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  202     36   152     2    6.1  13.1s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  204     37   153     2    6.2  13.1s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  206     37   153     2    6.1  13.1s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  206     37   153     2    6.1  13.2s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  202     36   152     2    6.1  13.0s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  202     36   152     2    6.1  13.0s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  208     42   157    -2    6.1  13.5s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  202     36   152    -1    6.1  13.2s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  201     36   152    -1    6.1  13.2s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  203     36   152    -1    6.1  13.2s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  202     36   152    -2    6.2  13.2s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  200     36   152    -2    6.1  13.2s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  214     43   158    -2    6.1  13.6s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  203     41   157    -1    6.1  13.4s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  215     43   159    -2    6.1  13.6s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  203     36   153    -2    6.1  13.2s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  17.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  17.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  203     39   189     1    6.1  17.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  203     39   189     1    6.1  17.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  207     37   187     1    6.1  17.1s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  204     40   189     1    6.1  17.1s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  17.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  202     39   188     2    6.1  17.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  201     38   188     2    6.1  17.0s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  203     39   189     1    6.1  17.0s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   96     41   160    -1    6.1  13.7s PASS 
+C5   narrow 10x10 cm box                                         LEFT   94     40   158     2    6.1  13.5s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   96     41   159    -1    6.1  13.6s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   96     41   160    -1    6.1  13.6s PASS 
+C5   narrow 10x10 cm box                                         LEFT   96     41   160     1    6.1  13.6s PASS 
+C5   narrow 10x10 cm box                                         LEFT   97     42   160     1    6.1  13.6s PASS 
+C5   narrow 10x10 cm box                                        RIGHT   95     41   159    -2    6.1  13.6s PASS 
+C5   narrow 10x10 cm box                                         LEFT   99     42   161     1    6.1  13.7s PASS 
+C5   narrow 10x10 cm box                                         LEFT   97     42   160     1    6.1  13.6s PASS 
+C5   narrow 10x10 cm box                                         LEFT   96     41   159     1    6.1  13.6s PASS 
+C6   wide 30 cm box                                             RIGHT  305     40   263    -2    6.1  22.4s PASS 
+C6   wide 30 cm box                                             RIGHT  303     40   262    -1    6.1  22.3s PASS 
+C6   wide 30 cm box                                              LEFT  305     38   263     1    6.2  22.3s PASS 
+C6   wide 30 cm box                                             RIGHT  303     39   262    -2    6.1  22.3s PASS 
+C6   wide 30 cm box                                              LEFT  303     42   262     1    6.1  22.4s PASS 
+C6   wide 30 cm box                                              LEFT  292     34   256     2    6.1  21.8s PASS 
+C6   wide 30 cm box                                             RIGHT  303     41   262    -2    6.1  22.4s PASS 
+C6   wide 30 cm box                                             RIGHT  298     38   259    -2    6.1  22.2s PASS 
+C6   wide 30 cm box                                              LEFT  305     42   263     1    6.1  22.4s PASS 
+C6   wide 30 cm box                                             RIGHT  292     36   256    -2    6.1  21.9s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  202     37   222     2    6.1  21.3s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  201     37   211     1    6.1  21.0s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  202     37   212     1    6.1  21.0s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  203     38   219     1    6.1  21.4s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  202     37   225    -1    6.1  21.4s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  203     37   212    -2    6.1  21.0s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  200     36   211    -1    6.1  21.0s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  203     37   213    -1    6.1  21.0s PASS 
+C7   deep box, 21 x 40 cm                                       RIGHT  202     37   212    -1    6.1  21.0s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  200     36   211     1    6.1  21.0s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  208     38   215     2    6.1  22.6s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  206     39   214    -1    6.1  22.6s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  211     41   217     1    6.1  22.8s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  209     39   215    -2    6.1  22.6s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  209     40   215     1    6.1  22.7s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  211     41   216    -2    6.1  22.8s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  211     39   216    -2    6.1  22.7s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  211     41   216    -2    6.1  22.7s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  209     38   215     1    6.1  22.6s PASS 
+C8   box put down 100 mm in front of the car                    RIGHT  206     38   214    -2    6.1  22.7s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  212     19   217    -1    6.1  23.7s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  127     19   215    -2    6.1  24.0s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  211     19   217     1    6.1  23.6s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  208     19   215    -2    6.1  23.7s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  208     19   215     2    6.1  23.5s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  208     19   215    -1    6.1  23.5s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  211     19   216    -1    6.1  23.7s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  208     19   215     2    6.1  23.5s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  209     19   221     2    6.1  23.9s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  206     19   214    -2    6.1  23.5s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  422     36   211     2    6.1  32.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  417     35   211     2    6.1  32.2s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  416     36   211     1    6.1  32.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  408     33   210     2    6.1  32.2s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  414     36   211     1    6.1  32.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  414     37   217     1    6.1  32.8s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  414     36   211     1    6.1  32.4s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  420     35   210     1    6.1  32.3s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  416     34   211     2    6.1  32.2s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  416     35   211     2    6.1  32.6s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   8.9s PASS 
+C11  walls both sides: wait, then the box is taken away             -  417    165     0     0    0.0   9.2s PASS 
+C11  walls both sides: wait, then the box is taken away             -  419    165     0     0    0.0   9.2s PASS 
+C11  walls both sides: wait, then the box is taken away             -  419    165     0     0    0.0   8.9s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   9.2s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   8.9s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   9.2s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0   9.2s PASS 
+C11  walls both sides: wait, then the box is taken away             -  416    165     0     0    0.0  10.3s PASS 
+C11  walls both sides: wait, then the box is taken away             -  417    165     0     0    0.0   9.2s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     36   228    -2    6.1  19.6s PASS 
+C12  second box beside it on the left: goes right               RIGHT  204     38   229    -1    6.1  19.7s PASS 
+C12  second box beside it on the left: goes right               RIGHT  206     33   226    -2    6.1  19.5s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     37   227    -2    6.1  19.7s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     36   228    -2    6.1  19.6s PASS 
+C12  second box beside it on the left: goes right               RIGHT  206     40   230    -2    6.1  19.8s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     36   228    -1    6.1  19.7s PASS 
+C12  second box beside it on the left: goes right               RIGHT  205     33   225    -2    6.1  19.6s PASS 
+C12  second box beside it on the left: goes right               RIGHT  201     38   232    -2    6.1  20.0s PASS 
+C12  second box beside it on the left: goes right               RIGHT  202     35   228    -2    6.1  19.6s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  203     35   212     2    6.1  18.6s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  202     36   212     2    6.1  18.8s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  201     36   211    -2    6.1  18.6s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  203     34   212     1    6.1  18.5s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  202     37   212    -2    6.1  18.6s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  200     35   211    -1    6.1  18.5s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  202     35   212     2    6.1  18.5s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  202     35   212     2    6.1  18.6s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  206     38   214     1    6.1  18.7s PASS 
+C13  lanes 250 mm either side: back onto OUR line               RIGHT  206     38   214    -2    6.1  18.7s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  202     19   202     1    6.0  18.7s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  206     21   201    -2    6.1  18.6s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  213     18   197     2    6.0  18.5s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  203     19   202    -1    6.0  18.7s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  203     19   201     1    6.0  18.6s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  201     19   197     1    6.0  18.5s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  200     19   202    -1    6.0  18.7s PASS 
+C14  encoders 3 % long, real track 5 % wider                    RIGHT  203     19   203    -1    6.0  18.7s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  203     19   198     2    6.0  18.5s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  201     19   200     1    6.0  18.6s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  203     58   235    -1    6.1  19.4s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  214     64   241    -1    6.1  19.8s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  202     58   234    -1    6.1  19.4s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  203     58   235    -1    6.1  19.4s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  201     58   234     1    6.2  19.4s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  202     58   234    -1    6.1  19.4s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  203     58   235    -1    6.1  19.4s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  200     58   234     1    6.2  19.3s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  201     58   234    -1    6.2  19.4s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250     RIGHT  200     58   234    -1    6.2  19.3s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  170     23   203    -1    6.1  17.6s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  169     23   205    -1    6.1  17.7s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  172     23   204     2    6.1  17.7s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  170     23   208     1    6.1  17.8s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  174     25   205    -1    6.1  17.7s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  169     23   211    -1    6.1  18.0s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  169     23   207     1    6.1  17.9s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  171     23   206    -2    6.1  17.7s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  171     23   205    -1    6.1  17.7s PASS 
+C16  real beam 19 deg (calibration says 22)                     RIGHT  169     23   205    -1    6.1  17.8s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  234     50   227    -1    6.1  19.7s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  235     51   228     2    6.1  19.7s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  233     50   227    -1    6.1  19.7s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  247     56   234    -2    6.1  20.2s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  233     52   227    -1    6.1  19.8s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  246     55   233    -1    6.1  20.2s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  234     51   228     2    6.1  19.7s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  240     54   230     1    6.1  19.8s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  232     50   227    -2    6.1  19.7s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  238     51   230    -1    6.1  19.7s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  232     40   214     2    6.1  19.0s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  227     38   212     2    6.1  18.9s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  226     37   211     2    6.1  18.9s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  226     37   211     2    6.1  18.9s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  227     38   212     2    6.1  18.9s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  231     39   214     2    6.1  19.0s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  220     35   209     2    6.1  18.8s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  226     37   211     2    6.1  18.9s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  228     38   213     2    6.1  19.0s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  224     37   211     2    6.1  18.9s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  200     35   211     1    6.1  19.9s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  202     35   212     2    6.1  19.8s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  202     37   212     2    6.1  20.0s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)               RIGHT  200     37   211    -2    6.2  19.9s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  203     37   212     2    6.1  20.0s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  199     35   210     1    6.1  20.1s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  202     35   212     2    6.1  19.9s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)               RIGHT  215     42   218    -1    6.1  20.1s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  214     43   218     1    6.1  20.3s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  204     37   213     2    6.1  20.0s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  201     35   211     1    6.1  18.5s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     36   212    -1    6.1  18.6s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     37   212    -2    6.1  18.6s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  206     37   214    -1    6.1  18.6s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     38   212    -2    6.1  18.7s PASS 
+C20  track at 37 deg to the odometry frame                      RIGHT  202     38   212    -1    6.1  18.7s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  203     36   212     1    6.1  18.6s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  202     37   212     2    6.1  18.6s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  200     35   211     1    6.1  18.5s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  203     37   212     1    6.1  18.6s PASS 
+C21  box right after a R500 left bend                           RIGHT  207     38   738     1    6.1  19.1s PASS 
+C21  box right after a R500 left bend                           RIGHT  210     40   742     1    6.1  19.3s PASS 
+C21  box right after a R500 left bend                           RIGHT  208     37   736     1    6.1  19.1s PASS 
+C21  box right after a R500 left bend                            LEFT  209     39   733     3    6.2  17.9s PASS 
+C21  box right after a R500 left bend                            LEFT  207     39   733     3    6.1  17.9s PASS 
+C21  box right after a R500 left bend                            LEFT  212     40   734     3    6.1  17.9s PASS 
+C21  box right after a R500 left bend                            LEFT  211     40   733     3    6.1  17.9s PASS 
+C21  box right after a R500 left bend                            LEFT  212     38   730     3    6.2  17.9s PASS 
+C21  box right after a R500 left bend                            LEFT  208     39   733     3    6.1  17.9s PASS 
+C21  box right after a R500 left bend                           RIGHT  212     42   745     1    6.1  19.3s PASS 
+C22  box turned 15 deg                                           LEFT  184     26   215     2    6.1  18.2s PASS 
+C22  box turned 15 deg                                           LEFT  185     25   213     2    6.1  18.0s PASS 
+C22  box turned 15 deg                                           LEFT  185     27   216     1    6.1  18.2s PASS 
+C22  box turned 15 deg                                           LEFT  189     26   213     2    6.1  18.0s PASS 
+C22  box turned 15 deg                                           LEFT  185     25   213     1    6.1  18.0s PASS 
+C22  box turned 15 deg                                           LEFT  185     27   216     1    6.1  18.9s PASS 
+C22  box turned 15 deg                                           LEFT  185     21   208     1    6.1  17.8s PASS 
+C22  box turned 15 deg                                           LEFT  185     25   213     2    6.1  18.0s PASS 
+C22  box turned 15 deg                                           LEFT  185     27   215     2    6.1  18.1s PASS 
+C22  box turned 15 deg                                           LEFT  186     24   211     1    6.1  17.9s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  210     39   216    -3    6.1  18.8s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  211     41   217    -2    6.1  18.8s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  207     39   215    -3    6.1  18.7s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  211     38   215     1    6.1  18.8s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  211     36   216     1    6.1  18.8s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  211     40   215     1    6.1  18.9s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  206     36   213     0    6.1  18.8s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  210     39   216    -2    6.1  18.8s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                 RIGHT  211     39   217    -3    6.1  18.7s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  211     39   215     0    6.1  18.9s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     1    6.1  17.9s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     2    6.1  17.9s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  210     30   204     2    6.1  17.9s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  205     31   205     2    6.1  18.0s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  205     28   202     2    6.1  17.9s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  208     32   207     2    6.1  18.0s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  209     29   203     1    6.1  17.9s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  211     29   204     2    6.1  17.8s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  211     30   204     2    6.2  17.9s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  209     29   203     2    6.1  18.0s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  201     36   211    -4    6.1  17.4s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  201     37   211     2    6.1  17.7s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  202     37   212     1    6.1  17.7s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  203     36   212     3    6.1  18.0s PASS 
+C25  two boxes 1.4 m apart                                      RIGHT  202     35   212     1    6.1  17.5s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  201     37   211    -4    6.1  17.4s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  206     37   214    -4    6.1  17.4s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  201     36   211    -4    6.1  17.4s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  202     36   212    -4    6.1  17.4s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  205     40   213    -4    6.1  17.3s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up         LEFT  221    125    12     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up         LEFT  219    125    12     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    192     0     0    0.0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up            -    0    198     0     0    0.0   0.0s PASS 
+C28  box taken away while the car stands: line following again      -    0    200     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    212     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    212     0     0    0.0   2.2s PASS 
+C28  box taken away while the car stands: line following again      -    0    206     0     0    0.0   2.2s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  204     39   213    -2    6.1  19.0s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  203     35   212     2    6.1  19.1s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  198     34   210     2    6.1  18.7s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  206     42   225    -2    6.1  19.6s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  202     36   212     2    6.1  18.8s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  201     34   211    -1    6.1  18.5s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                    RIGHT  196     37   218    -2    6.1  19.1s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  211     39   216     2    6.1  19.3s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  203     36   212     1    6.1  18.6s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  210     40   216     2    6.1  19.0s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  190     39    97     1    6.1  11.5s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.1  11.6s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.1  11.6s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  192     40    97     1    6.1  11.6s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.1  11.5s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  185     40    97     0    6.1  11.5s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  192     39    97     1    6.1  11.5s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  191     40    97     1    6.1  11.5s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  193     40    97     1    6.1  11.6s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT  192     40    97     1    6.1  11.6s PASS 
+C31  second box 56 cm behind the first                           LEFT  202     34   214     2    6.1  36.7s PASS 
+C31  second box 56 cm behind the first                          RIGHT  202     36   213    -1    6.1  36.8s PASS 
+C31  second box 56 cm behind the first                          RIGHT  201     35   218    -2    6.1  36.8s PASS 
+C31  second box 56 cm behind the first                          RIGHT  202     36   213    -2    6.1  36.8s PASS 
+C31  second box 56 cm behind the first                           LEFT  202     37   216     2    6.1  36.9s PASS 
+C31  second box 56 cm behind the first                          RIGHT  214     37   218    -1    6.1  37.1s PASS 
+C31  second box 56 cm behind the first                           LEFT  200     36   215     2    6.1  36.9s PASS 
+C31  second box 56 cm behind the first                          RIGHT  205     37   213    -2    6.1  36.9s PASS 
+C31  second box 56 cm behind the first                          RIGHT  202     36   217    -2    6.1  36.9s PASS 
+C31  second box 56 cm behind the first                           LEFT  201     35   213     2    6.1  36.8s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  201     35   211    -2    6.1  34.7s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  200     36   211    -2    6.1  34.5s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  199     35   210    -2    6.1  34.9s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  201     35   211    -2    6.1  32.4s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  202     36   212    -2    6.1  32.5s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  203     36   212    -2    6.1  34.6s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  201     37   211    -2    6.1  31.8s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  200     35   211    -2    6.1  32.4s PASS 
+C32  second box 75 cm behind the first, 30 mm left              RIGHT  200     34   211    -1    6.1  34.9s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  201     37   211    -2    6.1  34.7s PASS 
+C33  second box 40 cm behind the first                           LEFT  203     25   215     2    6.1  31.5s PASS 
+C33  second box 40 cm behind the first                          RIGHT  202     38   223    -2    6.1  24.9s PASS 
+C33  second box 40 cm behind the first                          RIGHT  201     25   221    -2    6.1  31.0s PASS 
+C33  second box 40 cm behind the first                           LEFT  203     26   216     2    6.1  31.8s PASS 
+C33  second box 40 cm behind the first                          RIGHT  206     27   215    -2    6.1  32.0s PASS 
+C33  second box 40 cm behind the first                           LEFT  207     29   216     2    6.1  31.7s PASS 
+C33  second box 40 cm behind the first                          RIGHT  201     26   217    -1    6.1  31.5s PASS 
+C33  second box 40 cm behind the first                          RIGHT  203     25   219    -2    6.1  31.2s PASS 
+C33  second box 40 cm behind the first                           LEFT  206     27   215     1    6.1  31.1s PASS 
+C33  second box 40 cm behind the first                          RIGHT  202     25   221    -2    6.1  31.8s PASS 
+C34  second box 30 cm behind the first                           LEFT  202     38   216     2    6.1  28.0s PASS 
+C34  second box 30 cm behind the first                           LEFT  200     35   219     2    6.1  26.5s PASS 
+C34  second box 30 cm behind the first                          RIGHT  202     38   214    -2    6.1  28.0s PASS 
+C34  second box 30 cm behind the first                           LEFT  202     38   216     2    6.1  28.1s PASS 
+C34  second box 30 cm behind the first                           LEFT  202     38   215     1    6.1  28.0s PASS 
+C34  second box 30 cm behind the first                          RIGHT  202     38   216    -2    6.1  28.0s PASS 
+C34  second box 30 cm behind the first                          RIGHT  212     43   217    -2    6.1  25.2s PASS 
+C34  second box 30 cm behind the first                           LEFT  200     37   211     2    6.1  24.7s PASS 
+C34  second box 30 cm behind the first                           LEFT  201     36   216     1    6.1  26.5s PASS 
+C34  second box 30 cm behind the first                           LEFT  201     37   211     1    6.1  24.7s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  201     36   278     2    6.1  27.5s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  206     40   214    -2    6.1  23.9s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  202     36   279     1    6.1  27.5s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  200     38   303     1    6.1  35.3s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  202     38   212    -2    6.1  23.8s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  201     36   276     1    6.1  27.6s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  203     38   212    -2    6.1  23.9s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  205     40   213    -1    6.1  23.9s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane RIGHT  200     37   211    -2    6.1  23.8s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  202     36   279     1    6.1  27.5s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  213     41   217     1    6.1  30.4s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  201     37   211     1    6.1  24.9s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  200     32   211     2    6.1  29.8s PASS 
+C36  second box 40 cm behind, 100 mm right                      RIGHT  203     24   319    -1    6.1  34.2s PASS 
+C36  second box 40 cm behind, 100 mm right                      RIGHT  201     23   316    -1    6.1  33.7s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  203     38   212     1    6.1  24.9s PASS 
+C36  second box 40 cm behind, 100 mm right                      RIGHT  200     35   319    -1    6.1  36.5s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  202     38   212     2    6.1  24.9s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  201     37   211     1    6.1  24.9s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  200     37   211     2    6.1  25.0s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  201     26   264    -2    6.1  32.7s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  202     22   265    -1    6.1  32.7s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  202     24   261    -2    6.1  32.8s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  202     23   261     2    6.2  32.8s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  200     22   265     1    6.1  33.0s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  203     25   263    -1    6.1  32.8s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  201     25   264    -2    6.1  32.7s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  204     25   261     2    6.1  33.2s PASS 
+C37  second box 40 cm behind, 30 cm wide                        RIGHT  201     24   264    -2    6.1  32.7s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  202     24   262     2    6.1  32.9s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     24   220     1    6.1  33.5s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  206     26   216     1    6.1  33.8s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     24   220     2    6.1  33.6s PASS 
+C38  second box 40 cm behind, 40 cm deep                        RIGHT  202     25   220    -1    6.1  33.7s PASS 
+C38  second box 40 cm behind, 40 cm deep                        RIGHT  206     27   214    -2    6.1  33.5s PASS 
+C38  second box 40 cm behind, 40 cm deep                        RIGHT  201     24   219    -2    6.1  33.6s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     26   214     1    6.1  33.8s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  202     24   220     2    6.1  33.6s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  200     25   217     2    6.1  34.0s PASS 
+C38  second box 40 cm behind, 40 cm deep                        RIGHT  214     29   220    -2    6.1  34.4s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  202     36   243     1    6.1  41.3s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  203     36   247    -2    6.2  42.8s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  201     34   243     1    6.1  43.1s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  203     35   249    -2    6.1  45.4s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  201     36   245    -1    6.1  43.0s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  201     35   246    -2    6.1  43.0s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right         RIGHT  201     37   248    -2    6.1  40.6s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  203     37   244     2    6.1  41.4s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  200     37   246     2    6.1  43.2s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  200     36   246     1    6.1  43.1s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  210     39   268     1    6.1  27.6s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  212     37   267     1    6.1  25.3s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  211     37   266     1    6.1  24.9s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  210     37   267     2    6.1  25.4s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  210     36   267     1    6.1  25.0s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  212     37   265     1    6.1  24.9s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  211     36   264     1    6.1  24.9s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  211     40   269     2    6.1  27.9s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  205     34   267     2    6.1  25.0s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  209     36   265     2    6.1  24.9s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     41   334     1    6.1  30.0s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  212     42   333     1    6.1  30.1s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  209     41   333     1    6.0  29.9s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     41   334     1    6.1  30.0s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     39   346     0    4.5  30.3s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  209     41   333     1    6.1  30.0s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  211     42   335     1    6.1  30.1s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  211     37   345    -0    3.3  30.1s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  211     42   335     1    6.1  30.1s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  210     41   334     1    6.1  30.0s PASS 
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  140      9   198     1    6.1  17.0s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  141      9   202     2    6.1  17.2s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  144      9   183    -1    6.1  16.7s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  140      9   201    -2    6.1  17.1s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  139      9   198    -2    6.1  17.0s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  140      9   199    -2    6.1  17.0s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)              RIGHT  140      9   201    -2    6.1  17.1s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  141      9   202     2    6.1  17.2s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  140      9   198     2    6.1  17.0s LIMIT only 9 mm from the box
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  140      9   198     1    6.1  17.0s LIMIT only 9 mm from the box
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  270     69   245    -2    6.2  21.2s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  269     67   245     2    6.1  21.1s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  268     67   244    -1    6.1  21.1s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  267     66   244    -2    6.1  21.1s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  276     71   248     2    6.1  21.3s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  275     70   248    -1    6.1  21.3s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  269     68   245    -1    6.1  21.2s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  264     65   242     2    6.1  21.2s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  276     72   248     2    6.1  21.4s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  268     68   244    -2    6.2  21.1s PASS 
+
+430 runs, 0 failed
+exit 0

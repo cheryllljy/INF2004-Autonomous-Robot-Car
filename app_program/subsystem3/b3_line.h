@@ -36,10 +36,16 @@ typedef struct
     bool ever_seen;
     int8_t side;            /* side that is black now (-1 L, +1 R, 0 none) */
     uint32_t side_since_us; /* when that side went black */
-    int8_t sharp;           /* sharp turn in progress: direction, 0 = no */
-    uint32_t sharp_last_us; /* last time the sharp side was still black */
-    bool recovering;        /* speeding back up after a sharp turn */
-    uint32_t sharp_end_us;  /* when the last sharp turn ended */
+    /* nyx, 2026-11-07: smooth steering (see B3_STEER_* in b3_config.h).
+     * Curvatures are 1e6 / radius in mm, + = to the left. */
+    bool started;      /* last_us is valid */
+    uint32_t last_us;  /* previous step */
+    int32_t memory;    /* the curve the line is taking, learnt */
+    int32_t steer;     /* curvature asked for at the last step */
+    uint32_t black_um; /* driven since this side went black, um */
+    int32_t kick;      /* nudge now, self-tuned (B3_STEER_KICK_*) */
+    int8_t last_touch; /* side of the last touch (-1 L, +1 R, 0 none) */
+    uint32_t touch_um; /* driven since that touch began, um */
 } b3_line_t;
 
 typedef struct
@@ -53,12 +59,19 @@ typedef struct
     bool right_black;
     bool stop;
     bool recovery_needed;
-    bool sharp_turn; /* slowed down for a sharp turn (B3_SHARP_*) */
+    bool sharp_turn;   /* slowed down for a curve (B3_CURVE_SPEED_MM_S) */
+    int32_t curvature; /* nyx, 2026-11-07: asked for, 1e6 / radius mm */
 } b3_line_result_t;
 
 void b3_line_init(b3_line_t *p_line, uint32_t now_us);
 b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
                               bool right_black, uint32_t now_us,
                               int16_t base_mm_s);
+
+/* nyx, 2026-11-07: the VehicleController drives the wheels itself (a
+ * junction turn, an obstacle bypass, a barcode back-up). The sensors are
+ * still read, but the steering starts again from straight, so what it
+ * learnt while someone else drove does not bend the car at the handover. */
+void b3_line_hold(b3_line_t *p_line);
 
 #endif

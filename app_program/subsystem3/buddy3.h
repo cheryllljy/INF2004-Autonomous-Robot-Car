@@ -48,6 +48,10 @@ typedef struct
      * up and reads barcodes slowly, vc_barcode.c). 0 = B3_BASE_SPEED_MM_S
      * with Buddy 3's own barcode slowdown. */
     int16_t base_speed_mm_s;
+    /* nyx, 2026-11-07: the VehicleController drives the wheels itself
+     * (junction turn, obstacle bypass, barcode back-up): line following
+     * starts again from straight when it hands back (b3_line_hold()). */
+    bool steer_hold;
 } b3_context_t;
 
 typedef struct
@@ -59,11 +63,11 @@ typedef struct
 } b3_nav_event_t;
 
 /* nyx, 2026-11-06: why a black patch under both line sensors was not a
- * junction. */
+ * junction (2026-11-08: B3_PATCH_SHORT = a sensor's run was short). */
 typedef enum
 {
     B3_PATCH_JUNCTION = 0, /* it was one */
-    B3_PATCH_SHORT,        /* shorter than B3_JUNCTION_MIN_PATCH_UM */
+    B3_PATCH_SHORT,        /* a run under B3_JUNCTION_MIN_PATCH_UM */
     B3_PATCH_SLOW,         /* mean speed under B3_JUNCTION_MIN_SPEED_MM_S */
     B3_PATCH_NOT_DRIVING,  /* stop requested, no motion data, stale */
     B3_PATCH_SCANNING,     /* a barcode scan was in progress under IR_B */
@@ -109,7 +113,10 @@ typedef struct
      * was NOT counted as a junction: how long the patch was and why. The
      * count goes up once per such patch, so the VC can print each one. */
     uint32_t patch_misses;
-    uint16_t patch_miss_mm;
+    uint16_t patch_miss_mm; /* both black together (2026-11-08) */
+    /* nyx, 2026-11-08: each sensor's own run over the patch */
+    uint16_t patch_miss_l_mm;
+    uint16_t patch_miss_r_mm;
     uint8_t patch_miss_why; /* b3_patch_why_t */
     bool control_active;
     bool stop_required;

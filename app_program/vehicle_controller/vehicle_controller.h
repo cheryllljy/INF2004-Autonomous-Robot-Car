@@ -16,7 +16,7 @@
  *      IF-VC-4  VC -> Buddy 1          vc_fill_telemetry()          B1_Telemetry
  *      Plus the existing ones it consumes: Buddy 2 motion_*(), Buddy 3
  *      buddy3_set_context / get_snapshot / pop_navigation, Buddy 5
- *      flg_obstacle + obstacle_resume / reset_fault.
+ *      s5_avoid_*() (subsystem5/s5_avoid.h: the bypass runs in vc_task).
  */
 
 #ifndef VEHICLE_CONTROLLER_H

@@ -63,9 +63,9 @@ fixed.
 | GP12 | | |
 | GP13 | | |
 | GP14 | | |
-| GP15 | | |
-| GP16 | | |
-| GP17 | | |
+| GP15 | S5 | SG90 servo signal (PWM slice 7 B), Robo Pico SERVO 4 |
+| GP16 | S5 | HC-SR04P TRIG (output) |
+| GP17 | S5 | HC-SR04P ECHO (PWM slice 0 B, gated input; 1 kΩ/2 kΩ divider if the module runs on 5 V) |
 | GP18 | | |
 | GP19 | *example:* S1 | external LED (LED + 330 Ω to GND) |
 | GP20 | | |
@@ -112,6 +112,7 @@ the drivers have no locking to stop it.
 | SPI1 | | | |
 | ADC | S3 (Buddy 3) | test only: `subsystem3_test()` (TEST=1) | GP26–GP28 |
 | PWM slices (list) | | | |
+| PWM slice 0 (counter only, gated by GP17), slice 7 | S5 | `s5_task` | GP17, GP15 |
 | WiFi radio, TCP/IP, MQTT | *kernel* | `cyw43_utk_task` (built in) | GP23–25, GP29 |
 
 ### WiFi and MQTT are special
@@ -150,7 +151,7 @@ change it only by team agreement. Write down every task you create.
 | 2 | 14–15 | *example:* producer_task – 14 – core 1 |
 | 3 | 16–17 | *example:* consumer_task – 16 – core 0 |
 | 4 | 18–19 | *example:* monitor_task – 18 – any |
-| 5 | 20–21 | |
+| 5 | 20–21 | s5_task – 20 – any (woken every 10 ms by a cyclic handler) |
 
 Core: `TP_PRC1` = core 0, `TP_PRC2` = core 1, or "any".
 
@@ -179,7 +180,7 @@ limit there. The numbers below are the example's usage.
 
 | Object | Limit | S1 | S2 | S3 | S4 | S5 |
 |---|---|---|---|---|---|---|
-| Task | 32 | 1 | 1 | 1 | 1 | |
+| Task | 32 | 1 | 1 | 1 | 1 | 1 |
 | Semaphore | 16 | | 1 | | | |
 | Event flag | 16 | | | | 1 | |
 | Mailbox | 12 | | | 1 | | |
@@ -187,7 +188,7 @@ limit there. The numbers below are the example's usage.
 | Message buffer | 12 | | | | 1 | |
 | Fixed memory pool | 12 | | 1 | | | |
 | Variable memory pool | 12 | | | | | |
-| Cyclic handler | 12 | 1 | | | | |
+| Cyclic handler | 12 | 1 | | | | 1 |
 | Alarm handler | 12 | | | | 1 | |
 
 (The kernel's USB and WiFi service tasks also use a few of these.)

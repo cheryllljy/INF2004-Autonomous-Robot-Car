@@ -9,6 +9,7 @@
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 test     (window 2: [TEST]/[VC] lines from the car)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 watch    (window 3, optional)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 go       (reset + start)
+      powershell -ExecutionPolicy Bypass -File .\robot.ps1 search   (reset + line search)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 stop
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 map -Map "F=left,A=right,B=forward,C=uturn"
 
@@ -22,6 +23,9 @@
       watch   print everything the robot publishes (inf2004/#)
       start | stop | reset    send one command
       go      reset, wait 2 s, start (use this after every power-up)
+      search  reset, wait 2 s, line search: the car drives straight
+              until both IRs have crossed a line, lines up along it and
+              then follows it (start OFF the line; on a line use go)
       map     send the barcode letter -> movement mapping (Buddy 1),
               -Map "F=left,A=right,B=forward,C=uturn": 4 different
               letters A-Z, each with a different one of forward, left,
@@ -37,11 +41,11 @@
   and adds 1 every time. You never type the number.
 
   Payload (Buddy 1, FR2): 3 bytes = version 1, command (1 start, 2 stop,
-  3 reset), sequence 0..255.
+  3 reset, 4 search), sequence 0..255.
 #>
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('check', 'broker', 'test', 'watch', 'start', 'stop', 'reset', 'go', 'map')]
+    [ValidateSet('check', 'broker', 'test', 'watch', 'start', 'stop', 'reset', 'go', 'search', 'map')]
     [string]$Cmd = 'check',
     [string]$Map = 'A=left,B=right,C=forward,D=uturn',
     [string]$Broker = '',
@@ -164,5 +168,10 @@ switch ($Cmd) {
         Send-Robot 3 'reset'
         Start-Sleep -Seconds 2
         Send-Robot 1 'start'
+    }
+    'search' {
+        Send-Robot 3 'reset'
+        Start-Sleep -Seconds 2
+        Send-Robot 4 'search'
     }
 }

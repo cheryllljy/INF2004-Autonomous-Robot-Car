@@ -622,17 +622,31 @@ static void test_line_logic(void)
     (void)b3_line_step(&line, true, false, 5000U, 120);
     result = b3_line_step(&line, true, false, 8000U, 120);
     CHECK(B3_LINE_LEFT == result.state);
+    /* nyx, 2026-11-07: the steering slews, so give the nudge 20 ms */
+    result = b3_line_step(&line, true, false, 28000U, 120);
     CHECK(result.left_mm_s < result.right_mm_s); /* IR_L black: turn left */
-    (void)b3_line_step(&line, false, true, 9000U, 120);
-    result = b3_line_step(&line, false, true, 12000U, 120);
+    (void)b3_line_step(&line, false, true, 29000U, 120);
+    result = b3_line_step(&line, false, true, 32000U, 120);
     CHECK(B3_LINE_RIGHT == result.state);
+    result = b3_line_step(&line, false, true, 72000U, 120);
     CHECK(result.right_mm_s < result.left_mm_s); /* IR_R black: turn right */
-    (void)b3_line_step(&line, true, true, 13000U, 120);
-    result = b3_line_step(&line, true, true, 16000U, 120);
-    CHECK(B3_LINE_CROSSING == result.state && !result.stop);
-    CHECK((120 == result.left_mm_s) && (120 == result.right_mm_s));
-    (void)b3_line_step(&line, false, false, 17000U, 120);
-    result = b3_line_step(&line, false, false, 70000U, 120);
+    {
+        const int32_t turning = result.curvature;
+
+        (void)b3_line_step(&line, true, true, 73000U, 120);
+        result = b3_line_step(&line, true, true, 86000U, 120);
+        CHECK(B3_LINE_CROSSING == result.state && !result.stop);
+        /* nyx, 2026-11-07: a crossing eases back towards the learnt
+         * curve, which is small after these few ms */
+        CHECK((turning < 0) && (result.curvature > turning));
+    }
+    result = b3_line_step(&line, true, true, 176000U, 120);
+    /* nyx, 2026-11-07 (patch 17): straight again; the speed may still be
+     * a little under 120 while the learnt curve fades (slows from R670) */
+    CHECK((abs(result.left_mm_s - result.right_mm_s) <= 6) &&
+          (result.left_mm_s >= 100) && (result.left_mm_s <= 120));
+    (void)b3_line_step(&line, false, false, 177000U, 120);
+    result = b3_line_step(&line, false, false, 230000U, 120);
     CHECK(B3_LINE_CENTRED == result.state && !result.stop);
     b3_line_init(&line, UINT32_MAX - 1000U);
     (void)b3_line_step(&line, true, false, UINT32_MAX - 1000U, 20);
@@ -641,60 +655,97 @@ static void test_line_logic(void)
     CHECK((result.left_mm_s >= 0) && (result.right_mm_s >= 0));
     (void)puts("PASS: straddle line rules, steering direction, filtering and crossings");
 
-    /* Sharp turn / U-turn (B3_SHARP_*): IR_R black for a short blip keeps
-     * full speed; held >= B3_SHARP_TURN_US it slows down and pivots. */
+    /* Smooth steering (nyx, 2026-11-07, B3_STEER_*): a side going black
+     * nudges towards it at once; held black, the curve tightens and the
+     * car slows, but the inner wheel keeps B3_MIN_WHEEL_MM_S; white again,
+     * the learnt curve carries on and fades; a hairpin stops the inner
+     * wheel; b3_line_hold() drives straight; the same curve at any speed. */
     {
         uint32_t t;
+        int first_diff;
+        int held_diff;
+        int white_diff;
+        int32_t curv_slow;
+
         b3_line_init(&line, 0U);
         (void)b3_line_step(&line, false, true, 0U, 120);
-        result = b3_line_step(&line, false, true, 50000U, 120);
-        CHECK(!result.sharp_turn && ((120 + B3_CORRECTION_MM_S) == result.left_mm_s) &&
-              ((120 - B3_CORRECTION_MM_S) == result.right_mm_s));
-        /* half way: speed and correction ramp, no step */
-        result = b3_line_step(&line, false, true, 50000U + (B3_SHARP_TURN_US / 2U), 120);
-        CHECK(!result.sharp_turn && (result.right_mm_s < (120 - B3_CORRECTION_MM_S)) && (result.right_mm_s > 0) &&
-              ((result.left_mm_s + result.right_mm_s) / 2 < 120) &&
-              ((result.left_mm_s + result.right_mm_s) / 2 > B3_SHARP_SPEED_MM_S));
-        for (t = 60000U; t <= 50000U + B3_SHARP_TURN_US; t += 10000U) /* black since 50 ms */
+        result = b3_line_step(&line, false, true, 10000U, 120);
+        first_diff = result.left_mm_s - result.right_mm_s;
+        CHECK((B3_LINE_RIGHT == result.state) && (first_diff > 0) &&
+              (result.right_mm_s >= B3_MIN_WHEEL_MM_S) && (result.curvature < 0));
+        /* held black: steering keeps tightening, never jumps, until the
+         * hairpin rule stops the inner wheel */
+        held_diff = first_diff;
         {
-            result = b3_line_step(&line, false, true, t, 120);
+            int32_t curv = result.curvature;
+
+            for (t = 20000U; t <= 5000000U; t += 10000U)
+            {
+                const int before = held_diff;
+
+                result = b3_line_step(&line, false, true, t, 120);
+                if (0 == result.right_mm_s)
+                {
+                    break; /* hairpin reached */
+                }
+                held_diff = result.left_mm_s - result.right_mm_s;
+                /* the curve only tightens (the wheel difference may ease
+                 * a little as the car slows for it) */
+                CHECK(result.curvature <= curv);
+                curv = result.curvature;
+                CHECK(abs(held_diff - before) <= 12); /* <= 12 mm/s per 10 ms */
+                CHECK(result.right_mm_s >= B3_MIN_WHEEL_MM_S);
+                CHECK((result.left_mm_s + result.right_mm_s) / 2 >= B3_CURVE_SPEED_MM_S);
+            }
         }
-        CHECK(result.sharp_turn);
-        CHECK((0 == result.right_mm_s) && ((2 * B3_SHARP_SPEED_MM_S) == result.left_mm_s));
-        /* flicker white inside the hold: still slow, still turning gently
-         * towards the line's side (it may have slid out past IR_R) */
-        result = b3_line_step(&line, false, false, t, 120);
-        result = b3_line_step(&line, false, false, t + 50000U, 120);
-        CHECK(result.sharp_turn &&
-              ((B3_SHARP_SPEED_MM_S + B3_CORRECTION_MM_S) == result.left_mm_s) &&
-              ((B3_SHARP_SPEED_MM_S - B3_CORRECTION_MM_S) == result.right_mm_s));
-        /* back on the line side: still pivoting */
-        (void)b3_line_step(&line, false, true, t + 60000U, 120);
-        result = b3_line_step(&line, false, true, t + 70000U, 120);
-        CHECK(result.sharp_turn && (0 == result.right_mm_s));
-        /* white past the hold: sharp turn over, speed eases back up
-         * (B3_SHARP_RECOVER_US) instead of jumping to 120 */
-        (void)b3_line_step(&line, false, false, t + 80000U, 120);
-        t = t + 80000U + B3_SHARP_HOLD_US + 10000U;
-        result = b3_line_step(&line, false, false, t, 120);
-        CHECK(!result.sharp_turn && (result.left_mm_s == result.right_mm_s) &&
-              (result.left_mm_s >= B3_SHARP_SPEED_MM_S) && (result.left_mm_s < 120));
-        result = b3_line_step(&line, false, false, t + (B3_SHARP_RECOVER_US / 2U), 120);
-        CHECK((result.left_mm_s > B3_SHARP_SPEED_MM_S + 10) && (result.left_mm_s < 120));
-        result = b3_line_step(&line, false, false, t + B3_SHARP_RECOVER_US, 120);
-        CHECK((120 == result.left_mm_s) && (120 == result.right_mm_s));
-        /* a crossing ends the slow-down at once (junction needs speed) */
+        CHECK(held_diff > first_diff);
+        CHECK(result.sharp_turn); /* slowed for the curve */
+        /* hairpin: the inner wheel stops (a pivot on it) */
+        CHECK(0 == result.right_mm_s);
+        /* white again: the learnt curve carries on, gentler */
+        result = b3_line_step(&line, false, false, t + 10000U, 120);
+        result = b3_line_step(&line, false, false, t + 20000U, 120);
+        white_diff = result.left_mm_s - result.right_mm_s;
+        CHECK((white_diff > 0) && (result.right_mm_s >= B3_MIN_WHEEL_MM_S));
+        /* ... and fades to straight */
+        for (t = t + 30000U; t <= 30000000U; t += 10000U)
+        {
+            result = b3_line_step(&line, false, false, t, 120);
+            if (0 == result.curvature)
+            {
+                break;
+            }
+        }
+        CHECK((120 == result.left_mm_s) && (120 == result.right_mm_s) && (0 == result.curvature));
+        /* someone else drove: straight at once */
         b3_line_init(&line, 0U);
-        for (t = 0U; t <= B3_SHARP_TURN_US + 20000U; t += 10000U)
+        for (t = 0U; t <= 300000U; t += 10000U)
         {
             result = b3_line_step(&line, true, false, t, 120);
         }
-        CHECK(result.sharp_turn && (0 == result.left_mm_s));
-        (void)b3_line_step(&line, true, true, t, 120);
-        result = b3_line_step(&line, true, true, t + 10000U, 120);
-        CHECK(!result.sharp_turn && (120 == result.left_mm_s) && (120 == result.right_mm_s));
+        CHECK(result.left_mm_s < result.right_mm_s);
+        b3_line_hold(&line);
+        /* 10 ms later (the sensor filter still reads IR_L black): one
+         * slew step from straight, not the curve learnt before */
+        result = b3_line_step(&line, false, false, t, 120);
+        CHECK(abs((int)result.curvature) <= (2 * B3_STEER_SLEW_CURV));
+        CHECK((abs(result.left_mm_s - 120) <= 5) && (abs(result.right_mm_s - 120) <= 5));
+        /* the same curvature after the same 10 mm at 100 and 30 mm/s */
+        b3_line_init(&line, 0U);
+        for (t = 0U; t <= 100000U; t += 10000U)
+        {
+            result = b3_line_step(&line, true, false, t, 100);
+        }
+        curv_slow = result.curvature;
+        b3_line_init(&line, 0U);
+        for (t = 0U; t <= 330000U; t += 10000U)
+        {
+            result = b3_line_step(&line, true, false, t, 30);
+        }
+        CHECK((result.curvature > 0) && (abs((int)(result.curvature - curv_slow)) <= (int)(curv_slow / 10)));
+        CHECK((result.left_mm_s < result.right_mm_s) && (result.left_mm_s >= B3_MIN_WHEEL_MM_S));
     }
-    (void)puts("PASS: sharp turn slows down, pivots, holds through flicker, eases back to speed, ends on a crossing");
+    (void)puts("PASS: smooth steering nudges, learns the curve, slows, keeps the inner wheel turning, pivots in a hairpin, fades, holds");
 
 }
 

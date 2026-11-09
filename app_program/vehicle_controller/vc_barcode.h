@@ -31,7 +31,7 @@
 #include "../subsystem3/buddy3.h"
 
 #define VC_BAR_DETECT_ELEMENTS 2   /* bar + gap measured: a barcode */
-#define VC_BAR_BACK_MM         200 /* white past its start; nyx: was 100 */
+#define VC_BAR_BACK_MM         150 /* white past its start; nyx: was 100 */
 #define VC_BAR_BACK_SPEED_MM_S 50
 #define VC_BAR_SLOW_MAX_MM     400  /* slow pass gives up after this */
 #define VC_BAR_REARM_MM        250  /* after a failed pass: no back-up */

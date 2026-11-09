@@ -1,0 +1,131 @@
+/*
+ *      s5_scan.h
+ *      Subsystem 5 -- what one sweep says about the object (nyx,
+ *      2026-11-07). Pure functions: no kernel, no hardware, so the host
+ *      tests run the same code.
+ *
+ *      How the width is measured
+ *      -------------------------
+ *      The car stands still and the sensor sweeps from 60 deg left to
+ *      60 deg right in 6 deg steps, then halves the step twice at each
+ *      edge (1.5 deg). The nearest return near the middle is the face
+ *      (FACE). A sample is part of the object when it comes back no more
+ *      than S5_EDGE_DEPTH_MM behind the face; the object's samples around
+ *      the face form one run, and where that run stops on each side is
+ *      where the echoes stop.
+ *
+ *      The HC-SR04's beam is wide, so the echoes go on past each corner
+ *      by the beam half-angle (BEAM, about 22 deg for a flat box). The
+ *      corner is therefore BEAM inside where the echoes stop, and it sits
+ *      on the face, so
+ *
+ *          corner lateral = FACE x tan(heading + bearing of the corner)
+ *
+ *      in the line frame (the face is taken square to the line, as a box
+ *      put on the track is). BEAM comes from calibration step 3 with a
+ *      box of known width, at two distances; between them it is
+ *      interpolated. Width = left corner - right corner.
+ *
+ *      Room on each side: anything else the sweep saw beyond an edge
+ *      (another box, a wall) answered from somewhere within BEAM of the
+ *      angle it was seen at (the object's own, nearer echoes can hide
+ *      where it starts). If any such place lies where the car would drive
+ *      round on that side, that side is blocked.
+ */
+
+#ifndef S5_SCAN_H
+#define S5_SCAN_H
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#define S5_SCAN_MAX (40U)
+
+typedef struct
+{
+    int16_t ddeg; /* servo angle, car frame, + = left */
+    uint16_t mm;  /* 0 = nothing came back (clear) */
+} s5_sample_t;
+
+/* nyx, 2026-11-07 (review D1 fixes): a return left out because it may
+ * have come from the object just gone round. Neither the object nor
+ * clear: an edge next to one is not seen. */
+#define S5_MM_UNKNOWN (0xFFFFU)
+
+/* Where the sonar was for the sweep, in the line frame. */
+typedef struct
+{
+    float x;   /* mm */
+    float y;   /* mm, + = left of the line */
+    float psi; /* car heading against the line, rad, + = left */
+} s5_view_t;
+
+typedef struct
+{
+    bool b_found;        /* an object ahead (a face within the cone) */
+    uint16_t face_mm;    /* sonar to the face */
+    bool b_left_seen;    /* the left edge is inside the sweep */
+    bool b_right_seen;   /* the right edge is inside the sweep */
+    int16_t left_ddeg;   /* car frame: where the echoes stop, left */
+    int16_t right_ddeg;  /* ... and right */
+    int16_t beam_ddeg;   /* beam half-angle used */
+    float x_face;        /* line frame, mm */
+    float y_left;        /* left corner (line frame, + = left) */
+    float y_right;       /* right corner */
+    float width;         /* y_left - y_right */
+    bool b_left_blocked; /* something else where the car would pass */
+    bool b_right_blocked;
+    /* nyx, 2026-11-08: only the edge of the beam of an echo reaches where
+     * the car would pass (its own direction is outside the pass lane):
+     * that side is used only when no side is clear */
+    bool b_left_maybe;
+    bool b_right_maybe;
+    /* nyx, 2026-11-07 (review D1 fixes): that edge is next to returns left
+     * out (S5_MM_UNKNOWN): the object just gone round is that way, and
+     * the edge is not seen */
+    bool b_left_hidden;
+    bool b_right_hidden;
+    /* nyx, 2026-11-08: the echo that blocked a side (for the log) */
+    int16_t block_l_ddeg;
+    uint16_t block_l_mm;
+    int16_t block_r_ddeg;
+    uint16_t block_r_mm;
+} s5_profile_t;
+
+/* Nearest return in the face cone, 0 = none. */
+uint16_t s5_scan_face(const s5_sample_t *p_s, uint32_t n);
+
+/* Is a return of mm part of the object whose face is face_mm away? */
+bool s5_scan_is_object(uint16_t mm, uint16_t face_mm);
+
+/* Where the object's echoes stop on each side. *p_*_obj: outermost angle
+ * that still answered; *p_*_clr: next angle out that did not (only valid
+ * when the function sets *p_*_seen). Samples sorted by angle. */
+void s5_scan_edges(const s5_sample_t *p_s, uint32_t n, uint16_t face_mm,
+                   int16_t *p_left_obj, int16_t *p_left_clr, bool *p_left_seen,
+                   int16_t *p_right_obj, int16_t *p_right_clr,
+                   bool *p_right_seen);
+
+/* Beam half-angle for a face this far away (calibration step 3). */
+int16_t s5_scan_beam_ddeg(uint16_t face_mm);
+
+/* Sort by angle, right (-) to left (+). */
+void s5_scan_sort(s5_sample_t *p_s, uint32_t n);
+
+/* The whole profile. Samples sorted by angle. */
+void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
+                     const s5_view_t *p_view, s5_profile_t *p_out);
+
+/* Lateral offset the axle needs to pass the edge at y_edge on side
+ * (+1 left, -1 right). */
+float s5_scan_offset(float y_edge, int32_t side);
+
+/* Could a return of mm, looked for along 'look' (line frame, rad) with a
+ * beam half-angle 'half', have come from a corner at y = y_c lying
+ * somewhere from x_lo to x_hi in front of the sonar at (vx, vy)? Range
+ * within tol. Used for corners whose depth is not known exactly (nyx,
+ * 2026-11-07, review D1). */
+bool s5_scan_corner_echo(float vx, float vy, float look, float half, float mm,
+                         float y_c, float x_lo, float x_hi, float tol);
+
+#endif /* S5_SCAN_H */

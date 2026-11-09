@@ -407,19 +407,28 @@ static void buddy3_unit_tests(INT *p_pass, INT *p_fail)
                    r.left_mm_s < r.right_mm_s && r.left_mm_s >= 0,
                "IR_L black (drifted right): steer left, no wheel reverses");
 
+    /* nyx, 2026-11-07: the steering now eases from one side to the other
+     * (B3_STEER_SLEW_CURV per mm), so after U09's left nudge the right side
+     * stays black for 40 ms before the check */
     r = b3_line_step(&line, false, true, 40000U, B3_BASE_SPEED_MM_S);
     r = b3_line_step(&line, false, true, 50000U, B3_BASE_SPEED_MM_S);
+    r = b3_line_step(&line, false, true, 60000U, B3_BASE_SPEED_MM_S);
+    r = b3_line_step(&line, false, true, 70000U, B3_BASE_SPEED_MM_S);
     TEST_CHECK("B3-U10",
                r.state == B3_LINE_RIGHT && r.error > 0 &&
                    r.right_mm_s < r.left_mm_s && r.right_mm_s >= 0,
                "IR_R black (drifted left): steer right, no wheel reverses");
 
-    r = b3_line_step(&line, true, true, 60000U, B3_BASE_SPEED_MM_S);
-    r = b3_line_step(&line, true, true, 70000U, B3_BASE_SPEED_MM_S);
+    /* ... and a crossing eases back to straight within 50 ms */
+    r = b3_line_step(&line, true, true, 80000U, B3_BASE_SPEED_MM_S);
+    r = b3_line_step(&line, true, true, 90000U, B3_BASE_SPEED_MM_S);
+    r = b3_line_step(&line, true, true, 100000U, B3_BASE_SPEED_MM_S);
+    r = b3_line_step(&line, true, true, 110000U, B3_BASE_SPEED_MM_S);
+    r = b3_line_step(&line, true, true, 120000U, B3_BASE_SPEED_MM_S);
     ok =
         (B3_LINE_CROSSING == r.state) && !r.stop && r.left_mm_s == r.right_mm_s;
-    r = b3_line_step(&line, false, false, 80000U, B3_BASE_SPEED_MM_S);
-    r = b3_line_step(&line, false, false, 90000U, B3_BASE_SPEED_MM_S);
+    r = b3_line_step(&line, false, false, 130000U, B3_BASE_SPEED_MM_S);
+    r = b3_line_step(&line, false, false, 140000U, B3_BASE_SPEED_MM_S);
     ok = ok && (B3_LINE_CENTRED == r.state) && !r.stop;
     TEST_CHECK("B3-U11", ok,
                "both black: crossing, straight; back to white: on track");

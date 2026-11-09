@@ -278,9 +278,26 @@ static void test_task_boundary(void)
         one_task_pass();
     }
     buddy3_get_snapshot(&snapshot);
+    /* nyx, 2026-11-08: still the same junction while IR_R is on the tape
+       (each sensor's own run counts now); over once both are white. */
+    CHECK(snapshot.junction_candidate);
+    CHECK(1U == snapshot.junction_sequence);
+    g_pins = (B3_IR_R_BLACK_LEVEL != 0U) ? (g_pins & ~(1U << B3_IR_R_GPIO))
+                                         : (g_pins | (1U << B3_IR_R_GPIO));
+    for (unsigned int pass = 0U; pass < 5U; ++pass)
+    {
+        g_now += 5000U;
+        context.time_us = g_now;
+        buddy3_set_context(&context);
+        one_task_pass();
+    }
+    buddy3_get_snapshot(&snapshot);
     CHECK(!snapshot.junction_candidate);
+    CHECK(1U == snapshot.junction_sequence);
     g_pins = (B3_IR_L_BLACK_LEVEL != 0U) ? (g_pins | (1U << B3_IR_L_GPIO))
                                          : (g_pins & ~(1U << B3_IR_L_GPIO));
+    g_pins = (B3_IR_R_BLACK_LEVEL != 0U) ? (g_pins | (1U << B3_IR_R_GPIO))
+                                         : (g_pins & ~(1U << B3_IR_R_GPIO));
 #endif
 
     /* Barcode slowdown: a thin IR_B bar slows the car until IR_B has read
@@ -479,6 +496,96 @@ static void test_held_symbol_and_faults(void)
         CHECK((misses + 1U) == snapshot.patch_misses);
         CHECK(B3_PATCH_SHORT == (b3_patch_why_t)snapshot.patch_miss_why);
         CHECK((snapshot.patch_miss_mm >= 4U) && (snapshot.patch_miss_mm <= 8U));
+        CHECK((snapshot.patch_miss_l_mm >= 4U) && (snapshot.patch_miss_l_mm <= 8U));
+        CHECK((snapshot.patch_miss_r_mm >= 4U) && (snapshot.patch_miss_r_mm <= 8U));
+    }
+
+    /* nyx, 2026-11-08: the tape met at an angle. IR_L is on it 15 mm,
+       IR_R enters 12 mm in, so both are black together for only 3 mm
+       (the car read 5): each sensor's own run counts, once. */
+    {
+        const uint32_t misses = snapshot.patch_misses;
+
+        junctions = snapshot.junction_sequence;
+        set_line_black(true, false);
+        run_for(&context, 480000U);     /* 12 mm at 25 mm/s */
+        set_line_black(true, true);
+        run_for(&context, 120000U);     /* 3 mm together */
+        set_line_black(false, true);
+        run_for(&context, 480000U);     /* 12 mm IR_R alone */
+        set_line_black(false, false);
+        run_for(&context, 100000U);
+        buddy3_get_snapshot(&snapshot);
+        CHECK((junctions + 1U) == snapshot.junction_sequence);
+        CHECK(misses == snapshot.patch_misses);
+        CHECK(!snapshot.junction_candidate);
+    }
+
+    /* Runs that never overlap are not one crossing: IR_L leaves the line
+       2 mm before IR_R meets it (line following with the car swinging
+       across), 8 mm apart, or one sensor, then the car standing (turning
+       on the spot), then the other. No junction, and nothing to report. */
+    {
+        const uint32_t misses = snapshot.patch_misses;
+
+        junctions = snapshot.junction_sequence;
+        set_line_black(true, false);
+        run_for(&context, 600000U);     /* 15 mm */
+        set_line_black(false, false);
+        run_for(&context, 80000U);      /* 2 mm of white */
+        set_line_black(false, true);
+        run_for(&context, 600000U);
+        set_line_black(false, false);
+        run_for(&context, 400000U);
+        set_line_black(true, false);
+        run_for(&context, 600000U);
+        set_line_black(false, false);
+        run_for(&context, 320000U);     /* 8 mm of white */
+        set_line_black(false, true);
+        run_for(&context, 600000U);
+        set_line_black(false, false);
+        run_for(&context, 400000U);     /* 10 mm to the next mark */
+        buddy3_get_snapshot(&snapshot);
+        CHECK(junctions == snapshot.junction_sequence);
+        set_line_black(true, false);
+        run_for(&context, 600000U);
+        set_line_black(false, false);
+        context.left_measured_mm_s = 0;
+        context.right_measured_mm_s = 0;
+        run_for(&context, 500000U);
+        set_line_black(false, true);
+        run_for(&context, 100000U);
+        context.left_measured_mm_s = 25;
+        context.right_measured_mm_s = 25;
+        run_for(&context, 600000U);
+        set_line_black(false, false);
+        run_for(&context, 400000U);
+        buddy3_get_snapshot(&snapshot);
+        CHECK(junctions == snapshot.junction_sequence);
+        CHECK(misses == snapshot.patch_misses);
+    }
+
+    /* A branch under IR_L only, with IR_R just touching the line for 3 mm
+       in the middle: not a junction, and the log gives both runs. */
+    {
+        const uint32_t misses = snapshot.patch_misses;
+
+        junctions = snapshot.junction_sequence;
+        set_line_black(true, false);
+        run_for(&context, 320000U);     /* 8 mm */
+        set_line_black(true, true);
+        run_for(&context, 120000U);     /* 3 mm */
+        set_line_black(true, false);
+        run_for(&context, 360000U);     /* 9 mm */
+        set_line_black(false, false);
+        run_for(&context, 100000U);
+        buddy3_get_snapshot(&snapshot);
+        CHECK(junctions == snapshot.junction_sequence);
+        CHECK((misses + 1U) == snapshot.patch_misses);
+        CHECK(B3_PATCH_SHORT == (b3_patch_why_t)snapshot.patch_miss_why);
+        CHECK((snapshot.patch_miss_l_mm >= 18U) && (snapshot.patch_miss_l_mm <= 21U));
+        CHECK((snapshot.patch_miss_r_mm >= 1U) && (snapshot.patch_miss_r_mm <= 4U));
+        CHECK((snapshot.patch_miss_mm >= 1U) && (snapshot.patch_miss_mm <= 4U));
     }
     context.left_measured_mm_s = 120;
     context.right_measured_mm_s = 120;

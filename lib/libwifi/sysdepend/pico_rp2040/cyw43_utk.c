@@ -235,6 +235,13 @@ void cyw43_utk_task(int32_t stacd, void *exinf)
     } else {
         (void)cyw43_wifi_get_mac(&cyw43_state, CYW43_ITF_STA,
                                  radio_status.mac);
+        /* nyx, 2026-11-07: Wi-Fi power save off. The default (PM2, the radio
+         * sleeps between beacons) can hold frames for seconds on some
+         * hotspots, and Buddy 1 stops the car after 3 s without a broker
+         * answer. Costs some current, which the car has. */
+        if(cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM) == 0) {
+            tm_printf((UB*)"wifi: power save off\n");
+        }
 #if TM_NET_LWIP
         /* Join instead of scan: with lwIP wired in, the point of coming up
          * is a working network, not a diagnostic scan. cyw43_cb_tcpip_init()
