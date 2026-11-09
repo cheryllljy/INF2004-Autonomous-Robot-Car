@@ -80,10 +80,9 @@ typedef enum
 #define VC_FAULT_WIFI_LOSS B1_FAULT_WIFI_LOSS /* Buddy 1 */
 /* Buddy 3: task error, event queue full */
 #define VC_FAULT_LINE (1U << 5)
-#define VC_FAULT_OBSTACLE \
-    (1U << 6) /* Buddy 5: ObstacleScan mission
-                                                   fault or a failed bypass
-                                                   (v3.0, was VC_FAULT_SPARE) */
+/* Buddy 5: a failed bypass (latched, E-stop); also shown, without an
+ * E-stop, while the car waits with no way round (nyx, 2026-11-07) */
+#define VC_FAULT_OBSTACLE (1U << 6)
 /* VehicleController / kernel call */
 #define VC_FAULT_TASK (1U << 7)
 #define VC_FAULT_BITS 8U

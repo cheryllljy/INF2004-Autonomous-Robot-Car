@@ -22,7 +22,7 @@
  *        subsystem2/  Producer  makes a "sample" every 300 ms     (core 1)
  *        subsystem3/  Consumer  collects samples into statistics  (core 0)
  *        subsystem4/  Monitor   prints reports, pauses/resumes the LED
- *        subsystem5/  (empty template for the fifth student)
+ *        subsystem5/  obstacle sensor (ultrasonic + servo) and bypass
  *
  *      How they talk to each other (the interfaces, see TEAM.md section 5):
  *        IF-01  S2 -> S3  mailbox mbx_samples      (owned by S3)
@@ -130,7 +130,7 @@ INT usermain(void)
     CHECK(subsystem2_init(), "subsystem2_init");
     CHECK(subsystem3_init(), "subsystem3_init");
     CHECK(subsystem4_init(), "subsystem4_init");
-    /* Buddy 5 v3.0: on again */
+    /* Buddy 5 (nyx, 2026-11-07: rewritten) */
     CHECK(subsystem5_init(), "subsystem5_init");
 #if VC_ENABLE
     CHECK(vc_init(), "vc_init"); /* after the subsystems it reads */

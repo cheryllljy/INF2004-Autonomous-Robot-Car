@@ -143,6 +143,14 @@ bool vc_turn_start(b3_nav_command_t turn, const motion_status_t *p_motion)
 
             vt.side = (B3_NAV_LEFT == turn) ? 1 : -1;
             vt.phase = VT_ARC;
+#if VC_CORNER_PIVOT
+            (void)v;
+            (void)half;
+            tm_printf((UB *)"[VC] junction: %s, pivot on the %s wheel, the "
+                            "other at %d mm/s, until IR_%s crosses the line\n",
+                      turn_text(turn), (vt.side > 0) ? "left" : "right",
+                      (INT)VC_CORNER_PIVOT_MM_S, (vt.side > 0) ? "L" : "R");
+#else
             tm_printf(
                 (UB *)"[VC] junction: arc %s, radius %d mm at %d mm/s "
                       "(inner wheel %d, outer %d mm/s)\n",
@@ -150,6 +158,7 @@ bool vc_turn_start(b3_nav_command_t turn, const motion_status_t *p_motion)
                 (INT)((v * (VC_CORNER_RADIUS_MM - half)) / VC_CORNER_RADIUS_MM),
                 (INT)((v * (VC_CORNER_RADIUS_MM + half)) /
                       VC_CORNER_RADIUS_MM));
+#endif
             break;
         }
         case B3_NAV_UTURN:
@@ -162,9 +171,11 @@ bool vc_turn_start(b3_nav_command_t turn, const motion_status_t *p_motion)
             {
                 now = 0;
             }
-            if (now > (2 * VC_CORNER_MAX_MM_S))
+            /* nyx, 2026-11-07: was 2 * VC_CORNER_MAX_MM_S; kept at 160 so
+             * the slower arc does not make the U-turn brake at once */
+            if (now > VC_UTURN_EASE_MAX_MM_S)
             {
-                now = 2 * VC_CORNER_MAX_MM_S;
+                now = VC_UTURN_EASE_MAX_MM_S;
             }
             vt.side = 1;
             vt.speed_ums = now * 1000;
@@ -204,7 +215,7 @@ static vc_turn_result_t arc_step(const motion_status_t *p_motion,
     const bool seeking = (turned >= deg_to_mrad(VC_CORNER_SEEK_DEG));
     const bool found = seeking && line_centred(inner_black, outer_black);
     const bool over =
-        (turned >= deg_to_mrad(VC_CORNER_DEG + VC_TURN_OVER_DEG)) ||
+        (turned >= deg_to_mrad(VC_CORNER_DEG + VC_CORNER_SEEK_MORE_DEG)) ||
         (longest >= cap);
     int32_t diff;
     int16_t inner_mm_s;
@@ -214,8 +225,8 @@ static vc_turn_result_t arc_step(const motion_status_t *p_motion,
     {
         /* straight again; Buddy 3 takes over on the next pass */
         wheels(p_motion, (int16_t)v, (int16_t)v);
-        tm_printf((UB *)"[VC] arc %s done: %s, turned %d deg, axle drove %d "
-                        "mm (wheels %d / %d mm)\n",
+        tm_printf((UB *)"[VC] turn %s done: %s, turned %d deg, axle drove "
+                        "%d mm (wheels %d / %d mm)\n",
                   turn_text(vt.turn),
                   found ? "line centred between the IRs"
                         : "line NOT found, Buddy 3 takes over anyway",
@@ -224,13 +235,35 @@ static vc_turn_result_t arc_step(const motion_status_t *p_motion,
         return VC_TURN_DONE;
     }
 
+#if VC_CORNER_PIVOT
+    /* nyx, 2026-11-07: pivot on the inner wheel (see vc_turn.h) */
+    if (centre < VC_CORNER_PREDRIVE_MM)
+    {
+        wheels(p_motion, (int16_t)v, (int16_t)v);
+    }
+    else if (vt.side > 0)
+    {
+        wheels(p_motion, 0, (int16_t)VC_CORNER_PIVOT_MM_S);
+    }
+    else
+    {
+        wheels(p_motion, (int16_t)VC_CORNER_PIVOT_MM_S, 0);
+    }
+    (void)wanted;
+    return VC_TURN_RUNNING;
+#endif
+
     /* Wheel speed difference for the arc, plus a correction that pulls
      * the heading back onto it. Past 90 deg (the line not found yet) the
-     * arc carries on at its nominal rate. */
+     * arc tightens as far as the inner wheel allows (nyx, 2026-11-07). */
     diff = (w * v) / r;
     if (turned < deg_to_mrad(VC_CORNER_DEG))
     {
         diff += (w * VC_CORNER_GAIN_PER_S * (wanted - turned)) / 1000;
+    }
+    else
+    {
+        diff = 2 * v; /* limited to the inner wheel's minimum below */
     }
     if (diff < 0)
     {
@@ -312,7 +345,7 @@ static vc_turn_result_t uturn_step(const motion_status_t *p_motion,
             vt.phase = VT_IDLE;
             return VC_TURN_DONE_STOPPED;
         }
-        if (turned >= deg_to_mrad(180 + VC_TURN_OVER_DEG))
+        if (turned >= deg_to_mrad(180 + VC_UTURN_OVER_DEG))
         {
             wheels(p_motion, VC_MIN_WHEEL_MM_S, VC_MIN_WHEEL_MM_S);
             tm_printf((UB *)"[VC] U-turn: line NOT found after %d deg, "
@@ -376,39 +409,6 @@ vc_turn_result_t vc_turn_step(const motion_status_t *p_motion, bool left_black,
         case VT_IDLE:
         default:
             return VC_TURN_DONE;
-    }
-}
-
-bool vc_turn_resume(const motion_status_t *p_motion)
-{
-    vt.sent_l = INT16_MIN; /* send again: the obstacle stop replaced them */
-    vt.sent_r = INT16_MIN;
-    vt.since_send_ms = 0;
-
-    switch (vt.phase)
-    {
-        case VT_ARC:
-            /* the heading and distance so far still count */
-            tm_printf((UB *)"[VC] arc %s resumed at %d deg\n",
-                      turn_text(vt.turn),
-                      (INT)mrad_to_deg(turned_mrad(p_motion, vt.side)));
-            return true;
-        case VT_SLOWING:
-            /* the car has stopped: pivot from here */
-            vt.l0 = p_motion->dist_l_mm;
-            vt.r0 = p_motion->dist_r_mm;
-            vt.pivot_ums = VC_MIN_WHEEL_MM_S * 1000;
-            vt.phase = VT_PIVOT;
-            tm_printf((UB *)"[VC] U-turn resumed: pivoting\n");
-            return true;
-        case VT_PIVOT:
-            vt.pivot_ums = VC_MIN_WHEEL_MM_S * 1000; /* ramp up again */
-            tm_printf((UB *)"[VC] U-turn resumed at %d deg\n",
-                      (INT)mrad_to_deg(turned_mrad(p_motion, 1)));
-            return true;
-        case VT_IDLE:
-        default:
-            return false;
     }
 }
 

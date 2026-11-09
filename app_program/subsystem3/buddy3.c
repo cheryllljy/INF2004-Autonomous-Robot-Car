@@ -28,20 +28,30 @@ static int32_t g_max_speed;
 
 static uint32_t g_sequence;
 
-static uint32_t g_side_black_since;
-static bool g_side_black;
+/* nyx, 2026-11-08: junction rule by each line sensor's own run over the
+ * tape (junction_update()). Distances are encoder distance driven, in um,
+ * read from g_jodo_um, which counts all the time (wraps after 4 km). */
+typedef struct
+{
+    bool on;         /* black at this pass */
+    bool valid;      /* has had a run since start-up */
+    bool used;       /* counted as a junction, or reported as a miss */
+    bool good;       /* the car was driving at every pass of the run */
+    bool scan_block; /* a barcode scan blocked junctions during the run */
+    uint32_t start_um;
+    uint32_t end_um; /* g_jodo_um at the last black pass */
+    uint32_t start_us;
+    uint32_t end_us;
+} b3_ir_run_t;
 
-/* nyx, 2026-11-06: the patch is measured by the distance driven over it
- * (speed integrated over time), not the slowest speed seen times the
- * time. At 25 mm/s the measured speed of one 20 ms window often dips, and
- * one low sample used to shrink the whole patch below the threshold. */
-static uint64_t g_side_dist_um;
-static uint32_t g_side_last_us;
-static bool g_side_motion_good;
-static bool g_side_scan_block;
-static bool g_side_was_junction;
+static uint32_t g_jodo_um;
+static uint32_t g_jodo_last_us;
+static b3_ir_run_t g_run[2]; /* [0] IR_L, [1] IR_R */
+static bool g_junction_on;   /* counted, and a line sensor still black */
 static uint32_t g_patch_misses;
 static uint16_t g_patch_miss_mm;
+static uint16_t g_patch_miss_l_mm;
+static uint16_t g_patch_miss_r_mm;
 static uint8_t g_patch_miss_why;
 
 /* Junction notification: counts each new junction (rising edge of
@@ -117,6 +127,152 @@ static int32_t junction_speed_mm_s(const b3_context_t *p_context)
     }
 
     return speed;
+}
+
+static uint16_t um_to_mm16(uint32_t um)
+{
+    return (uint16_t)(((um / 1000U) > 65535U) ? 65535U : (um / 1000U));
+}
+
+/* nyx, 2026-11-08: a junction is IR_L and IR_R each black for
+ * B3_JUNCTION_MIN_PATCH_UM of driving, with both black together on at least
+ * one pass. The old rule (both black together for that long) missed real
+ * junctions: when the car meets the tape at an angle one sensor enters it
+ * before the other, and the stretch with both black read 9, 11, 7 and 5 mm
+ * on the car. Each sensor's own run over the tape does not shrink with the
+ * angle. One sensor alone still never counts, and a square crossing counts
+ * at the same point as before (when both have been black for the minimum).
+ * Runs that do not overlap never count: following the line, one sensor can
+ * leave it just before the other meets it (seen in the turn sim with the
+ * IRs 10 mm off the centre). Returns true from the pass that counts the
+ * junction until both sensors are white. */
+static bool junction_update(const bool black[2], int32_t speed, bool driving,
+                            bool scan_ok, uint32_t now)
+{
+    b3_ir_run_t *const p_l = &g_run[0];
+    b3_ir_run_t *const p_r = &g_run[1];
+    const bool any_was_on = p_l->on || p_r->on;
+    uint32_t i;
+
+
+    /* A pass after a long pause adds nothing (the car is then not
+     * "driving" for the junction rule anyway). */
+    if ((speed > 0) && ((now - g_jodo_last_us) <= B3_OUTPUT_MAX_AGE_US))
+    {
+        g_jodo_um += (uint32_t)(((uint64_t)(uint32_t)speed *
+                                 (uint64_t)(now - g_jodo_last_us)) /
+                                1000U);
+    }
+    g_jodo_last_us = now;
+
+    for (i = 0U; i < 2U; ++i)
+    {
+        b3_ir_run_t *const p = &g_run[i];
+
+        if (black[i])
+        {
+            if (!p->on)
+            {
+                p->on = true;
+                p->valid = true;
+                p->used = false;
+                p->good = true;
+                p->scan_block = false;
+                p->start_um = g_jodo_um;
+                p->start_us = now;
+            }
+            p->end_um = g_jodo_um;
+            p->end_us = now;
+            if (!driving)
+            {
+                p->good = false;
+            }
+            if (!scan_ok)
+            {
+                p->scan_block = true;
+            }
+        }
+        else
+        {
+            p->on = false;
+        }
+    }
+
+    if (!p_l->on && !p_r->on)
+    {
+        g_junction_on = false;
+    }
+
+    if (p_l->valid && p_r->valid && !p_l->used && !p_r->used)
+    {
+        /* the run that began last, and the run that ended first */
+        const b3_ir_run_t *const p_late =
+            ((int32_t)(p_r->start_us - p_l->start_us) > 0) ? p_r : p_l;
+        const b3_ir_run_t *const p_end =
+            ((int32_t)(p_r->end_us - p_l->end_us) < 0) ? p_r : p_l;
+        const uint32_t len_l = p_l->end_um - p_l->start_um;
+        const uint32_t len_r = p_r->end_um - p_r->start_um;
+        const uint32_t late_len = p_late->end_um - p_late->start_um;
+        const uint32_t late_us = p_late->end_us - p_late->start_us;
+        /* both black together on at least one pass */
+        const bool linked =
+            ((int32_t)(p_end->end_us - p_late->start_us) >= 0);
+        const int32_t together_um =
+            (int32_t)(p_end->end_um - p_late->start_um);
+        const bool long_enough =
+            (len_l >= B3_JUNCTION_MIN_PATCH_UM) &&
+            (len_r >= B3_JUNCTION_MIN_PATCH_UM);
+        const bool fast_enough =
+            (((uint64_t)late_len * 1000U) >=
+             ((uint64_t)B3_JUNCTION_MIN_SPEED_MM_S * (uint64_t)late_us));
+
+        if (linked && (p_l->on || p_r->on) && long_enough && fast_enough &&
+            p_late->good && scan_ok)
+        {
+            p_l->used = true;
+            p_r->used = true;
+            g_junction_on = true;
+        }
+        else if (linked && any_was_on && !p_l->on && !p_r->on)
+        {
+            /* Both sensors crossed it, and it was not counted: say why,
+             * so a missed junction can be diagnosed on the car. */
+            if (!long_enough)
+            {
+                g_patch_miss_why = (uint8_t)B3_PATCH_SHORT;
+            }
+            else if (!fast_enough)
+            {
+                g_patch_miss_why = (uint8_t)B3_PATCH_SLOW;
+            }
+            else if (!p_late->good)
+            {
+                g_patch_miss_why = (uint8_t)B3_PATCH_NOT_DRIVING;
+            }
+            else if (p_late->scan_block || p_end->scan_block)
+            {
+                g_patch_miss_why = (uint8_t)B3_PATCH_SCANNING;
+            }
+            else
+            {
+                /* Long enough only on the last sample. */
+                g_patch_miss_why = (uint8_t)B3_PATCH_SHORT;
+            }
+            g_patch_miss_mm =
+                um_to_mm16((together_um > 0) ? (uint32_t)together_um : 0U);
+            g_patch_miss_l_mm = um_to_mm16(len_l);
+            g_patch_miss_r_mm = um_to_mm16(len_r);
+            ++g_patch_misses;
+            p_l->used = true;
+            p_r->used = true;
+        }
+        else
+        {
+            /* Still crossing, or the runs never overlapped. */
+        }
+    }
+
+    return g_junction_on;
 }
 
 static bool g_event_fault;
@@ -521,6 +677,12 @@ static void service_once(void)
      */
     output.line = b3_line_step(&g_line, sample.left_black, sample.right_black,
                                now, base_speed);
+    if (context.steer_hold || !fresh || !context.follow_enabled ||
+        context.stop_requested)
+    {
+        /* nyx, 2026-11-07: someone else drives; forget the curve */
+        b3_line_hold(&g_line);
+    }
 
 
     /*
@@ -669,128 +831,32 @@ static void service_once(void)
     }
 
 
-    /*
-     * Junction candidate handling: IR_L, IR_R and IR_B
-     * all black for long enough means a wide crossing patch.
-     */
-    if ((sample.barcode.black || !B3_JUNCTION_NEEDS_IR_B) &&
-        output.line.left_black && output.line.right_black && !g_side_black)
-    {
-        g_side_black_since = now;
-
-        g_side_last_us = now;
-
-        g_side_dist_um = 0U;
-
-        g_side_motion_good = true;
-
-        g_side_scan_block = false;
-
-        g_side_was_junction = false;
-    }
-    else if (g_side_black &&
-             !(output.line.left_black && output.line.right_black &&
-               (sample.barcode.black || !B3_JUNCTION_NEEDS_IR_B)))
-    {
-        /* nyx, 2026-11-06: the patch just ended. If it was not counted,
-         * say why, so a missed junction can be diagnosed on the car. */
-        if (!g_side_was_junction)
-        {
-            const uint32_t t = now - g_side_black_since;
-
-            if (g_side_dist_um < (uint64_t)B3_JUNCTION_MIN_PATCH_UM)
-            {
-                g_patch_miss_why = (uint8_t)B3_PATCH_SHORT;
-            }
-            else if ((g_side_dist_um * 1000U) <
-                     ((uint64_t)B3_JUNCTION_MIN_SPEED_MM_S * (uint64_t)t))
-            {
-                g_patch_miss_why = (uint8_t)B3_PATCH_SLOW;
-            }
-            else if (!g_side_motion_good)
-            {
-                g_patch_miss_why = (uint8_t)B3_PATCH_NOT_DRIVING;
-            }
-            else if (g_side_scan_block)
-            {
-                g_patch_miss_why = (uint8_t)B3_PATCH_SCANNING;
-            }
-            else
-            {
-                /* Long enough only on the last sample. */
-                g_patch_miss_why = (uint8_t)B3_PATCH_SHORT;
-            }
-            g_patch_miss_mm = (uint16_t)((g_side_dist_um > 65535000U)
-                                             ? 65535U
-                                             : (g_side_dist_um / 1000U));
-            ++g_patch_misses;
-        }
-    }
-    else
-    {
-        /* Inside a patch, or off one. */
-    }
-
-
-    g_side_black = (sample.barcode.black || !B3_JUNCTION_NEEDS_IR_B) &&
-                   output.line.left_black && output.line.right_black;
-
-
-    if (g_side_black)
-    {
-        int32_t speed;
-
-
-        speed = junction_speed_mm_s(&context);
-
-        /* mm/s x us = nm; / 1000 = um */
-        if (speed > 0)
-        {
-            g_side_dist_um +=
-                ((uint64_t)(uint32_t)speed * (uint64_t)(now - g_side_last_us)) /
-                1000U;
-        }
-        g_side_last_us = now;
-
-        if (!fresh || !context.motion_valid || context.stop_requested ||
-            context.terrain_unstable || (service_gap > B3_OUTPUT_MAX_AGE_US))
-        {
-            g_side_motion_good = false;
-        }
-    }
-
-
     output.scan_active = b3_barcode_active(&g_scan);
 
     output.scan_elements = g_scan.collecting ? g_scan.count : 0U;
 
 
     /*
-     * Detect possible large black patch / junction.
+     * Junction: IR_L and IR_R each run over a wide patch (nyx, 2026-11-08,
+     * junction_update()). IR_B may already have crossed the tape and
+     * started a scan with one element; more means a real barcode.
      */
     {
         const bool scan_ok =
             (!output.scan_active) ||
             (g_scan.collecting && (g_scan.count <= B3_JUNCTION_MAX_SCAN_RUNS));
+        const bool ir_b_ok = sample.barcode.black || !B3_JUNCTION_NEEDS_IR_B;
+        bool black[2];
 
-        if (g_side_black && !scan_ok)
-        {
-            g_side_scan_block = true;
-        }
+        black[0] = output.line.left_black && ir_b_ok;
+        black[1] = output.line.right_black && ir_b_ok;
 
-        /* nyx, 2026-11-06: long enough by distance, and a real forward
-         * speed on average over the patch (not at every sample). */
-        output.junction_candidate =
-            g_side_black && g_side_motion_good && scan_ok &&
-            (g_side_dist_um >= (uint64_t)B3_JUNCTION_MIN_PATCH_UM) &&
-            ((g_side_dist_um * 1000U) >=
-             ((uint64_t)B3_JUNCTION_MIN_SPEED_MM_S *
-              (uint64_t)(now - g_side_black_since)));
-
-        if (output.junction_candidate)
-        {
-            g_side_was_junction = true;
-        }
+        output.junction_candidate = junction_update(
+            black, junction_speed_mm_s(&context),
+            fresh && context.motion_valid && !context.stop_requested &&
+                !context.terrain_unstable &&
+                (service_gap <= B3_OUTPUT_MAX_AGE_US),
+            scan_ok, now);
     }
 
 
@@ -815,6 +881,8 @@ static void service_once(void)
     output.junction_symbol = g_junction_symbol;
     output.patch_misses = g_patch_misses;
     output.patch_miss_mm = g_patch_miss_mm;
+    output.patch_miss_l_mm = g_patch_miss_l_mm;
+    output.patch_miss_r_mm = g_patch_miss_r_mm;
     output.patch_miss_why = g_patch_miss_why;
 
 
@@ -1035,10 +1103,22 @@ ER buddy3_start(b3_position_reader_t position_reader)
 
     g_patch_miss_mm = 0U;
 
+    g_patch_miss_l_mm = 0U;
+
+    g_patch_miss_r_mm = 0U;
+
     g_patch_miss_why = (uint8_t)B3_PATCH_JUNCTION;
 
 
-    g_side_black = false;
+    g_run[0] = (b3_ir_run_t){ 0 };
+
+    g_run[1] = (b3_ir_run_t){ 0 };
+
+    g_junction_on = false;
+
+    g_jodo_um = 0U;
+
+    g_jodo_last_us = sample.barcode.time_us;
 
     g_bar_slow = false;
 

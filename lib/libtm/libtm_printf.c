@@ -334,13 +334,43 @@ LOCAL	void	out_cons( UB *str, INT len,  OutPar *par )
 #endif
 }
 
+#if defined(S5_CAL_BUILD) && S5_CAL_BUILD
+/*
+ * nyx, 2026-11-08: temporary. The subsystem 5 calibration image
+ * (make S5CAL=1) shows only its own "[VC-S5] CAL" lines, plus kernel
+ * "***" fault lines, on every console (USB, UART0 and the MQTT test
+ * topic). All other tm_printf output is dropped. Normal builds are
+ * unchanged.
+ */
+LOCAL BOOL cal_console_keep( const UB *format )
+{
+	static const UB	*const keep[] = {
+		(const UB*)"[VC-S5] CAL", (const UB*)"***"
+	};
+	INT	k, i;
+
+	for ( k = 0; k < (INT)(sizeof(keep) / sizeof(keep[0])); k++ ) {
+		for ( i = 0; keep[k][i] != '\0'; i++ ) {
+			if ( format[i] != keep[k][i] ) break;
+		}
+		if ( keep[k][i] == '\0' ) return TRUE;
+	}
+	return FALSE;
+}
+#endif
+
 EXPORT INT	tm_printf( const UB *format, ... )
 {
 	va_list	ap;
 	INT	result;
 #if TK_SUPPORT_SMP && TM_CONSOLE_USB_CDC
 	UINT	intsts;
+#endif
 
+#if defined(S5_CAL_BUILD) && S5_CAL_BUILD
+	if ( !cal_console_keep(format) ) return 0;
+#endif
+#if TK_SUPPORT_SMP && TM_CONSOLE_USB_CDC
 	tm_printf_lock(&intsts);
 #endif
 

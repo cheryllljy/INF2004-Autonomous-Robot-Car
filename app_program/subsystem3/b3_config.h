@@ -58,26 +58,103 @@
 #define B3_BASE_SPEED_MM_S 100
 #endif
 #define B3_MAX_REQUEST_MM_S 400
-/* was 40: smaller kick when a sensor just touches the line, less weaving on straights (2026-11-04) */
-#define B3_CORRECTION_MM_S 25
-/* Sharp turns / U-turns (2026-11-04). If the same side sensor stays black
- * for B3_SHARP_TURN_US, the line is bending faster than the normal
- * correction can follow: speed ramps down to B3_SHARP_SPEED_MM_S and the
- * correction ramps up until the inner wheel stops (pivot), smoothly over
- * that time rather than in one step. The slow speed is held for
- * B3_SHARP_HOLD_US after the side goes white again (a U-turn flickers),
- * and ends at once on a crossing (both black) so junctions still see
- * >= B3_JUNCTION_MIN_SPEED_MM_S. B3_SHARP_TURN_US 0 turns this off. */
-/* was 150 ms: slow down earlier in a curve */
-#define B3_SHARP_TURN_US    100000U
-#define B3_SHARP_SPEED_MM_S 60 /* was 60 */
-/* was 300 ms: shorter gentle turn after the curve, less overshoot */
-#define B3_SHARP_HOLD_US 150000U
-/* After a sharp turn ends, speed climbs back from B3_SHARP_SPEED_MM_S to
- * the base speed over this time instead of jumping (the jump made the car
- * weave on the straight after a turn). A crossing skips it, so junctions
- * still see full speed. */
-#define B3_SHARP_RECOVER_US    400000U
+/* Smooth line following (nyx, 2026-11-07). Replaces the sharp-turn rule
+ * (one side black for 100 ms: slow to 60 mm/s and pivot on the inner
+ * wheel, hold, ease back), which made the car pulse through every bend,
+ * stopped and re-kicked the inner wheel, and could swing from side to
+ * side after a junction turn.
+ *
+ * The steering is a curvature (1e6 / turn radius in mm, so the same value
+ * is the same path at any speed):
+ *   - a side going black steers towards it by a nudge of up to
+ *     B3_STEER_KICK_CURV;
+ *   - while it stays black, a curve memory grows by B3_STEER_LEARN_CURV
+ *     for every 10 mm driven, so in a bend the car settles on the bend's
+ *     own curve and drives it as one smooth arc;
+ *   - with both sides white the memory fades over B3_STEER_FORGET_MM of
+ *     driving, so the car straightens out after the bend;
+ *   - the car slows from the line speed towards B3_CURVE_SPEED_MM_S as the
+ *     curve tightens to B3_CURVE_FULL_CURV;
+ *   - the inner wheel never goes below B3_MIN_WHEEL_MM_S (Buddy 2 gives a
+ *     wheel no drive at 5 mm/s or less and kicks one under 10 mm/s).
+ * No track shape is assumed: the memory is learnt from the sensors. */
+#ifndef B3_STEER_KICK_CURV      /* host simulations try other values */
+#define B3_STEER_KICK_CURV 4000 /* 250 mm radius */
+#endif
+/* The nudge tunes itself to the sensor spacing: a touch on the other side
+ * within B3_STEER_OVERSHOOT_MM of the last one means the nudge overshot, so
+ * it shrinks to B3_STEER_SHRINK_PCT (not below B3_STEER_KICK_MIN_CURV); the
+ * same side touching again means it was too weak, so it grows by
+ * B3_STEER_GROW_PCT (not above B3_STEER_KICK_CURV). Close-set sensors then
+ * stop the left-right weaving instead of feeding it. */
+#ifndef B3_STEER_KICK_MIN_CURV
+#define B3_STEER_KICK_MIN_CURV 1500
+#endif
+#ifndef B3_STEER_OVERSHOOT_MM
+#define B3_STEER_OVERSHOOT_MM 100
+#endif
+#ifndef B3_STEER_SHRINK_PCT
+#define B3_STEER_SHRINK_PCT 92
+#endif
+#ifndef B3_STEER_GROW_PCT
+#define B3_STEER_GROW_PCT 110
+#endif
+/* a side that stays black grows the nudge back to B3_STEER_KICK_CURV over
+ * this much driving, so a bend is still caught quickly */
+#ifndef B3_STEER_KICK_RAMP_MM
+#define B3_STEER_KICK_RAMP_MM 20 /* nyx, 2026-11-07: was 60 */
+#endif
+/* nyx, 2026-11-07: was 100. On the car the wheels turn it less than asked
+ * (caster drag, slip), so a bend learnt at 100 let the line slide out past
+ * the outer IR and the car went straight on. Host sim (test_follow -t 0.6:
+ * the car turns 1/1.6 as tightly as asked) lost 4 of 22 runs at 100 and 1
+ * at 300; with exact wheels it still loses none. */
+#ifndef B3_STEER_LEARN_CURV
+#define B3_STEER_LEARN_CURV 300 /* per 10 mm driven with a side black */
+#endif
+#ifndef B3_STEER_FORGET_MM
+#define B3_STEER_FORGET_MM 80
+#endif
+/* a side against the learnt curve black for this long ends the curve: the
+ * steering it left is kept rather than turning back to the old curve */
+#ifndef B3_STEER_CURVE_END_MM
+#define B3_STEER_CURVE_END_MM 40
+#endif
+/* nyx, 2026-11-07: was 8000 (R125) and 60 mm/s. The car lost a normal
+ * bend about 70 % of the way round, so it now slows earlier and further:
+ * down to 40 mm/s once the learnt curve is R400 or tighter. Host sim:
+ * line losses with the wheels turning the car 1/1.6 as tightly 1 -> 0,
+ * with 150 ms motor lag 4 -> 0, and less weaving. 30 mm/s lost no more
+ * lines but pivoted on a stopped inner wheel in R200 bends: at 30 the
+ * inner wheel's 15 mm/s floor allows no curve tighter than R112. */
+#ifndef B3_CURVE_FULL_CURV
+/* nyx, 2026-11-07 (patch 17): left bends still overshot, so slow down
+ * from R670 (was R400) and to 30 mm/s (was 40), and pivot sooner in a
+ * hairpin (B3_STEER_ESCAPE_MM). Host sim with wheels that turn the car
+ * less than asked or lag: 23 line losses -> 10. A stronger nudge (6000)
+ * lost fewer lines but broke the junction handover tests. */
+#define B3_CURVE_FULL_CURV 1500 /* 670 mm radius */
+#endif
+#ifndef B3_CURVE_SPEED_MM_S
+#define B3_CURVE_SPEED_MM_S 30
+#endif
+/* the steering moves towards what the sensors ask by at most this much
+ * per mm driven, so a sensor touching the line is a nudge, not a jerk */
+#ifndef B3_STEER_SLEW_CURV
+#define B3_STEER_SLEW_CURV 400
+#endif
+/* Hairpin: a side still black after this much driving with the steering
+ * already as tight as B3_MIN_WHEEL_MM_S allows. The inner wheel then
+ * stops (a pivot on it, as the old sharp turn) until the side is white. */
+#ifndef B3_STEER_ESCAPE_MM
+/* nyx, 2026-11-07 (patch 17): 10 (was 20) */
+#define B3_STEER_ESCAPE_MM 10
+#endif
+#define B3_MIN_WHEEL_MM_S 15
+/* wheel centre to wheel centre, as Buddy 2's TRACK_WIDTH_MM */
+#define B3_WHEEL_TRACK_MM 112
+/* a longer gap between two steps counts as this long */
+#define B3_STEER_MAX_DT_US     50000U
 #define B3_RECOVERY_SPEED_MM_S 60
 /* Slow down over a barcode so IR_B catches thin bars (nyx, 2026-11-04; was
  * 100). Any black seen by IR_B starts the slow speed; it ends only after IR_B
@@ -87,7 +164,7 @@
  * is also rescaled by the measured wheel speed (B3_SCAN_SPEED_COMPENSATE).
  * Safety: the slow speed lasts at most B3_SCAN_SLOW_MAX_US, and a crossing
  * (both line sensors black) ends it so a junction is measured at base speed. */
-#define B3_SCAN_SPEED_MM_S    30 /* nyx, 2026-11-06: was 50 */
+#define B3_SCAN_SPEED_MM_S    25      /* nyx, 2026-11-06: was 50 */
 #define B3_SCAN_SLOW_WHITE_US 800000U /* 30 mm of white at 50 mm/s */
 #define B3_SCAN_SLOW_MAX_US   6000000U
 /* Retry a failed decode with the first/last bar trimmed to the other narrow
@@ -136,8 +213,14 @@
  * only reads black once most of the spot is on the tape. On the car real
  * junctions measured 9 and 11 mm. A wide bar of a 100 % barcode is about
  * 7.5 mm, and junctions are blocked anyway while a barcode scan has more
- * than B3_JUNCTION_MAX_SCAN_RUNS elements. */
-#define B3_JUNCTION_MIN_PATCH_UM 8000U
+ * than B3_JUNCTION_MAX_SCAN_RUNS elements.
+ * nyx, 2026-11-08: 8 -> 6 mm: a real junction measured 7 mm on the car
+ * ("both line sensors black for 7 mm, not a junction: too short"). */
+/* nyx, 2026-11-08: now each sensor's own run over the tape (the two runs
+ * must overlap), not the stretch with both black together, which shrinks
+ * when the car meets the tape at an angle (5 mm on the car). See
+ * junction_update() in buddy3.c. */
+#define B3_JUNCTION_MIN_PATCH_UM 6000U
 /* nyx, 2026-11-06: was 80, so at the 25 mm/s base speed no junction was
  * ever reported. The patch length is speed x time, so any steady forward
  * speed works; this only rules out a car that is standing or pivoting.

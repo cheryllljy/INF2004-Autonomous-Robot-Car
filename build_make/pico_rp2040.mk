@@ -103,6 +103,22 @@ endif
 # 4. the macro the code tests
 # 5. in the PROFILE_ID line, add -cal$(CAL) next to -test$(TEST)
 
+# nyx, 2026-11-07: S5CAL=1 builds subsystem 5's guided calibration (the
+# servo, the range, the beam, the turn; testing/subsystem5/CALIBRATION.md)
+# instead of its obstacle logic. The image gets a _s5cal suffix.
+# nyx, 2026-11-08: S5CAL=2 runs its step 4 only (the circle: turn and
+# compass); the image gets a _s5cal4 suffix.
+S5CAL ?= 0
+ifneq ($(filter $(S5CAL),0 1 2),$(S5CAL))
+$(error Unknown S5CAL '$(S5CAL)'; use 0, 1 or 2)
+endif
+ifeq ($(S5CAL),1)
+S5CAL_SUFFIX := _s5cal
+endif
+ifeq ($(S5CAL),2)
+S5CAL_SUFFIX := _s5cal4
+endif
+
 # CRASH_REPORT=1 also copies every console line to UART0 on GP0 (TX) /
 # GP1 (RX), 115200 8N1.  UART output is sent immediately, so it still shows
 # the last messages and the kernel's crash report after a crash, when the
@@ -128,7 +144,7 @@ endif
 # a live hazard: an SMP=1 build was once flashed in place of an SMP=0 one and
 # only the banner in the log revealed it.
 #
-EXE_FILE := mtk3pico_smp$(SMP)_$(CONSOLE)$(WIFI_SUFFIX)$(NET_SUFFIX)$(MQTT_SUFFIX)$(CRASH_SUFFIX)$(TEST_SUFFIX)$(CAL_SUFFIX)
+EXE_FILE := mtk3pico_smp$(SMP)_$(CONSOLE)$(WIFI_SUFFIX)$(NET_SUFFIX)$(MQTT_SUFFIX)$(CRASH_SUFFIX)$(TEST_SUFFIX)$(CAL_SUFFIX)$(S5CAL_SUFFIX)
 
 GCC := arm-none-eabi-gcc
 AS := arm-none-eabi-gcc
@@ -191,6 +207,7 @@ endif
 CFLAGS  += -DAPP_TEST=$(TEST)
 CFLAGS  += -DAPP_MQTT=$(MQTT)	# 1 = MQTT client built in (test lines also go out over MQTT)
 CFLAGS += -DMOTION_CALIBRATION_BUILD=$(CAL)
+CFLAGS += -DS5_CAL_BUILD=$(S5CAL)
 CFLAGS  += -DTM_CONSOLE_UART=$(CRASH_REPORT)
 ifeq ($(CRASH_REPORT),0)
 CFLAGS  += -DBOARD_UART0_FREE=1
@@ -223,7 +240,7 @@ endif
 # before any recipe executes.
 ################################################################################
 
-PROFILE_ID := smp$(SMP)-$(CONSOLE)-wifi$(WIFI)-net$(NET)-mqtt$(MQTT)-crash$(CRASH_REPORT)-test$(TEST)-cal$(CAL)
+PROFILE_ID := smp$(SMP)-$(CONSOLE)-wifi$(WIFI)-net$(NET)-mqtt$(MQTT)-crash$(CRASH_REPORT)-test$(TEST)-cal$(CAL)-s5cal$(S5CAL)
 PROFILE_FILE := .build_profile
 
 ifneq ($(strip $(shell cat $(PROFILE_FILE) 2>/dev/null)),$(PROFILE_ID))
