@@ -131,6 +131,7 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
     int32_t v;
     int32_t corr;
     bool escape;
+    bool bend_bb;
 
     result.left_black = filtered(&p_line->left, left_black, now_us);
     result.right_black = filtered(&p_line->right, right_black, now_us);
@@ -181,7 +182,15 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
     }
     p_line->started = true;
     p_line->last_us = now_us;
-    if (result.error != p_line->side)
+    /* nyx, 2026-11-09: both black while a curve is learnt is the bend's
+     * tape seen at a steep angle (or a crossing in the bend), not a cue to
+     * drive straight: keep the curve (B3_STEER_BB_* in b3_config.h). Not
+     * when the side against the curve was black: that is the curve ending,
+     * handled below as before. */
+    bend_bb = (B3_LINE_CROSSING == result.state) &&
+              (abs32(p_line->memory) >= B3_STEER_BB_CURV) &&
+              (((int64_t)p_line->side * p_line->memory) <= 0);
+    if ((!bend_bb) && (result.error != p_line->side))
     {
         if ((0 == result.error) &&
             (((int64_t)p_line->side * p_line->memory) > 0) &&
@@ -208,10 +217,38 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
     {
         p_line->touch_um += (uint32_t)ds_um;
     }
+    /* nyx, 2026-11-09: how long both have been black */
+    if (B3_LINE_CROSSING != result.state)
+    {
+        p_line->bb_um = 0U;
+    }
+    else if (p_line->bb_um < (B3_STEER_BB_CROSS_MM * 1000U))
+    {
+        p_line->bb_um += (uint32_t)ds_um;
+    }
+    else
+    {
+        /* long enough: no need to count on (no overflow) */
+    }
 
     /* nyx, 2026-11-07: curve memory and nudge (B3_STEER_* in b3_config.h).
      * error -1 = IR_L black = steer left = + curvature. */
-    if (0 != result.error)
+    if (bend_bb)
+    {
+        /* nyx, 2026-11-09: the learnt curve stays (no fading, no
+         * learning). The black side's run is broken, so a side black again
+         * afterwards learns, and pivots (B3_STEER_ESCAPE_MM), from 0 as
+         * before. Longer than any crossing, the tape runs across the pair
+         * because the line turns tighter than the car: nudge to the inside
+         * of the curve as a black inner side would. */
+        target = p_line->memory;
+        p_line->black_um = 0U;
+        if (p_line->bb_um >= (B3_STEER_BB_CROSS_MM * 1000U))
+        {
+            target += (p_line->memory > 0) ? p_line->kick : -p_line->kick;
+        }
+    }
+    else if (0 != result.error)
     {
         p_line->black_um += (uint32_t)ds_um;
         if (((int64_t)result.error * p_line->memory) > 0)

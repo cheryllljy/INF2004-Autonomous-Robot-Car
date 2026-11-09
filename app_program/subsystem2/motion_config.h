@@ -79,8 +79,17 @@
 #define MOTION_STOPPED_SPEED_MMPS (10)
 /* start braking this much earlier: speed estimate and motor lag */
 #define MOTION_STOP_LAG_S (0.10f)
-/* permille per mm/s          TODO tune */
-#define MOTION_SPEED_KP (0.5f)
+/* permille per mm/s. nyx, 2026-11-09: 1.6 (was 0.5, untuned). The VC's
+ * curve log on the car: at each bend entry the inner wheel runs 9-20 %
+ * faster than asked for the first 100 mm and the outer 2-9 % slower
+ * (turning pushes the inner wheel along and loads the outer one), so the
+ * car turns less than asked and the line follower's learnt curve swings.
+ * A stiffer P term holds the wheel speed difference much sooner; KI is
+ * kept (raising it weaves more). Host sim (test_follow, wheel models
+ * fitted to that log): lines lost 43 -> 7 of 224 runs at KP 1.6 alone,
+ * steps 100 -> 20/40 mm/s settle without undershoot even with a 150 ms
+ * motor. Check: a wheel at 15-25 mm/s must not sag or pulse. */
+#define MOTION_SPEED_KP (1.6f)
 /* permille per (mm/s * s)    TODO tune */
 #define MOTION_SPEED_KI (3.0f)
 /* mm/s of correction per mm of left/right error TODO tune */

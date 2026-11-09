@@ -111,6 +111,15 @@ follow: | $(OUT)
 	@$(OUT)/test_follow -t 0.6 -n || true
 	@echo "IRs 10 mm off the centre (1 mm of white each side), shown only:"
 	@$(OUT)/test_follow -s 10 -q || true
+	@# nyx, 2026-11-09: B3-H11, Buddy 2's PI wheel loop on a motor fitted
+	@# to the car's curve log (15 % more drive per mm/s than its
+	@# feed-forward, turning load 20 pm): must pass
+	@echo "=== line following, wheels fitted to the car's curve log (B3-H11) ==="
+	@$(OUT)/test_follow -m 50,1.15 -y 20,10 -n
+	@$(OUT)/test_follow -m 50,1.15 -y 20,10 -c -q | tail -3
+	@echo "=== both IRs black for 60 mm inside a bend (B3-H12), shown only ==="
+	@$(OUT)/test_follow -x 200,60 -n -q || true
+	@$(OUT)/test_follow -m 50,1 -x 200,60 -n -q || true
 
 clean:
 	rm -rf $(OUT)

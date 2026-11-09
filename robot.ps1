@@ -6,7 +6,7 @@
 
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 check
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 broker   (window 1, leave open)
-      powershell -ExecutionPolicy Bypass -File .\robot.ps1 test     (window 2: [TEST]/[VC] lines from the car)
+      powershell -ExecutionPolicy Bypass -File .\robot.ps1 test     (window 2: [TEST]/[VC] lines from the car, saved to car_logs\)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 watch    (window 3, optional)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 go       (reset + start)
       powershell -ExecutionPolicy Bypass -File .\robot.ps1 search   (reset + line search)
@@ -151,9 +151,18 @@ switch ($Cmd) {
     'test' {
         if (-not (Test-Path $Sub)) { throw "mosquitto_sub not found in $Mosquitto (winget install -e --id EclipseFoundation.Mosquitto)" }
         $ip = Get-BrokerIp
+        # nyx, 2026-11-09: every line is also saved to car_logs\ (one file
+        # per run, PC time in front) so the run can be read afterwards
+        $LogDir = Join-Path $Repo 'car_logs'
+        New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+        $LogFile = Join-Path $LogDir ('car_' + (Get-Date -Format 'yyyy-MM-dd_HHmmss') + '.txt')
         Write-Host "car test log on ${ip}:$Port topic $TestTopic (Ctrl+C to stop)"
         Write-Host "start this before powering the car; lines are not stored by the broker"
-        & $Sub -h $ip -p $Port -t $TestTopic
+        Write-Host "saving to $LogFile"
+        & $Sub -h $ip -p $Port -t $TestTopic | ForEach-Object {
+            $_
+            Add-Content -Path $LogFile -Value ((Get-Date -Format 'HH:mm:ss.fff') + ' ' + $_)
+        }
     }
     'watch' {
         $ip = Get-BrokerIp

@@ -53,7 +53,14 @@
 
 #define FR3_CHECK_MS   100u
 #define FR3_PROBE_MS   1000u
-#define FR3_TIMEOUT_US 3000000ull
+/* nyx, 2026-11-09: kept from branch 37 (patch 21, 2026-11-07) when the
+ * dashboard version came back: the link-loss timeout is
+ * B1_FR3_TIMEOUT_MS (mqtt_utk.h, 10 s), and a probe still unanswered
+ * after FR3_PROBE_STUCK_US no longer blocks the next one (one lost
+ * PUBACK used to hold the only probe until lwIP's 30 s request timeout,
+ * so the link counted as lost though the broker was fine). */
+#define FR3_TIMEOUT_US ((uint64_t)B1_FR3_TIMEOUT_MS * 1000ull)
+#define FR3_PROBE_STUCK_US 2000000ull
 
 #define STATUS_WIFI    0x01u
 #define STATUS_MQTT    0x02u
@@ -357,8 +364,9 @@ static void fr2_receive_command(const u8_t *payload, u16_t length)
         return;
     }
 
+    /* nyx, 2026-11-08: 4 = SEARCH (line search, then start) */
     if (B1_FR2_START != payload[1] && payload[1] != B1_FR2_STOP &&
-        payload[1] != B1_FR2_RESET)
+        payload[1] != B1_FR2_RESET && payload[1] != B1_FR2_SEARCH)
     {
         tm_printf((UB *)"[BUDDY1] FR2 invalid command: %u\n",
                   (uint32_t)payload[1]);
@@ -604,6 +612,12 @@ static void fr3_monitor_timeout(void *arg)
                   ? 1u
                   : 0u;
 
+    if (mqtt_up && fr3_probe_pending &&
+        ((now - fr3_last_probe_us) >= FR3_PROBE_STUCK_US))
+    {
+        fr3_probe_pending = 0u; /* its PUBACK still counts if it comes */
+    }
+
     if (mqtt_up && !fr3_probe_pending &&
         (now - fr3_last_probe_us) >= (uint64_t)FR3_PROBE_MS * 1000ull)
     {
@@ -659,9 +673,24 @@ static void fr3_monitor_timeout(void *arg)
                 fr3_loss_reason = reason;
                 fr3_reported_reason = reason;
 
-                tm_printf((UB *)"[BUDDY1] FR3 LINK_LOST "
-                                "latched, reason=%u\n",
-                          (uint32_t)reason);
+                {
+                    /* nyx, 2026-11-07: signal strength and the last broker
+                     * answer, to tell a weak spot from a stalled broker */
+                    int32_t rssi = 0;
+
+                    if (0 != cyw43_wifi_get_rssi(&cyw43_state, &rssi))
+                    {
+                        rssi = 0;
+                    }
+                    tm_printf((UB *)"[BUDDY1] FR3 LINK_LOST "
+                                    "latched, reason=%u, rssi %d dBm, last "
+                                    "broker answer %u ms ago\n",
+                              (uint32_t)reason, (int32_t)rssi,
+                              (0ull != fr3_last_ack_us)
+                                  ? (uint32_t)((now - fr3_last_ack_us) /
+                                               1000ull)
+                                  : 0u);
+                }
 
                 tm_printf((UB *)"[BUDDY1] FR3 VehicleController "
                                 "STOP REQUIRED\n");

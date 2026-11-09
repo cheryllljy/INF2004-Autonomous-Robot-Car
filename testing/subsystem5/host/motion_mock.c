@@ -33,6 +33,10 @@
 #define MM_STILL_MS     (60)        /* 3 control cycles */
 #define MM_TRACK_CFG    (112.0)     /* TRACK_WIDTH_MM the firmware uses */
 #define MM_TICK_CFG     (65.0 * MM_PI / 1271.7) /* MM_PER_TICK, mm */
+/* nyx, 2026-11-09: the motor's mechanical lag, ms (host tests try others) */
+#ifndef MM_MOTOR_MS
+#define MM_MOTOR_MS (50.0)
+#endif
 
 typedef enum { MD_IDLE, MD_MOVE, MD_TURN, MD_VEL, MD_STOPPING } mm_mode_t;
 
@@ -77,6 +81,28 @@ static int g_lag_ms;
  * feed-forward assumes per mm/s, with a 50 ms mechanical lag. */
 static int    g_motor;
 static double g_m_off = 50.0, g_m_ratio = 1.0;
+static double g_m_brk = 0.0;
+void mm_set_stiction(double brk) { g_m_brk = brk; }
+/* Stribeck friction (experiment): a stopped wheel needs g_sb_ks pm; moving,
+ * friction falls from g_sb_ks to g_sb_kk with speed (scale g_sb_vs mm/s);
+ * speed per pm above friction 1 / (1.245 g_m_ratio) */
+static double g_sb_ks, g_sb_kk, g_sb_vs;
+static int g_sb_on;
+void mm_set_stribeck(double ks, double kk, double vs) { g_sb_ks = ks; g_sb_kk = kk; g_sb_vs = vs; g_sb_on = 1; }
+static double sb_step(double v, double duty, double load, double dt)
+{
+    const double u = (fabs(duty) > 0.0) ? (fabs(duty) - load) : 0.0;
+    const double sg = (duty >= 0.0) ? 1.0 : -1.0;
+    double a = fabs(v);
+    if ((a < 0.5) && (u < g_sb_ks)) { return 0.0; }
+    {
+        const double f = g_sb_kk + (g_sb_ks - g_sb_kk) * exp(-a / g_sb_vs);
+        const double tgt = (u - f) / (1.245 * g_m_ratio);
+        a += (tgt - a) * dt * 1000.0 / MM_MOTOR_MS;
+        if (a < 0.0) { a = 0.0; }
+    }
+    return sg * a;
+}
 static double g_m_pos[2], g_m_hist[2][5], g_m_integ[2], g_m_duty[2];
 static int    g_m_n;
 static double g_set_l, g_set_r;   /* Buddy 2's ramped setpoints */
@@ -85,6 +111,33 @@ static int g_tick_ms;
 static int g_kicks;
 static int g_kick_l, g_kick_r;
 static int g_min_cmd = 0x7FFF; /* nyx, 2026-11-06: smallest |wheel speed| asked */
+/* nyx, 2026-11-09: Buddy 2's measured wheel speeds (encoder distance over
+ * the last 80 ms, updated every 20 ms), as the VehicleController and its
+ * curve log see them (motion_status_t speed_l/r_mmps) */
+static double g_ms_hist[2][5];
+static double g_ms_v[2];
+static int    g_ms_tick;
+/* nyx, 2026-11-09: turning load (mm_set_yaw_load). Turning the car takes a
+ * yaw torque (caster, tyres), so the outer wheel needs g_y_pm more drive
+ * and the inner wheel is pushed along by g_y_pm; in full from a wheel
+ * speed difference of g_y_w mm/s. 0 = off (the old model). */
+static double g_y_pm, g_y_w = 1.0;
+void mm_set_yaw_load(double pm, double w)
+{
+    g_y_pm = pm;
+    g_y_w = (w > 0.1) ? w : 0.1;
+}
+/* load on wheel side (0 L, 1 R) against its own direction of drive, pm */
+static double yaw_load(int side, double duty)
+{
+    double f = (g.vr - g.vl) / g_y_w;
+    const double sg = (duty >= 0.0) ? 1.0 : -1.0;
+
+    if (f > 1.0) { f = 1.0; }
+    if (f < -1.0) { f = -1.0; }
+    return (0 == side) ? (-g_y_pm * f * sg) : (g_y_pm * f * sg);
+}
+void mm_wheels_meas(double *l, double *r) { *l = g_ms_v[0]; *r = g_ms_v[1]; }
 
 void mm_reset(double x, double y, double psi_deg)
 {
@@ -110,6 +163,23 @@ static double m_duty_to_v(double duty)
     return (duty > g_m_off) ? ((duty - g_m_off) / (1.245 * g_m_ratio)) : 0.0;
 }
 
+/* nyx, 2026-11-09: Buddy 2's MOTION_SPEED_KP / KI (motion_config.h), so
+ * host tests can try other gains. KP 1.6 as in motion_config.h since
+ * 2026-11-09 (was 0.5); -DMM_KP=0.5 is Buddy 2 as it was. */
+#ifndef MM_KP
+#define MM_KP (1.6)
+#endif
+#ifndef MM_KI
+#define MM_KI (3.0)
+#endif
+/* nyx, 2026-11-09 (experiment): 1 = when the setpoint changes, the
+ * integrator is rescaled as if it were a gain error (integ x new / old
+ * setpoint), so what it learnt at 100 mm/s does not overdrive a wheel
+ * just slowed to 20 mm/s */
+#ifndef MM_ISCALE
+#define MM_ISCALE 0
+#endif
+static double g_m_prev_set[2];
 static void m_control(void)
 {
     const double set[2] = { g_set_l, g_set_r };
@@ -131,12 +201,25 @@ static void m_control(void)
                                 : *v[s];
         double err, integ, u;
 
-        if (mag < 5.0) { g_m_integ[s] = 0.0; g_m_duty[s] = 0.0; continue; }
+        if (mag < 5.0)
+        {
+            g_m_integ[s] = 0.0;
+            g_m_duty[s] = 0.0;
+            g_m_prev_set[s] = 0.0;
+            continue;
+        }
+#if MM_ISCALE
+        if ((g_m_prev_set[s] >= 5.0) && (mag < g_m_prev_set[s]))
+        {
+            g_m_integ[s] *= mag / g_m_prev_set[s];
+        }
+#endif
+        g_m_prev_set[s] = mag;
         err = mag - fabs(meas);
-        integ = g_m_integ[s] + (3.0 * err * 0.02);
+        integ = g_m_integ[s] + (MM_KI * err * 0.02);
         if (integ > 300.0) { integ = 300.0; }
         if (integ < -300.0) { integ = -300.0; }
-        u = 50.0 + (mag * 1.245) + (0.5 * err) + integ;
+        u = 50.0 + (mag * 1.245) + (MM_KP * err) + integ;
         if (!(((u > 600.0) && (err > 0.0)) || ((u < 0.0) && (err < 0.0))))
         {
             g_m_integ[s] = integ;
@@ -166,6 +249,18 @@ void mm_set_lag(int lag_ms, double v0)
     }
     g_tick_ms = 0;
     g_kicks = 0;
+    {
+        int k;
+
+        g_ms_tick = 0;
+        for (k = 0; k < 5; k++)
+        {
+            g_ms_hist[0][k] = g.dl - ((double)k * 0.02 * v0);
+            g_ms_hist[1][k] = g.dr - ((double)k * 0.02 * v0);
+        }
+        g_ms_v[0] = v0;
+        g_ms_v[1] = v0;
+    }
     g_kick_l = 0;
     g_kick_r = 0;
     {
@@ -180,6 +275,7 @@ void mm_set_lag(int lag_ms, double v0)
             for (k = 0; k < 5; k++) { g_m_hist[s][k] = -(double)k * 0.02 * v0; }
             g_m_duty[s] = duty;
             g_m_integ[s] = (v0 > 0.0) ? (duty - (50.0 + (v0 * 1.245))) : 0.0;
+            g_m_prev_set[s] = v0;
         }
         g_m_n = 5;
     }
@@ -214,6 +310,7 @@ void mm_get_truth(double *p_x, double *p_y, double *p_psi)
     *p_psi = g.psi;
 }
 
+void mm_wheels_true(double *l, double *r) { *l = g.vl; *r = g.vr; }
 double mm_speed_true(void)
 {
     return (g.vl + g.vr) / 2.0;
@@ -307,8 +404,15 @@ void mm_step_1ms(void)
     {
         g.goal_l = 0.0;
         g.goal_r = 0.0;
+        /* nyx, 2026-11-09: as Buddy 2 (MC_ZERO_SPEED 5): its ramped
+         * setpoints at zero, the wheels under MOTION_STOPPED_SPEED_MMPS.
+         * Was the wheels at exactly 0, which with the wheel lag took
+         * 1.2 s, not Buddy 2's 3 cycles */
+        const double set_l = (g_lag_ms > 0) ? g_set_l : g.vl;
+        const double set_r = (g_lag_ms > 0) ? g_set_r : g.vr;
+
         if ((fabs(g.vl) < MM_STILL) && (fabs(g.vr) < MM_STILL) &&
-            (fabs(g.vl) < 1e-9) && (fabs(g.vr) < 1e-9))
+            (fabs(set_l) < 5.0) && (fabs(set_r) < 5.0))
         {
             g.still_ms++;
         }
@@ -353,17 +457,34 @@ void mm_step_1ms(void)
             {
                 if (0 == g_tick_ms) { m_control(); }
                 {
-                    const double ssl = (g_m_duty[0] >= 0.0)
-                                           ? m_duty_to_v(g_m_duty[0])
-                                           : -m_duty_to_v(-g_m_duty[0]);
-                    const double ssr = (g_m_duty[1] >= 0.0)
-                                           ? m_duty_to_v(g_m_duty[1])
-                                           : -m_duty_to_v(-g_m_duty[1]);
+                    const double ll = yaw_load(0, g_m_duty[0]);
+                    const double lr = yaw_load(1, g_m_duty[1]);
+                    const double ssl = (0.0 == g_m_duty[0]) ? 0.0
+                                       : ((g_m_duty[0] > 0.0)
+                                           ? m_duty_to_v(g_m_duty[0] - ll)
+                                           : -m_duty_to_v(-g_m_duty[0] - ll));
+                    const double ssr = (0.0 == g_m_duty[1]) ? 0.0
+                                       : ((g_m_duty[1] > 0.0)
+                                           ? m_duty_to_v(g_m_duty[1] - lr)
+                                           : -m_duty_to_v(-g_m_duty[1] - lr));
 
-                    g.vl += (ssl - g.vl) * dt * 1000.0 / 50.0;
-                    g.vr += (ssr - g.vr) * dt * 1000.0 / 50.0;
+                    if (g_sb_on)
+                    {
+                        g.vl = sb_step(g.vl, g_m_duty[0], ll, dt);
+                        g.vr = sb_step(g.vr, g_m_duty[1], lr, dt);
+                        g_m_pos[0] += fabs(g.vl) * dt;
+                        g_m_pos[1] += fabs(g.vr) * dt;
+                    }
+                    else
+                    {
+                    double sl = ssl, sr = ssr;
+                    if ((g_m_brk > 0.0) && (fabs(g.vl) < 3.0) && (fabs(g_m_duty[0]) < g_m_brk)) { sl = 0.0; }
+                    if ((g_m_brk > 0.0) && (fabs(g.vr) < 3.0) && (fabs(g_m_duty[1]) < g_m_brk)) { sr = 0.0; }
+                    g.vl += (sl - g.vl) * dt * 1000.0 / MM_MOTOR_MS;
+                    g.vr += (sr - g.vr) * dt * 1000.0 / MM_MOTOR_MS;
                     g_m_pos[0] += fabs(g.vl) * dt;
                     g_m_pos[1] += fabs(g.vr) * dt;
+                    }
                 }
             }
             else
@@ -393,6 +514,23 @@ void mm_step_1ms(void)
     /* ---- encoders ---- */
     g.dl += g.vl * dt * (1.0 + g.scale + (g.lr / 2.0));
     if (!g.dead_r) { g.dr += g.vr * dt * (1.0 + g.scale - (g.lr / 2.0)); }
+
+    /* nyx, 2026-11-09: Buddy 2's 80 ms speed window, every 20 ms */
+    if (++g_ms_tick >= 20)
+    {
+        int k;
+
+        g_ms_tick = 0;
+        for (k = 4; k > 0; k--)
+        {
+            g_ms_hist[0][k] = g_ms_hist[0][k - 1];
+            g_ms_hist[1][k] = g_ms_hist[1][k - 1];
+        }
+        g_ms_hist[0][0] = g.dl;
+        g_ms_hist[1][0] = g.dr;
+        g_ms_v[0] = (g_ms_hist[0][0] - g_ms_hist[0][4]) / 0.08;
+        g_ms_v[1] = (g_ms_hist[1][0] - g_ms_hist[1][4]) / 0.08;
+    }
 }
 
 /*=====================================================================*/

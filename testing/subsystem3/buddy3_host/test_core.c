@@ -178,9 +178,9 @@ static void test_stream_and_quiet(void)
     make_frame('A', 10000U, 30000U, times);
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
     CHECK(scan.pending);
-    edge.time_us += (10000U * B3_TRAILING_NARROW_MULTIPLE) - 1U; /* trailing quiet now B3_TRAILING_NARROW_MULTIPLE x narrow (2026-11-05) */
-    CHECK(!b3_barcode_poll(&scan, edge, &result));
-    ++edge.time_us;
+    /* nyx, 2026-11-09: both '*' read, so no trailing white is needed: the
+     * letter comes at the first poll after the last bar */
+    edge.time_us += 1000U;
     CHECK(b3_barcode_poll(&scan, edge, &result));
     CHECK('A' == result.symbol);
     CHECK(!result.used_encoder);
@@ -195,18 +195,45 @@ static void test_stream_and_quiet(void)
     CHECK(!scan.reject_encoder);
     CHECK(50000U == scan.reject_lead);
     CHECK((10000U * B3_QUIET_NARROW_MULTIPLE) == scan.reject_need);
+    /* nyx, 2026-11-09: black again 4 mm after the last bar (the car's
+     * reason 8 at 30 mm/s, 136 ms) still gives the letter, at that black
+     * edge, with no reject */
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
-    edge.time_us += (10000U * B3_TRAILING_NARROW_MULTIPLE) - 10000U;
+    edge.time_us += 4000U;
     edge.black = true;
-    CHECK(!b3_barcode_edge(&scan, edge, &result));
-    /* Black inside the trailing white is only a reject once it outlasts a
-       sensor blip, so it is counted at the next edge. */
+    CHECK(b3_barcode_edge(&scan, edge, &result));
+    CHECK('A' == result.symbol);
     CHECK(0U == scan.rejected);
     edge.time_us += 30000U;
     edge.black = false;
     CHECK(!b3_barcode_edge(&scan, edge, &result));
-    CHECK(1U == scan.rejected);
-    CHECK(B3_REJECT_TRAILING_QUIET == scan.reject_reason);
+    CHECK(0U == scan.rejected);
+    /* ... but with the stop '*' spoiled (here a 'B' third, as the first 29
+     * elements of *AB* read), black that soon after is the next symbol of
+     * a longer barcode: still rejected for the short trailing white */
+    {
+        uint32_t ab[B3_BARCODE_RUNS];
+        uint32_t b[B3_BARCODE_RUNS];
+        size_t i;
+
+        make_frame('A', 10000U, 30000U, ab);
+        make_frame('B', 10000U, 30000U, b);
+        for (i = 20U; i < B3_BARCODE_RUNS; ++i)
+        {
+            ab[i] = b[i - 10U];
+        }
+        edge = feed_frame(&scan, 500000U, ab, NULL, 200000U);
+        CHECK(scan.pending && ('A' == scan.decoded.symbol) &&
+              !scan.decoded.both_stars);
+        edge.time_us += 10000U; /* the inter-character gap */
+        edge.black = true;
+        CHECK(!b3_barcode_edge(&scan, edge, &result));
+        edge.time_us += 10000U;
+        edge.black = false;
+        CHECK(!b3_barcode_edge(&scan, edge, &result));
+        CHECK(1U == scan.rejected);
+        CHECK(B3_REJECT_TRAILING_QUIET == scan.reject_reason);
+    }
     /* Quiet completion can be discovered by the next barcode's first edge. */
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
     edge.time_us += 200000U;
@@ -552,25 +579,67 @@ static void test_edge_blips(void)
     }
     CHECK(scan.pending);
     {
+        /* nyx, 2026-11-09: both '*' read, no trailing white is needed
+         * any more, so a blip in it gives the letter at its black edge */
         b3_edge_t blip = edge;
         blip.time_us += 20000U;
         blip.black = true;
-        CHECK(!b3_barcode_edge(&scan, blip, &result));
+        CHECK(b3_barcode_edge(&scan, blip, &result));
+        CHECK('A' == result.symbol);
         blip.time_us += 41U;
         blip.black = false;
         CHECK(!b3_barcode_edge(&scan, blip, &result));
-        CHECK(scan.pending);
     }
-    edge.time_us += 100000U;
-    CHECK(b3_barcode_poll(&scan, edge, &result));
-    CHECK('A' == result.symbol);
     CHECK(0U == scan.rejected);
-    CHECK(3U == scan.glitches);
+    CHECK(3U == scan.glitches); /* the trailing blip is still absorbed */
     (void)puts("PASS: sub-200 us sensor blips inside a barcode are absorbed");
 }
 
 /* Car capture 2026-11-04 (nyx): every element fine except the first and
  * last bars, read 3-4x too long. Trimming them decodes the middle letter. */
+/* nyx, 2026-11-09: the car's reason-6 reject (widths in us as the VC
+ * printed them): the time widths decode as 'Z' read back to front with one
+ * '*' spoiled, but the scan was decoded from wheel-encoder distances that
+ * were off. A failed encoder decode now falls back to the time widths. */
+static void test_encoder_fallback_to_time(void)
+{
+    static const uint32_t car[B3_BARCODE_RUNS] = {
+        84500U, 153700U, 361500U, 122700U, 340400U, 132300U, 104200U,
+        341000U, 198700U, 44000U, 143600U, 107200U, 121400U, 122500U,
+        345600U, 133900U, 328200U, 372000U, 108200U, 130400U, 110200U,
+        133900U, 331300U, 120900U, 395300U, 44500U, 137300U, 377200U,
+        92100U };
+    uint32_t ticks[B3_BARCODE_RUNS];
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_code39_result_t raw_result;
+    b3_edge_t edge;
+    size_t i;
+    CHECK(b3_code39_decode(car, &raw_result));
+    CHECK('Z' == raw_result.symbol);
+    CHECK(raw_result.reversed);
+    for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+    {
+        /* 30 mm/s, 0.16 mm per tick: ~190 ticks per second; every bar
+         * reads 3x too long in distance (encoders not matching the IR) */
+        ticks[i] = (car[i] * 190U) / 1000000U;
+        if (0U == i % 2U)
+        {
+            ticks[i] *= 3U;
+        }
+    }
+    CHECK(!b3_code39_decode(ticks, &raw_result));
+    edge = feed_frame(&scan, 3000000U, car, ticks, 3000000U);
+    edge.time_us += 3000000U;
+    edge.position_ticks += 600U;
+    CHECK(b3_barcode_poll(&scan, edge, &result));
+    CHECK('Z' == result.symbol);
+    CHECK(!result.used_encoder);
+    CHECK(1U == scan.timed_fallbacks);
+    (void)puts("PASS: car scan whose encoder widths fail decodes from its "
+               "time widths ('Z', reason 6 on 2026-11-09)");
+}
+
 static void test_trim_outer_bars(void)
 {
     static const uint32_t car[B3_BARCODE_RUNS] = {
@@ -749,6 +818,82 @@ static void test_line_logic(void)
 
 }
 
+/* nyx, 2026-11-09: both IRs black inside a learnt bend (the tape crosses
+ * the pair at a steep angle) keep the curve, and longer than a crossing
+ * they nudge to the inside; on a straight both black is still a crossing
+ * (B3_STEER_BB_* in b3_config.h). */
+static void test_bend_both_black(void)
+{
+    b3_line_t line;
+    b3_line_result_t result = { 0 };
+    uint32_t t;
+    int32_t learnt;
+    int32_t curv_in = 0;
+    bool nudged = false;
+
+    /* learn a left curve tighter than B3_STEER_BB_CURV: IR_L black */
+    b3_line_init(&line, 0U);
+    for (t = 0U; t <= 5000000U; t += 10000U)
+    {
+        result = b3_line_step(&line, true, false, t, 100);
+        if (line.memory >= B3_STEER_BB_CURV)
+        {
+            break;
+        }
+    }
+    CHECK(line.memory >= B3_STEER_BB_CURV);
+    learnt = 0;
+    /* both black: a crossing to the VehicleController, but the car keeps
+     * turning left; the learnt curve neither fades nor grows (the nudge
+     * for the black IR_L eases off) */
+    for (t += 10000U; t <= 10000000U; t += 10000U)
+    {
+        result = b3_line_step(&line, true, true, t, 100);
+        if (0U == line.bb_um)
+        {
+            continue; /* the sensor filter */
+        }
+        if (0 == learnt)
+        {
+            learnt = line.memory; /* after the filter's last IR_L step */
+        }
+        CHECK(B3_LINE_CROSSING == result.state && !result.stop);
+        CHECK(learnt == line.memory);
+        CHECK((result.curvature >= learnt) &&
+              (result.left_mm_s < result.right_mm_s));
+        CHECK(result.left_mm_s >= B3_MIN_WHEEL_MM_S);
+        if (line.bb_um < (B3_STEER_BB_CROSS_MM * 1000U))
+        {
+            curv_in = result.curvature;
+        }
+        else if (result.curvature >= (learnt + (line.kick / 2)))
+        {
+            /* longer than any crossing: nudged to the inside */
+            nudged = (curv_in < result.curvature);
+            break;
+        }
+        else
+        {
+            /* the nudge slews in */
+        }
+    }
+    CHECK(nudged);
+
+    /* on a straight (nothing learnt) both black drives straight on */
+    b3_line_init(&line, 0U);
+    for (t = 0U; t <= 200000U; t += 10000U)
+    {
+        result = b3_line_step(&line, false, false, t, 100);
+    }
+    for (; t <= 600000U; t += 10000U)
+    {
+        result = b3_line_step(&line, true, true, t, 100);
+    }
+    CHECK((B3_LINE_CROSSING == result.state) && (0 == result.curvature));
+    CHECK(result.left_mm_s == result.right_mm_s);
+    (void)puts("PASS: both IRs black in a learnt bend keep the curve and nudge inward; on a straight they drive on");
+}
+
 int main(void)
 {
     test_pdf_fixtures();
@@ -763,7 +908,9 @@ int main(void)
     test_leading_blip();
     test_mark_before_barcode();
     test_trim_outer_bars();
+    test_encoder_fallback_to_time();
     test_line_logic();
+    test_bend_both_black();
     (void)printf("All %u checks passed. Host logic tests; no hardware timing claim.\n", g_checks);
     return EXIT_SUCCESS;
 }

@@ -1,0 +1,31 @@
+12:45:51.397 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+12:45:51.400 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+12:45:51.411 [VC] E-stop, fault bits 0x04
+12:45:51.606 [VC] state 0 -> 5
+12:45:51.610 [VC] HUMP_DONE peak side-height=35 mm (seq 1)
+12:45:51.623 [VC] HUMP_DONE peak side-height=10 mm (seq 2)
+12:45:51.877 [VC] HUMP_DONE peak side-height=12 mm (seq 3)
+12:45:51.883 [VC] line sensors black L 2 / R 2 mm, 2 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+12:45:51.894 [BUDDY1] FR3 monitor started
+12:45:52.003 [BUDDY1] FR3 communication unhealthy; monitoring
+12:45:52.005 [BUDDY1] FR3 communication restored
+12:45:52.019 [BUDDY1] FR3 recovery: latch=0 reason=0
+12:46:12.061 [VC] MQTT RESET received seq=97
+12:46:12.064 [VC] state 5 -> 0
+12:46:12.701 [VC] MQTT SEARCH received seq=98: line search, then line following
+12:46:12.798 [VC] state 0 -> 3
+12:46:12.801 [VC-S5] line search: straight on at 60 mm/s until the IRs meet a line (at most 2000 mm), then onto it and along it
+12:46:16.135 [VC-S5] line search: only IR_L saw black (150 mm back): a mark, not a line; on
+12:46:18.831 [VC-S5] line search: IR_R then IR_L met a line 6 mm apart; it runs 77 deg to the car: onto it, then turning LEFT to face along it
+12:46:19.182 [VC] junction #1 reached, letter '-', turn STRAIGHT (none)
+12:46:21.056 [VC-S5] axle on the line (116 mm on): turning on the spot to face along it
+12:46:21.058 [VC-S5] back on the line (line search: the first IR met the tape, the turn stopped at the other): line following again (480 mm, 1.9 s)
+12:46:21.071 [VC] state 3 -> 1
+12:46:28.555 [VC] curve: asked R135 (L 19 R 44 mm/s), wheels L 22 R 42 mm/s = R179, IRs ww
+12:46:31.756 [VC] curve: asked R187 (L 21 R 38 mm/s), wheels L 21 R 38 mm/s = R194, IRs Bw
+12:46:32.964 [VC] barcode scan started
+12:46:35.108 [VC] curve: asked R263 (L 24 R 35 mm/s), wheels L 22 R 36 mm/s = R232, IRs ww
+12:46:35.788 [VC] barcode rejected (total 1): 1/29 elements, last element 2000032 us, reason 3: element too long
+12:46:38.237 [VC] barcode scan started
+12:46:38.382 [VC] junction #2 reached, letter '-', turn STRAIGHT (none)
+12:46:40.233 [VC] barcode rejected (total 2): 0/29 elements, last element 2002521 us, reason 3: element too long

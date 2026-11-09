@@ -217,6 +217,7 @@ static bool decode_forward(const uint32_t widths[B3_BARCODE_RUNS],
     p_result->symbol = middle;
     p_result->first_narrow = n_first;
     p_result->last_narrow = n_last;
+    p_result->both_stars = first_ok && last_ok;
     return true;
 }
 

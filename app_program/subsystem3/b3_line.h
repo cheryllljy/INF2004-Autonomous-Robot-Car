@@ -46,6 +46,7 @@ typedef struct
     int32_t kick;      /* nudge now, self-tuned (B3_STEER_KICK_*) */
     int8_t last_touch; /* side of the last touch (-1 L, +1 R, 0 none) */
     uint32_t touch_um; /* driven since that touch began, um */
+    uint32_t bb_um;    /* nyx, 2026-11-09: driven with both black, um */
 } b3_line_t;
 
 typedef struct

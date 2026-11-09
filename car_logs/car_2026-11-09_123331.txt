@@ -1,0 +1,3 @@
+12:33:37.832 [VC] HUMP_DONE peak side-height=14 mm (seq 13)
+12:33:37.903 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+12:33:37.904 [VC] HUMP_DONE peak side-height=15 mm (seq 14)

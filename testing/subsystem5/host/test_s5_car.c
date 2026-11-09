@@ -104,6 +104,10 @@ typedef struct
     double shift;      /* nyx, 2026-11-08: our line moves this far left
                         * (S-bend from the box's face on), so dead
                         * reckoning has it that far off on the way back */
+    double turn_x;     /* nyx, 2026-11-09: > 0: our line bends from here
+                        * (track frame) ... */
+    double turn_r;     /* ... with this radius ... */
+    double turn_deg;   /* ... this far (+ = to the left), then straight */
 } scen_t;
 
 #define BOX(f, y, w, d) { (f), (y), (w), (d), 0.0, 0.0, 0.0 }
@@ -324,6 +328,58 @@ static const scen_t g_scen[] =
                            "the compass is not used there",
       .expect = X_ROUND, .box = { BOX(900, 0, 210, 160) }, .n_box = 1,
       .lr_err = 0.01, .mag_iron = 750.0 },
+    /* nyx, 2026-11-09: our line bends where the car comes back to it
+     * (the car comes back about 45 deg to it, the IRs crossing it near
+     * x 1360): the turn onto the line stops on the IRs (nyx's idea, as
+     * the line search), not at the direction the crossing gave */
+    { .id = "C61", .name = "line bends left R300 behind the box, car comes "
+                           "back from the left",
+      .expect = X_ROUND, .side = 1, .box = { BOX(900, -60, 210, 160) },
+      .n_box = 1, .turn_x = 1300.0, .turn_r = 300.0, .turn_deg = 90.0 },
+    { .id = "C62", .name = "line bends right R300 behind the box, car "
+                           "comes back from the left",
+      .expect = X_ROUND, .side = 1, .box = { BOX(900, -60, 210, 160) },
+      .n_box = 1, .turn_x = 1300.0, .turn_r = 300.0, .turn_deg = -90.0 },
+    { .id = "C63", .name = "line bends left R300 behind the box, car comes "
+                           "back from the right",
+      .expect = X_ROUND, .side = -1, .box = { BOX(900, 60, 210, 160) },
+      .n_box = 1, .turn_x = 1300.0, .turn_r = 300.0, .turn_deg = 90.0 },
+    { .id = "C64", .name = "line bends right R300 behind the box, car "
+                           "comes back from the right",
+      .expect = X_ROUND, .side = -1, .box = { BOX(900, 60, 210, 160) },
+      .n_box = 1, .turn_x = 1300.0, .turn_r = 300.0, .turn_deg = -90.0 },
+    { .id = "C65", .name = "line bends left R200 behind the box, car comes "
+                           "back from the left",
+      .expect = X_ROUND, .side = 1, .box = { BOX(900, -60, 210, 160) },
+      .n_box = 1, .turn_x = 1250.0, .turn_r = 200.0, .turn_deg = 90.0 },
+    { .id = "C66", .name = "line bends left R500 from the box's back, car "
+                           "comes back from the left, encoders 1 % apart",
+      .expect = X_ROUND, .side = 1, .box = { BOX(900, -60, 210, 160) },
+      .n_box = 1, .lr_err = 0.01, .turn_x = 1100.0, .turn_r = 500.0,
+      .turn_deg = 60.0 },
+    { .id = "C67", .name = "line bends right R500 from the box's back, car "
+                           "comes back from the left, encoders 1 % apart",
+      .expect = X_ROUND, .side = 1, .box = { BOX(900, -60, 210, 160) },
+      .n_box = 1, .lr_err = -0.01, .turn_x = 1100.0, .turn_r = 500.0,
+      .turn_deg = -60.0 },
+    /* nyx, 2026-11-09: too close for a ramp out, the car turns out on
+     * the spot instead of backing up; it backs up only when no way round
+     * is open (edges it cannot see, both sides blocked) */
+    { .id = "C68", .name = "box put down 150 mm in front: turns out on the "
+                           "spot, no backing up",
+      .expect = X_ROUND,
+      .box = { { 900, 0, 210, 160, 0, 900 - 135 - 150 - 1, 0 } },
+      .n_box = 1, .rev_max = 1.0 },
+    { .id = "C69", .name = "box put down 150 mm in front, 40 mm left: no "
+                           "backing up",
+      .expect = X_ROUND, .side = -1,
+      .box = { { 900, 40, 210, 160, 0, 900 - 135 - 150 - 1, 0 } },
+      .n_box = 1, .rev_max = 1.0 },
+    { .id = "C70", .name = "25 cm wide box put down 200 mm in front, "
+                           "encoders 1 % apart: no backing up",
+      .expect = X_ROUND,
+      .box = { { 900, 0, 250, 160, 0, 900 - 135 - 200 - 1, 0 } },
+      .n_box = 1, .lr_err = 0.01, .rev_max = 1.0 },
     /* shown only (the calibration build measures the beam): 6 deg off */
     { "L1", "LIMIT: real beam 16 deg (calibration says 22)",
       X_ROUND, 0, { BOX(900, 0, 210, 160) }, 1, 0.0, 0.0, 0.0, 16.0 },
@@ -335,6 +391,14 @@ static const scen_t g_scen[] =
                           "meets our line",
       .expect = X_ROUND, .box = { BOX(900, 60, 210, 160) }, .n_box = 1,
       .lr_err = 0.01, .junc_x = 1300.0, .junc_deg = -90.0 },
+    /* nyx, 2026-11-09, shown only: a R200 bend away from the car right
+     * where it comes back; one IR meets the line's edge, the bend takes
+     * it away before the other does, and the car can be handed over by
+     * the encoders off the line (2 of 10) */
+    { .id = "L4", .name = "LIMIT: line bends right R200 behind the box, "
+                          "car comes back from the left",
+      .expect = X_ROUND, .side = 1, .box = { BOX(900, -60, 210, 160) },
+      .n_box = 1, .turn_x = 1250.0, .turn_r = 200.0, .turn_deg = -90.0 },
 };
 
 #define N_SCEN ((int)(sizeof(g_scen) / sizeof(g_scen[0])))
@@ -495,6 +559,16 @@ static void place(const scen_t *s, double *p_bx, double *p_by,
             *p_th = a;
         }
         sim_track_straight(5000.0);
+    }
+    else if (s->turn_r > 0.0)
+    {
+        /* nyx, 2026-11-09: the line bends behind the box */
+        sim_track_straight(s->turn_x + 400.0); /* starts at -400 */
+        sim_track_arc(s->turn_r, s->turn_deg);
+        sim_track_straight(5000.0);
+        *p_bx = 0.0;
+        *p_by = 0.0;
+        *p_th = 0.0;
     }
     else if (0.0 != s->shift)
     {

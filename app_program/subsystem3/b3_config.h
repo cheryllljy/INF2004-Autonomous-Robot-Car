@@ -135,8 +135,19 @@
  * lost fewer lines but broke the junction handover tests. */
 #define B3_CURVE_FULL_CURV 1500 /* 670 mm radius */
 #endif
+/* nyx, 2026-11-09: 35 (was 30) and the inner wheel floor 19 (was 15).
+ * The car's curve log shows Buddy 2 holding a slow inner wheel once
+ * settled (16-19 mm/s within 0-6 %), but at each bend entry the inner
+ * wheel runs 9-20 % fast for the first 100 mm (its integrator still
+ * holds the straight's drive, and turning pushes the inner wheel along),
+ * so the car under-turns and the learnt curve swings. Host sim with
+ * wheel models fitted to that log and Buddy 2's speed KP 1.6
+ * (MOTION_SPEED_KP, motion_config.h): no new line losses in any wheel
+ * model, about 9 % faster round the test tracks. The tightest smooth curve
+ * stays near R120 (R122; was R112). Needs that KP: with Buddy 2's old KP
+ * 0.5 these two speeds lost more lines than 30 / 15 (go back to those). */
 #ifndef B3_CURVE_SPEED_MM_S
-#define B3_CURVE_SPEED_MM_S 30
+#define B3_CURVE_SPEED_MM_S 35
 #endif
 /* the steering moves towards what the sensors ask by at most this much
  * per mm driven, so a sensor touching the line is a nudge, not a jerk */
@@ -150,7 +161,35 @@
 /* nyx, 2026-11-07 (patch 17): 10 (was 20) */
 #define B3_STEER_ESCAPE_MM 10
 #endif
-#define B3_MIN_WHEEL_MM_S 15
+/* nyx, 2026-11-09: 19 (was 15), with B3_CURVE_SPEED_MM_S 35: the inner
+ * wheel stays further from Buddy 2's 10 mm/s kick, and the tightest
+ * smooth curve is nearly unchanged (R122, was R112). Host sim, 35 mm/s
+ * with IR spots that read black at the tape edge (-s 9): floor 15 lost
+ * 10 runs, floor 19 lost 1 (F17, lost at 30/15 too). */
+#ifndef B3_MIN_WHEEL_MM_S
+#define B3_MIN_WHEEL_MM_S 19
+#endif
+/* nyx, 2026-11-09: both IRs black in a bend. Following a bend of radius
+ * R, the tape crosses the IR pair at asin(125 / R) to the car (39 deg at
+ * R200, 25 at R300), so it spans 18 / cos of that across the pair: two
+ * point sensors 25 mm apart read both black from 44 deg, real spots that
+ * read black a few mm past the tape edge from about 16..28 deg. The car
+ * logged IRs BB at 5 of 27 curve prints and both-black runs of 52..67 mm.
+ * Both black was always a crossing (drive straight: the learnt curve
+ * faded and the nudge was dropped), so the car straightened in the bend.
+ * Host sim (test_follow -x 200,60: both IRs black for 60 mm in the bend,
+ * 7 wheel models): lines lost 109 -> 37.
+ * A crossing tape gives at most 18 mm with both black (25 mm with spots),
+ * so while a curve of B3_STEER_BB_CURV or tighter is learnt, both black
+ * keeps the learnt curve for B3_STEER_BB_CROSS_MM and, if longer, also
+ * nudges to the inside. Below that curve (straights, gentle bends) both
+ * black is still a crossing. */
+#ifndef B3_STEER_BB_CURV
+#define B3_STEER_BB_CURV B3_CURVE_FULL_CURV /* fully slowed for it */
+#endif
+#ifndef B3_STEER_BB_CROSS_MM
+#define B3_STEER_BB_CROSS_MM 30
+#endif
 /* wheel centre to wheel centre, as Buddy 2's TRACK_WIDTH_MM */
 #define B3_WHEEL_TRACK_MM 112
 /* a longer gap between two steps counts as this long */
@@ -197,7 +236,11 @@
  * came back 667 ms (20 mm at 30 mm/s) after a good decode and every scan was
  * rejected with reason 8. Once all 29 elements decoded, the only thing that
  * could follow is an inter-character gap (about 1 narrow), so 4 x narrow
- * already proves the barcode has ended. */
+ * already proves the barcode has ended.
+ * nyx, 2026-11-09: only when a '*' was spoiled (B3_NEED_BOTH_STARS 0). With
+ * both '*' read no trailing white is needed (b3_barcode.c prepare_result()):
+ * the car rejected 29/29 decodes with reason 8, IR_B black again 4 mm after
+ * the last bar at 30 mm/s (`last element 136487 us`). */
 #define B3_TRAILING_NARROW_MULTIPLE  4U
 #define B3_MIN_NARROW_ENCODER_TICKS  5U
 #define B3_MAX_ENCODER_RUN_TICKS     1000000U
