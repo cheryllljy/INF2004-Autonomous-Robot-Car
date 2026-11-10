@@ -44,6 +44,7 @@ SIM     := s5_sim.c motion_mock.c
 S5FLAGS := $(CFLAGS) -DS5_HOST -Wno-missing-field-initializers \
            -DS5_SERVO_TRIM_DDEG=0 -DS5_RANGE_OFFSET_MM=0 \
            -DS5_BEAM_NEAR_DDEG=220 -DS5_BEAM_FAR_DDEG=220 -DS5_TURN_PCT=100 \
+           -DS5_WIDTH_TRIM_MM=0 \
            -DS5_MAG_SIGN=-1 -DS5_MAG_X0=0 -DS5_MAG_Y0=0 -DS5_MAG_R=2500 \
            -DS5_MAG_USE=1
 

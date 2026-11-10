@@ -408,6 +408,20 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
         p_out->y_left = p_view->y + (dx * s5_tanf(brg_l));
         p_out->y_right = p_view->y + (dx * s5_tanf(brg_r));
     }
+    {
+        /* each edge in by half of S5_WIDTH_TRIM_MM, never past the
+         * middle */
+        const float half_trim = 0.5f * (float)S5_WIDTH_TRIM_MM;
+        const float mid = 0.5f * (p_out->y_left + p_out->y_right);
+
+        p_out->y_left -= half_trim;
+        p_out->y_right += half_trim;
+        if (p_out->y_left < mid)
+        {
+            p_out->y_left = mid;
+            p_out->y_right = mid;
+        }
+    }
     p_out->width = p_out->y_left - p_out->y_right;
 
     /* room on each side: the samples past each edge */

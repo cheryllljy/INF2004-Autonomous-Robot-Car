@@ -160,6 +160,13 @@
 /* Both sides within this of each other: pick one at random. */
 #define S5_TIE_MM (10)
 
+/* Taken off the measured width, half at each edge: the sweep read
+ * objects about 5 cm wider than they are on the track. Each pass is
+ * up to half of it closer to the object than S5_CLEARANCE_MM plans. */
+#ifndef S5_WIDTH_TRIM_MM
+#define S5_WIDTH_TRIM_MM (50)
+#endif
+
 /* the sonar hears the floor 54-71 cm out on every
  * bearing the box does not cover (2026-11-08/09 track logs; it moves
  * with the car). A side only "maybe blocked" (beam edge) by an echo at
