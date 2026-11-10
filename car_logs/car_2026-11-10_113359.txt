@@ -314,3 +314,335 @@
 11:41:24.241 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
 11:41:26.729 [VC-S5] the IRs crossed a line 126 mm from where the encoders put ours, at 48 deg to it: a junction, not our line; driving on
 11:41:27.348 [VC] junction #21 reached, letter '-', turn STRAIGHT (none)
+11:55:06.695 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+11:55:06.706 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+11:55:06.723 [VC] E-stop, fault bits 0x04
+11:55:06.753 [VC] state 0 -> 5
+11:55:06.756 [BUDDY1] FR3 monitor started
+11:55:06.774 [BUDDY1] FR3 communication unhealthy; monitoring
+11:55:06.818 [BUDDY1] FR3 communication restored
+11:55:06.824 [BUDDY1] FR3 recovery: latch=0 reason=0
+11:55:15.967 [VC] MQTT RESET received seq=112
+11:55:16.110 [VC] state 5 -> 0
+11:55:16.110 [VC] E-stop, fault bits 0x04
+11:55:16.203 [VC] state 0 -> 5
+11:55:17.953 [VC] MQTT START received seq=113
+11:55:27.584 [VC] MQTT RESET received seq=114
+11:55:27.591 [VC] state 5 -> 0
+11:55:29.429 [VC] MQTT STOP received seq=115
+11:55:29.438 [VC] state 0 -> 4
+11:55:29.464 [VC] HUMP_DONE peak side-height=13 mm (seq 1)
+11:55:31.183 [VC] MQTT STOP received seq=116
+11:55:31.189 [VC] MQTT START received seq=117
+11:55:31.212 [VC] state 4 -> 1
+11:55:31.657 [VC] MQTT RESET received seq=118
+11:55:31.663 [VC] state 1 -> 0
+11:55:31.729 [VC] MQTT START received seq=119
+11:55:31.946 [VC] state 0 -> 1
+11:55:31.949 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+11:55:38.234 [VC] MQTT STOP received seq=120
+11:55:38.321 [VC] state 1 -> 4
+11:55:43.940 [VC] HUMP_DONE peak side-height=53 mm (seq 2)
+11:55:51.717 [VC] HUMP_DONE peak side-height=31 mm (seq 3)
+11:56:14.004 [VC] MQTT RESET received seq=121
+11:56:14.070 [VC] state 4 -> 0
+11:56:16.094 [VC] MQTT START received seq=122
+11:56:16.193 [VC] state 0 -> 1
+11:56:29.779 [VC] line sensors black L 1965 / R 1968 mm, 1965 mm together, not a junction: car not driving (stopped, no motion data, stale) (needs 6 mm each at 15 mm/s)
+11:56:30.752 [VC] state 1 -> 3
+11:56:30.876 [VC-S5] object 294 mm ahead: stopping (line from the last 1000 mm, within 8 mm; car -3 deg to it)
+11:56:31.087 [VC-S5] compass: no good sample at the stop (field 72 percent of the calibration's): encoders only
+11:56:33.721 [VC-S5] pings 1-13 of 23 (deg:mm): -60:358 -54:354 -48:363 -42:304 -36:294 -30:283 -24:286 -18:281 -12:281 -6:288 0:283 6:283 12:288
+11:56:33.813 [VC-S5] pings 14-23 of 23 (deg:mm): 18:294 24:286 30:291 31:317 33:611 36:0 42:0 48:0 54:0 60:0
+11:56:33.815 [VC-S5] sweep: 23 pings, face 281 mm, echoes from -60 to 32 deg, beam 16 deg
+11:56:34.053 [VC-S5] object 350 mm wide: 62 mm left and 288 mm right of the line, right edge past the sweep, left maybe blocked
+11:56:34.068 [VC-S5] left side maybe blocked (beam edge) by an echo at 33 deg, 611 mm
+11:56:34.075 [VC-S5] an edge is outside the sweep and no side is open: backing off 150 mm to look again
+11:56:39.450 [VC-S5] pings 1-13 of 25 (deg:mm): -60:497 -54:520 -52:400 -51:391 -48:395 -42:389 -36:386 -30:368 -24:370 -18:361 -12:372 -6:368 0:358
+11:56:39.677 [VC-S5] pings 14-25 of 25 (deg:mm): 6:360 12:370 18:370 24:368 30:375 36:400 37:0 39:0 42:0 48:0 54:0 60:0
+11:56:39.677 [VC-S5] sweep: 25 pings, face 358 mm, echoes from -53 to 36 deg, beam 18 deg
+11:56:39.734 [VC-S5] object 380 mm wide: 104 mm left and 276 mm right of the line, right side blocked
+11:56:39.745 [VC-S5] right side blocked by an echo at -54 deg, 520 mm
+11:56:39.766 [VC-S5] going LEFT: axle 214 mm off the line, ramps 475 / 400 mm, back in from 160 mm past the face
+11:56:39.842 [VC] junction #1 reached, letter '-', turn STRAIGHT (none)
+11:56:44.045 [VC-S5] far corner: object 200 mm deep, its side 44 mm from the sweep's; back in from 160 mm past the face
+11:56:44.057 [VC-S5] another object ahead in the pass lane (65 mm away): stopping
+11:56:44.242 [VC] junction #2 reached, letter '-', turn STRAIGHT (none)
+11:56:46.963 [VC-S5] pings 1-13 of 23 (deg:mm): -60:365 -54:365 -48:356 -42:341 -36:338 -30:333 -24:331 -18:325 -12:325 -6:317 0:312 6:325 12:325
+11:56:47.146 [VC-S5] pings 14-23 of 23 (deg:mm): 18:344 24:349 30:349 36:356 37:0 39:0 42:0 48:0 54:0 60:0
+11:56:47.158 [VC-S5] sweep: 23 pings, face 312 mm, echoes from -60 to 36 deg, beam 18 deg
+11:56:47.431 [VC-S5] object 383 mm wide: 324 mm left and 60 mm right of the line, right edge past the sweep
+11:56:47.433 [VC-S5] an edge is outside the sweep and no side is open: backing off 150 mm to look again
+11:56:51.132 [VC-S5] nothing in front after all: back to the line from 211 mm off it
+11:56:51.518 [VC] HUMP_DONE peak side-height=44 mm (seq 4)
+11:56:51.873 [VC] junction #3 reached, letter '-', turn STRAIGHT (none)
+11:56:53.079 [VC] HUMP_DONE peak side-height=9 mm (seq 5)
+11:56:58.620 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+11:57:02.298 [VC-S5] another object ahead on the way back (296 mm away): stopping
+11:57:04.865 [VC-S5] the car is -29 deg to the line: turning on the spot to straighten first
+11:57:08.521 [VC-S5] pings 1-13 of 23 (deg:mm): -60:291 -54:291 -48:291 -42:286 -36:286 -30:286 -24:286 -18:299 -12:296 -6:296 0:320 6:351 7:0
+11:57:08.614 [VC-S5] pings 14-23 of 23 (deg:mm): 9:0 12:0 18:0 24:0 30:0 36:0 42:0 48:0 54:0 60:0
+11:57:08.616 [VC-S5] sweep: 23 pings, face 286 mm, echoes from -60 to 6 deg, beam 17 deg
+11:57:08.649 [VC-S5] object 216 mm wide: -190 mm left and 406 mm right of the line, right edge past the sweep
+11:57:08.653 [VC-S5] going LEFT: axle -80 mm off the line, ramps 204 / 245 mm, back in from -146 mm past the face
+11:57:10.472 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+11:57:10.614 [VC-S5] IRs found the line (edge), -78 mm from where the encoders put it
+11:57:10.722 [VC-S5] the IRs crossed a line -98 mm from where the encoders put ours, at -37 deg to it: a junction, not our line; driving on
+11:57:11.023 [VC] junction #4 reached, letter '-', turn STRAIGHT (none)
+11:57:12.032 [VC] HUMP_DONE peak side-height=21 mm (seq 6)
+11:57:15.107 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+11:57:15.295 [VC-S5] no black on the way back: the first line ahead is ours
+11:57:15.295 [VC] HUMP_DONE peak side-height=8 mm (seq 7)
+11:57:15.406 [VC] HUMP_DONE peak side-height=8 mm (seq 8)
+11:57:15.406 [VC] HUMP_DONE peak side-height=9 mm (seq 9)
+11:57:18.058 [VC-S5] bypass failed: the line was not found (FR24)
+11:57:18.166 [VC] E-stop, fault bits 0x40
+11:57:18.167 [VC] state 3 -> 5
+11:57:23.684 [VC] HUMP_DONE peak side-height=17 mm (seq 10)
+11:57:27.738 [VC] MQTT RESET received seq=123
+11:57:27.746 [VC] state 5 -> 0
+11:57:29.258 [VC] MQTT START received seq=124
+11:57:29.377 [VC] state 0 -> 1
+11:57:29.555 [VC] HUMP_DONE peak side-height=20 mm (seq 11)
+11:57:29.563 [VC] hump over: Buddy 3's speeds again
+11:57:30.138 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+11:57:39.042 [VC] HUMP_DONE peak side-height=21 mm (seq 12)
+11:57:39.269 [VC] hump over: Buddy 3's speeds again
+11:57:39.858 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+11:57:49.668 [VC] HUMP_DONE peak side-height=24 mm (seq 13)
+11:57:49.789 [VC] hump over: Buddy 3's speeds again
+11:57:50.014 [VC] hump (IMU): at least 80 mm/s until level again (asked L 96 R 96 mm/s)
+11:57:50.857 [VC] HUMP_DONE peak side-height=9 mm (seq 14)
+11:57:50.931 [VC] hump over: Buddy 3's speeds again
+11:57:51.055 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+11:57:52.058 [VC] state 1 -> 3
+11:57:52.378 [VC-S5] object 283 mm ahead: stopping (line from the last 1000 mm, within 3 mm; car 0 deg to it)
+11:57:52.527 [VC-S5] compass: heading taken at the stop (20 samples, field 82 percent of the calibration's); logged only (S5_MAG_USE 0)
+11:57:54.855 [VC-S5] pings 1-13 of 23 (deg:mm): -60:312 -54:299 -48:294 -42:283 -36:286 -30:289 -24:283 -18:278 -12:278 -6:286 0:286 6:286 12:291
+11:57:55.106 [VC-S5] pings 14-23 of 23 (deg:mm): 18:283 24:288 30:307 33:356 34:361 36:0 42:0 48:0 54:0 60:0
+11:57:55.110 [VC-S5] sweep: 23 pings, face 278 mm, echoes from -60 to 35 deg, beam 16 deg
+11:57:55.263 [VC-S5] object 357 mm wide: 94 mm left and 263 mm right of the line, right edge past the sweep
+11:57:55.269 [VC-S5] going LEFT: axle 204 mm off the line, ramps 387 / 391 mm, back in from 161 mm past the face
+11:57:57.697 [VC] junction #5 reached, letter '-', turn STRAIGHT (none)
+11:57:57.705 [VC] HUMP_DONE peak side-height=22 mm (seq 15)
+11:57:59.656 [VC] HUMP_DONE peak side-height=14 mm (seq 16)
+11:58:00.120 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+11:58:04.533 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+11:58:09.495 [VC] HUMP_DONE peak side-height=21 mm (seq 17)
+11:58:09.579 [VC-S5] compass: 0 deg taken out of the encoders' heading so far, now 10 deg from it (595 samples skipped)
+11:58:09.583 [VC-S5] bypass failed: the line was not found (FR24)
+11:58:09.673 [VC] E-stop, fault bits 0x40
+11:58:09.674 [VC] state 3 -> 5
+11:58:15.212 [VC] HUMP_DONE peak side-height=12 mm (seq 18)
+11:58:15.321 [VC] HUMP_DONE peak side-height=8 mm (seq 19)
+11:59:10.993 [VC] MQTT RESET received seq=125
+11:59:11.112 [VC] state 5 -> 0
+11:59:13.136 [VC] MQTT START received seq=126
+11:59:13.268 [VC] state 0 -> 1
+11:59:14.599 [VC] state 1 -> 3
+11:59:14.709 [VC-S5] object 289 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)
+11:59:15.077 [VC-S5] compass: heading taken at the stop (18 samples, field 78 percent of the calibration's); logged only (S5_MAG_USE 0)
+11:59:17.476 [VC-S5] pings 1-13 of 25 (deg:mm): -60:363 -54:574 -48:557 -46:304 -45:299 -42:299 -36:289 -30:291 -24:281 -18:289 -12:275 -6:283 0:283
+11:59:17.573 [VC-S5] pings 14-25 of 25 (deg:mm): 6:283 12:283 18:283 24:288 30:294 33:304 34:317 36:623 42:0 48:0 54:0 60:0
+11:59:17.578 [VC-S5] sweep: 25 pings, face 275 mm, echoes from -47 to 35 deg, beam 16 deg
+11:59:17.654 [VC-S5] object 256 mm wide: 95 mm left and 161 mm right of the line, left maybe blocked, right side blocked
+11:59:17.660 [VC-S5] left side maybe blocked (beam edge) by an echo at 36 deg, 623 mm
+11:59:17.687 [VC-S5] right side blocked by an echo at -60 deg, 363 mm
+11:59:17.873 [VC-S5] no side clear: going LEFT, where an echo is in the pass lane only at the edge of its beam; watching the lane
+11:59:17.875 [VC-S5] going LEFT: axle 205 mm off the line, ramps 382 / 392 mm, back in from 161 mm past the face
+11:59:20.323 [VC] junction #6 reached, letter '-', turn STRAIGHT (none)
+11:59:21.568 [VC] HUMP_DONE peak side-height=19 mm (seq 20)
+11:59:23.994 [VC-S5] far corner not fixed: back in after 316 mm of object (S5_DEPTH_DEFAULT_MM 200)
+11:59:25.170 [VC] HUMP_DONE peak side-height=12 mm (seq 21)
+11:59:25.668 [VC] HUMP_DONE peak side-height=10 mm (seq 22)
+11:59:26.548 [VC] HUMP_DONE peak side-height=11 mm (seq 23)
+11:59:27.273 [VC] HUMP_DONE peak side-height=11 mm (seq 24)
+11:59:28.103 [VC] HUMP_DONE peak side-height=8 mm (seq 25)
+11:59:28.435 [VC-S5] another object ahead on the way back (283 mm away): stopping
+11:59:31.217 [VC-S5] pings 1-13 of 25 (deg:mm): -60:289 -54:310 -48:372 -42:349 -36:349 -30:346 -24:549 -18:564 -12:354 -6:351 0:349 6:307 12:299
+11:59:31.356 [VC-S5] pings 14-25 of 25 (deg:mm): 15:289 16:296 18:76 19:296 21:283 24:286 30:82 36:73 42:283 48:289 54:286 60:286
+11:59:31.362 [VC-S5] sweep: 25 pings, face 76 mm, echoes from 17 to 18 deg, beam 12 deg
+11:59:31.484 [VC-S5] object 0 mm wide: 26 mm left and -26 mm right of the line, left side blocked, right side blocked
+11:59:31.488 [VC-S5] left side blocked by an echo at 19 deg, 296 mm
+11:59:31.512 [VC-S5] right side blocked by an echo at -12 deg, 354 mm
+11:59:31.590 [VC-S5] no room on either side from here: backing up 150 mm to look again
+11:59:34.528 [VC] HUMP_DONE peak side-height=26 mm (seq 26)
+11:59:34.948 [VC] HUMP_DONE peak side-height=9 mm (seq 27)
+11:59:35.630 [VC-S5] nothing in front after all: back to the line from 0 mm off it
+11:59:35.749 [VC-S5] both IRs black at once 0 mm from where the encoders put the line, car 0 deg to it: a line across ours (junction); driving on
+11:59:36.376 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+11:59:36.382 [VC-S5] no black on the way back: the first line ahead is ours
+11:59:41.302 [VC-S5] compass: 0 deg taken out of the encoders' heading so far, now 7 deg from it (996 samples skipped)
+11:59:41.307 [VC-S5] bypass failed: the line was not found (FR24)
+11:59:41.394 [VC] E-stop, fault bits 0x40
+11:59:41.397 [VC] state 3 -> 5
+11:59:56.391 [VC] MQTT RESET received seq=127
+11:59:56.514 [VC] state 5 -> 0
+11:59:58.434 [VC] MQTT START received seq=128
+11:59:58.549 [VC] state 0 -> 1
+11:59:59.697 [VC] state 1 -> 3
+11:59:59.792 [VC-S5] object 294 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)
+12:00:00.064 [VC-S5] compass: heading taken at the stop (19 samples, field 78 percent of the calibration's); logged only (S5_MAG_USE 0)
+12:00:02.334 [VC-S5] pings 1-13 of 23 (deg:mm): -60:325 -54:312 -48:307 -42:296 -36:294 -30:289 -24:291 -18:286 -12:281 -6:281 0:288 6:289 12:281
+12:00:02.423 [VC-S5] pings 14-23 of 23 (deg:mm): 18:286 24:291 30:304 31:0 33:0 36:0 42:0 48:0 54:0 60:0
+12:00:02.433 [VC-S5] sweep: 23 pings, face 281 mm, echoes from -60 to 30 deg, beam 16 deg
+12:00:02.488 [VC-S5] object 331 mm wide: 73 mm left and 259 mm right of the line, right edge past the sweep
+12:00:02.496 [VC-S5] going LEFT: axle 183 mm off the line, ramps 397 / 370 mm, back in from 161 mm past the face
+12:00:05.581 [VC] junction #7 reached, letter '-', turn STRAIGHT (none)
+12:00:05.834 [VC] HUMP_DONE peak side-height=28 mm (seq 28)
+12:00:06.651 [VC] HUMP_DONE peak side-height=8 mm (seq 29)
+12:00:07.734 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+12:00:11.031 [VC] HUMP_DONE peak side-height=23 mm (seq 30)
+12:00:11.968 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+12:00:15.639 [VC] HUMP_DONE peak side-height=12 mm (seq 31)
+12:00:16.696 [VC] HUMP_DONE peak side-height=8 mm (seq 32)
+12:00:16.888 [VC-S5] compass: 0 deg taken out of the encoders' heading so far, now 15 deg from it (564 samples skipped)
+12:00:17.043 [VC-S5] bypass failed: the line was not found (FR24)
+12:00:17.047 [VC] E-stop, fault bits 0x40
+12:00:17.160 [VC] state 3 -> 5
+12:00:21.443 [VC] HUMP_DONE peak side-height=13 mm (seq 33)
+12:00:22.705 [VC] MQTT RESET received seq=129
+12:00:23.032 [VC] state 5 -> 0
+12:00:23.587 [VC] HUMP_DONE peak side-height=14 mm (seq 34)
+12:00:24.762 [VC] MQTT START received seq=130
+12:00:24.847 [VC] state 0 -> 1
+12:00:24.856 [VC] HUMP_DONE peak side-height=10 mm (seq 35)
+12:00:24.928 [VC] hump over: Buddy 3's speeds again
+12:00:26.925 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+12:00:28.621 [VC] HUMP_DONE peak side-height=21 mm (seq 36)
+12:00:28.763 [VC] hump over: Buddy 3's speeds again
+12:00:28.932 [VC] hump (IMU): at least 80 mm/s until level again (asked L 99 R 99 mm/s)
+12:00:30.558 [VC] state 1 -> 3
+12:00:30.608 [VC-S5] object 289 mm ahead: stopping (line from the last 520 mm, within 3 mm; car 1 deg to it)
+12:00:30.897 [VC-S5] compass: heading taken at the stop (19 samples, field 81 percent of the calibration's); logged only (S5_MAG_USE 0)
+12:00:33.215 [VC-S5] pings 1-13 of 23 (deg:mm): -60:299 -54:299 -48:294 -42:283 -36:286 -30:288 -24:283 -18:269 -12:278 -6:281 0:286 6:286 12:278
+12:00:33.336 [VC-S5] pings 14-23 of 23 (deg:mm): 18:283 24:289 27:302 28:961 30:891 36:0 42:0 48:0 54:0 60:0
+12:00:33.339 [VC-S5] sweep: 23 pings, face 269 mm, echoes from -60 to 27 deg, beam 16 deg
+12:00:33.458 [VC-S5] object 307 mm wide: 67 mm left and 240 mm right of the line, right edge past the sweep
+12:00:33.473 [VC-S5] going LEFT: axle 177 mm off the line, ramps 382 / 364 mm, back in from 162 mm past the face
+12:00:36.730 [VC] HUMP_DONE peak side-height=21 mm (seq 37)
+12:00:37.044 [VC] junction #8 reached, letter '-', turn STRAIGHT (none)
+12:00:38.148 [VC] HUMP_DONE peak side-height=16 mm (seq 38)
+12:00:38.530 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+12:00:38.657 [VC] HUMP_DONE peak side-height=11 mm (seq 39)
+12:00:38.934 [VC] HUMP_DONE peak side-height=8 mm (seq 40)
+12:00:41.645 [VC] HUMP_DONE peak side-height=17 mm (seq 41)
+12:00:42.585 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+12:00:43.061 [VC-S5] another object ahead on the way back (44 mm away): stopping
+12:00:43.302 [VC] HUMP_DONE peak side-height=9 mm (seq 42)
+12:00:43.796 [VC] HUMP_DONE peak side-height=11 mm (seq 43)
+12:00:45.015 [VC-S5] the car is -25 deg to the line: turning on the spot to straighten first
+12:00:48.622 [VC-S5] pings 1-13 of 25 (deg:mm): -60:631 -54:699 -48:766 -42:1424 -36:1446 -30:1020 -24:1525 -18:1568 -12:1591 -6:1508 0:1676 3:0 4:0
+12:00:48.730 [VC-S5] pings 14-25 of 25 (deg:mm): 6:995 7:0 9:0 12:1770 18:1820 24:1542 30:0 36:0 42:0 48:0 54:1189 60:1229
+12:00:48.735 [VC-S5] sweep: 25 pings, face 995 mm, echoes from 5 to 6 deg, beam 18 deg
+12:00:48.805 [VC-S5] object 0 mm wide: 65 mm left and -65 mm right of the line
+12:00:48.809 [VC-S5] going RIGHT: axle -45 mm off the line, ramps 177 / 183 mm, back in from -885 mm past the face
+12:00:50.458 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+12:00:50.537 [VC-S5] both IRs black at once -42 mm from where the encoders put the line, car 1 deg to it: a line across ours (junction); driving on
+12:00:52.518 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+12:00:52.612 [VC-S5] no black on the way back: the first line ahead is ours
+12:00:57.575 [VC-S5] compass: 0 deg taken out of the encoders' heading so far, now -21 deg from it (977 samples skipped)
+12:00:57.680 [VC-S5] bypass failed: the line was not found (FR24)
+12:00:57.684 [VC] E-stop, fault bits 0x40
+12:00:57.795 [VC] state 3 -> 5
+12:01:11.450 [VC] HUMP_DONE peak side-height=36 mm (seq 44)
+12:04:37.895 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+12:04:37.903 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+12:04:37.920 [VC] E-stop, fault bits 0x04
+12:04:37.979 [VC] state 0 -> 5
+12:04:37.983 [BUDDY1] FR3 monitor started
+12:04:38.007 [BUDDY1] FR3 communication unhealthy; monitoring
+12:04:38.057 [BUDDY1] FR3 communication restored
+12:04:38.061 [BUDDY1] FR3 recovery: latch=0 reason=0
+12:04:46.232 [VC] MQTT RESET received seq=131
+12:04:46.497 [VC] state 5 -> 0
+12:04:46.509 [VC] E-stop, fault bits 0x04
+12:04:46.656 [VC] state 0 -> 5
+12:04:48.180 [VC] MQTT START received seq=132
+12:04:51.193 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+12:04:57.355 [VC] MQTT RESET received seq=133
+12:04:57.359 [VC] state 5 -> 0
+12:04:57.434 [VC] MQTT RESET received seq=134
+12:04:59.268 [VC] MQTT START received seq=135
+12:04:59.397 [VC] state 0 -> 1
+12:04:59.667 [VC] MQTT START received seq=136
+12:05:07.067 [VC] state 1 -> 3
+12:05:07.069 [VC-S5] object 288 mm ahead: stopping (line from the last 600 mm, within 2 mm; car 0 deg to it)
+12:05:07.088 [VC-S5] compass: heading taken at the stop (19 samples, field 92 percent of the calibration's); logged only (S5_MAG_USE 0)
+12:05:08.713 [VC-S5] pings 1-13 of 25 (deg:mm): -60:974 -58:310 -57:310 -54:310 -48:291 -42:294 -36:291 -30:286 -24:281 -18:275 -12:283 -6:283 0:283
+12:05:09.338 [VC-S5] pings 14-25 of 25 (deg:mm): 6:283 12:283 18:288 24:294 30:299 31:633 33:616 36:0 42:0 48:0 54:0 60:0
+12:05:09.341 [VC-S5] sweep: 25 pings, face 275 mm, echoes from -59 to 30 deg, beam 16 deg
+12:05:09.495 [VC-S5] object 322 mm wide: 73 mm left and 249 mm right of the line, left maybe blocked
+12:05:09.505 [VC-S5] left side maybe blocked (beam edge) by an echo at 31 deg, 633 mm
+12:05:09.526 [VC-S5] going LEFT anyway, the shorter way (73 / 249 mm): only a far echo (floor?) at its beam edge
+12:05:09.607 [VC-S5] going LEFT: axle 183 mm off the line, ramps 389 / 370 mm, back in from 162 mm past the face
+12:05:14.001 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+12:05:20.663 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+12:05:20.669 [VC-S5] no black on the way back: the first line ahead is ours
+12:05:22.601 [VC-S5] both IRs black at once -214 mm from where the encoders put the line, car -29 deg to it: a line across ours (junction); driving on
+12:05:22.715 [VC] junction #1 reached, letter '-', turn STRAIGHT (none)
+12:05:23.218 [VC-S5] compass: 0 deg taken out of the encoders' heading so far, now -2 deg from it (64 samples skipped)
+12:05:24.147 [VC-S5] bypass failed: the line was not found (FR24)
+12:05:24.154 [VC] E-stop, fault bits 0x40
+12:05:24.682 [VC] state 3 -> 5
+12:05:30.156 [VC] HUMP_DONE peak side-height=39 mm (seq 1)
+12:05:50.750 [VC] HUMP_DONE peak side-height=31 mm (seq 2)
+12:05:53.852 [VC] HUMP_DONE peak side-height=11 mm (seq 3)
+12:05:59.002 [VC] HUMP_DONE peak side-height=23 mm (seq 4)
+12:06:02.956 [VC] HUMP_DONE peak side-height=27 mm (seq 5)
+12:06:06.859 [VC] HUMP_DONE peak side-height=46 mm (seq 6)
+12:06:13.201 [VC] HUMP_DONE peak side-height=27 mm (seq 7)
+12:06:14.043 [VC] HUMP_DONE peak side-height=8 mm (seq 8)
+12:06:16.702 [VC] HUMP_DONE peak side-height=43 mm (seq 9)
+12:06:18.621 [VC] HUMP_DONE peak side-height=8 mm (seq 10)
+12:06:20.990 [VC] HUMP_DONE peak side-height=22 mm (seq 11)
+12:06:24.692 [VC] HUMP_DONE peak side-height=47 mm (seq 12)
+12:06:30.074 [VC] HUMP_DONE peak side-height=53 mm (seq 13)
+12:06:38.091 [VC] HUMP_DONE peak side-height=50 mm (seq 14)
+12:06:48.001 [VC] MQTT RESET received seq=137
+12:06:48.081 [VC] state 5 -> 0
+12:06:50.109 [VC] MQTT START received seq=138
+12:06:50.465 [VC] state 0 -> 1
+12:06:53.028 [VC] state 1 -> 3
+12:06:53.182 [VC-S5] object 289 mm ahead: stopping (line from the last 240 mm, within 2 mm; car 0 deg to it)
+12:06:53.443 [VC-S5] compass: heading taken at the stop (19 samples, field 87 percent of the calibration's); logged only (S5_MAG_USE 0)
+12:06:55.984 [VC-S5] pings 1-13 of 25 (deg:mm): -60:896 -54:1764 -48:1769 -42:1843 -36:590 -34:288 -33:283 -30:296 -24:286 -18:281 -12:288 -6:275 0:275
+12:06:56.287 [VC-S5] pings 14-25 of 25 (deg:mm): 6:275 12:275 18:275 24:281 30:281 36:291 37:1725 39:1670 42:1423 48:1422 54:1422 60:1422
+12:06:56.291 [VC-S5] sweep: 25 pings, face 275 mm, echoes from -35 to 36 deg, beam 16 deg
+12:06:56.345 [VC-S5] object 194 mm wide: 106 mm left and 89 mm right of the line, right maybe blocked
+12:06:56.349 [VC-S5] right side maybe blocked (beam edge) by an echo at -36 deg, 590 mm
+12:06:56.370 [VC-S5] going RIGHT anyway, the shorter way (106 / 89 mm): only a far echo (floor?) at its beam edge
+12:06:56.441 [VC-S5] going RIGHT: axle -199 mm off the line, ramps 384 / 386 mm, back in from 161 mm past the face
+12:07:01.441 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+12:07:03.563 [VC] HUMP_DONE peak side-height=8 mm (seq 15)
+12:07:05.851 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+12:07:05.915 [VC-S5] no black on the way back: the first line ahead is ours
+12:07:10.949 [VC-S5] compass: 0 deg taken out of the encoders' heading so far, now -7 deg from it (517 samples skipped)
+12:07:10.952 [VC-S5] bypass failed: the line was not found (FR24)
+12:07:10.988 [VC] E-stop, fault bits 0x40
+12:07:11.033 [VC] state 3 -> 5
+12:07:22.527 [VC] HUMP_DONE peak side-height=35 mm (seq 16)
+12:07:24.751 [VC] HUMP_DONE peak side-height=18 mm (seq 17)
+12:07:33.770 [VC] HUMP_DONE peak side-height=23 mm (seq 18)
+12:07:34.831 [VC] HUMP_DONE peak side-height=8 mm (seq 19)
+12:07:37.663 [VC] HUMP_DONE peak side-height=10 mm (seq 20)
+12:07:37.667 [VC] HUMP_DONE peak side-height=8 mm (seq 21)
+12:07:40.734 [VC] HUMP_DONE peak side-height=9 mm (seq 22)
+12:07:49.965 [VC] HUMP_DONE peak side-height=27 mm (seq 23)
+12:07:52.530 [VC] HUMP_DONE peak side-height=9 mm (seq 24)
+12:07:54.590 [VC] HUMP_DONE peak side-height=15 mm (seq 25)
+12:08:05.504 [VC] HUMP_DONE peak side-height=30 mm (seq 26)
+12:08:06.482 [VC] HUMP_DONE peak side-height=9 mm (seq 27)
+12:08:07.082 [VC] HUMP_DONE peak side-height=8 mm (seq 28)
+12:08:11.562 [VC] HUMP_DONE peak side-height=19 mm (seq 29)
+12:08:12.578 [VC] HUMP_DONE peak side-height=10 mm (seq 30)
+12:08:12.749 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+12:08:13.526 [VC] HUMP_DONE peak side-height=8 mm (seq 31)
+12:08:27.565 [VC] HUMP_DONE peak side-height=32 mm (seq 32)
+12:08:29.224 [VC] HUMP_DONE peak side-height=8 mm (seq 33)
+12:08:38.086 [VC] HUMP_DONE peak side-height=8 mm (seq 34)
+12:08:41.865 [VC] HUMP_DONE peak side-height=12 mm (seq 35)
+12:08:42.474 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+12:18:19.839 [VC] HUMP_DONE peak side-height=14 mm (seq 36)
+12:18:29.243 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+12:18:47.189 [VC] HUMP_DONE peak side-height=8 mm (seq 37)

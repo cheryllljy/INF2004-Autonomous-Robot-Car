@@ -1,0 +1,173 @@
+13:14:43.147 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+13:14:43.150 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+13:14:43.163 [VC] E-stop, fault bits 0x04
+13:14:43.176 [VC] state 0 -> 5
+13:14:43.191 [BUDDY1] FR3 monitor started
+13:14:45.914 [VC] MQTT RESET received seq=246
+13:14:46.011 [VC] state 5 -> 0
+13:14:47.943 [VC] MQTT START received seq=247
+13:14:48.028 [VC] state 0 -> 1
+13:14:48.037 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+13:14:53.404 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+13:14:53.404 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+13:14:53.422 [VC] E-stop, fault bits 0x04
+13:14:53.422 [VC] state 0 -> 5
+13:14:53.451 [BUDDY1] FR3 monitor started
+13:14:53.468 [BUDDY1] FR3 communication unhealthy; monitoring
+13:14:53.499 [BUDDY1] FR3 communication restored
+13:14:53.499 [BUDDY1] FR3 recovery: latch=0 reason=0
+13:14:54.320 [VC] HUMP_DONE peak side-height=9 mm (seq 1)
+13:15:36.403 [VC] HUMP_DONE peak side-height=93 mm (seq 2)
+13:15:36.793 [VC] HUMP_DONE peak side-height=8 mm (seq 3)
+13:15:37.175 [VC] HUMP_DONE peak side-height=8 mm (seq 4)
+13:15:37.476 [VC] HUMP_DONE peak side-height=10 mm (seq 5)
+13:15:42.657 [VC] HUMP_DONE peak side-height=32 mm (seq 6)
+13:15:43.396 [VC] HUMP_DONE peak side-height=11 mm (seq 7)
+13:15:44.291 [VC] HUMP_DONE peak side-height=12 mm (seq 8)
+13:15:46.096 [VC] HUMP_DONE peak side-height=12 mm (seq 9)
+13:15:46.863 [VC] HUMP_DONE peak side-height=8 mm (seq 10)
+13:15:46.896 [VC] MQTT RESET received seq=248
+13:15:46.961 [VC] state 5 -> 0
+13:15:47.854 [VC] HUMP_DONE peak side-height=16 mm (seq 11)
+13:15:48.902 [VC] MQTT START received seq=249
+13:15:48.961 [VC] state 0 -> 1
+13:15:48.961 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+13:15:49.368 [VC] HUMP_DONE peak side-height=13 mm (seq 12)
+13:15:49.426 [VC] hump over: Buddy 3's speeds again
+13:15:50.442 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+13:15:54.593 [VC] HUMP_DONE peak side-height=26 mm (seq 13)
+13:15:54.659 [VC] hump over: Buddy 3's speeds again
+13:15:55.042 [VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)
+13:15:55.168 [VC] state 1 -> 3
+13:15:55.264 [VC-S5] object 283 mm ahead: stopping (line from the last 600 mm, within 3 mm; car 0 deg to it)
+13:15:55.264 [VC] HUMP_DONE peak side-height=9 mm (seq 14)
+13:15:55.519 [VC-S5] compass: no good sample at the stop (field 56 percent of the calibration's): encoders only
+13:16:06.901 [VC] HUMP_DONE peak side-height=27 mm (seq 15)
+13:16:06.901 [VC-S5] pings 1-13 of 25 (deg:mm): -60:554 -54:602 -48:0 -42:0 -36:0 -30:0 -24:0 -18:0 -12:0 -6:0 0:0 3:0 4:0
+13:16:06.920 [VC-S5] pings 14-25 of 25 (deg:mm): 6:634 12:593 18:556 24:557 25:972 27:1223 30:1036 36:0 42:881 48:802 54:1119 60:1052
+13:16:06.937 [VC-S5] sweep: 25 pings, face 556 mm, echoes from 5 to 24 deg, beam 18 deg
+13:16:06.947 [VC-S5] object 0 mm wide: 152 mm left and -152 mm right of the line
+13:16:06.947 [VC-S5] going RIGHT: axle 1 mm off the line, ramps 40 / 40 mm, back in from -565 mm past the face
+13:16:06.969 [VC] MQTT STOP received seq=250
+13:16:06.979 [VC-S5] bypass stopped by the VehicleController
+13:16:06.995 [VC] state 3 -> 4
+13:16:07.026 [VC] MQTT STOP received seq=251
+13:16:07.026 [VC] MQTT RESET received seq=252
+13:16:07.042 [VC] state 4 -> 0
+13:16:07.243 [VC] MQTT START received seq=253
+13:16:07.245 [VC] state 0 -> 1
+13:16:07.262 [BUDDY1] FR3 communication unhealthy; monitoring
+13:16:07.302 [BUDDY1] FR3 LINK_LOST latched, reason=2, rssi -67 dBm, last broker answer 10059 ms ago
+13:16:07.302 [BUDDY1] FR3 VehicleController STOP REQUIRED
+13:16:07.308 [VC] link lost while driving: MQTT broker not answering (10 s); once it is back, robot.ps1 go
+13:16:07.536 [VC] E-stop, fault bits 0x10
+13:16:07.536 [VC] state 1 -> 5
+13:16:07.547 [VC] line sensors black L 1953 / R 1953 mm, 1953 mm together, not a junction: car not driving (stopped, no motion data, stale) (needs 6 mm each at 15 mm/s)
+13:16:07.611 [BUDDY1] FR3 communication restored
+13:16:07.627 [BUDDY1] FR3 recovery: latch=1 reason=2
+13:16:12.863 [VC] MQTT RESET requested for FR3 safety latch
+13:16:12.865 [BUDDY1] FR3 controller reset accepted
+13:16:12.929 [VC] Communication reset complete
+13:16:12.931 [VC] state 5 -> 0
+13:16:14.918 [VC] MQTT START received seq=255
+13:16:14.975 [VC] state 0 -> 1
+13:16:19.679 [VC] state 1 -> 3
+13:16:19.744 [VC-S5] object 291 mm ahead: stopping (line from the last 440 mm, within 0 mm; car 0 deg to it)
+13:16:20.020 [VC-S5] compass: no good sample at the stop (field 72 percent of the calibration's): encoders only
+13:16:22.723 [VC-S5] pings 1-13 of 25 (deg:mm): -60:0 -54:0 -51:0 -49:302 -48:302 -42:291 -36:288 -30:283 -24:278 -18:280 -12:272 -6:280 0:280
+13:16:22.803 [VC-S5] pings 14-25 of 25 (deg:mm): 6:280 12:280 18:286 24:291 30:296 33:354 34:1100 36:604 42:1087 48:1080 54:1076 60:1079
+13:16:22.803 [VC-S5] sweep: 25 pings, face 272 mm, echoes from -50 to 33 deg, beam 16 deg
+13:16:22.884 [VC-S5] object 217 mm wide: 64 mm left and 153 mm right of the line, left maybe blocked
+13:16:22.885 [VC-S5] left side maybe blocked (beam edge) by an echo at 36 deg, 604 mm
+13:16:22.892 [VC-S5] going LEFT anyway, the shorter way (64 / 153 mm): only a far echo (floor?) at its beam edge
+13:16:22.959 [VC-S5] going LEFT: axle 174 mm off the line, ramps 387 / 361 mm, back in from 162 mm past the face
+13:16:28.040 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+13:16:32.121 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+13:16:32.202 [VC-S5] no black on the way back: the first line ahead is ours
+13:16:37.184 [VC-S5] bypass failed: the line was not found (FR24)
+13:16:37.312 [VC] E-stop, fault bits 0x40
+13:16:37.312 [VC] state 3 -> 5
+13:16:39.902 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+13:16:44.470 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+13:16:46.867 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+13:16:58.047 [VC] MQTT RESET received seq=0
+13:16:58.106 [VC] state 5 -> 0
+13:17:00.037 [VC] MQTT START received seq=1
+13:17:00.146 [VC] state 0 -> 1
+13:17:01.682 [VC] state 1 -> 3
+13:17:01.747 [VC-S5] object 294 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)
+13:17:02.041 [VC-S5] compass: heading taken at the stop (16 samples, field 77 percent of the calibration's); logged only (S5_MAG_USE 0)
+13:17:04.670 [VC-S5] pings 1-13 of 25 (deg:mm): -60:1528 -54:1529 -52:1533 -51:309 -48:309 -42:299 -36:283 -30:291 -24:280 -18:280 -12:288 -6:275 0:275
+13:17:04.749 [VC-S5] pings 14-25 of 25 (deg:mm): 6:283 12:288 18:288 24:294 30:312 31:317 33:1117 36:1130 42:1177 48:1127 54:1040 60:1103
+13:17:04.751 [VC-S5] sweep: 25 pings, face 275 mm, echoes from -51 to 32 deg, beam 16 deg
+13:17:04.835 [VC-S5] object 221 mm wide: 53 mm left and 168 mm right of the line
+13:17:04.843 [VC-S5] going LEFT: axle 163 mm off the line, ramps 376 / 350 mm, back in from 163 mm past the face
+13:17:09.876 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+13:17:13.854 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+13:17:13.934 [VC-S5] no black on the way back: the first line ahead is ours
+13:17:18.842 [VC-S5] compass: 0 deg taken out of the encoders' heading so far, now -5 deg from it (219 samples skipped)
+13:17:18.922 [VC-S5] bypass failed: the line was not found (FR24)
+13:17:18.922 [VC] E-stop, fault bits 0x40
+13:17:19.001 [VC] state 3 -> 5
+13:17:31.512 [VC] HUMP_DONE peak side-height=28 mm (seq 16)
+13:17:42.632 [VC] HUMP_DONE peak side-height=62 mm (seq 17)
+13:17:45.621 [VC] HUMP_DONE peak side-height=14 mm (seq 18)
+13:17:46.484 [VC] HUMP_DONE peak side-height=10 mm (seq 19)
+13:17:53.297 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+13:18:21.161 [VC] MQTT RESET received seq=2
+13:18:21.268 [VC] state 5 -> 0
+13:18:23.167 [VC] MQTT START received seq=3
+13:18:23.209 [VC] state 0 -> 1
+13:18:24.562 [VC] state 1 -> 3
+13:18:24.609 [VC-S5] object 294 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)
+13:18:24.911 [VC-S5] compass: no good sample at the stop (field 67 percent of the calibration's): encoders only
+13:18:27.605 [VC-S5] pings 1-13 of 25 (deg:mm): -60:0 -54:0 -52:0 -51:304 -48:299 -42:296 -36:286 -30:281 -24:288 -18:283 -12:283 -6:283 0:283
+13:18:27.701 [VC-S5] pings 14-25 of 25 (deg:mm): 6:283 12:288 18:302 19:610 21:641 24:628 30:1757 36:1175 42:1262 48:1251 54:1165 60:1164
+13:18:27.701 [VC-S5] sweep: 25 pings, face 281 mm, echoes from -51 to 18 deg, beam 16 deg
+13:18:27.811 [VC-S5] object 155 mm wide: -15 mm left and 170 mm right of the line, left maybe blocked
+13:18:27.811 [VC-S5] left side maybe blocked (beam edge) by an echo at 19 deg, 610 mm
+13:18:27.827 [VC-S5] going LEFT anyway, the shorter way (-15 / 170 mm): only a far echo (floor?) at its beam edge
+13:18:27.879 [VC-S5] going LEFT: axle 95 mm off the line, ramps 287 / 268 mm, back in from 167 mm past the face
+13:18:32.186 [VC-S5] another object ahead in the pass lane (26 mm away): stopping
+13:18:34.497 [VC-S5] pings 1-13 of 23 (deg:mm): -60:44 -54:26 -48:29 -42:23 -36:32 -30:26 -24:20 -18:20 -12:26 -6:35 0:71 1:62 3:1243
+13:18:34.507 [VC-S5] pings 14-23 of 23 (deg:mm): 6:1347 12:1240 18:1248 24:1648 30:1577 36:911 42:897 48:896 54:896 60:1177
+13:18:34.520 [VC-S5] sweep: 23 pings, face 20 mm, echoes from -60 to 2 deg, beam 12 deg
+13:18:34.576 [VC-S5] object 0 mm wide: 79 mm left and -79 mm right of the line, right edge past the sweep
+13:18:34.585 [VC-S5] going LEFT: axle 189 mm off the line, ramps 242 / 377 mm, back in from 161 mm past the face
+13:18:34.592 [VC-S5] no room to turn out even on the spot: backing up 154 mm first
+13:18:40.324 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+13:18:44.679 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+13:18:44.767 [VC-S5] no black on the way back: the first line ahead is ours
+13:18:51.177 [VC-S5] bypass failed: the line was not found (FR24)
+13:18:51.257 [VC] E-stop, fault bits 0x40
+13:18:51.257 [VC] state 3 -> 5
+13:18:59.558 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+13:19:14.102 [VC] MQTT RESET received seq=4
+13:19:14.102 [VC] state 5 -> 0
+13:19:16.636 [VC] MQTT START received seq=5
+13:19:16.719 [VC] state 0 -> 1
+13:19:17.544 [VC] state 1 -> 3
+13:19:17.646 [VC-S5] object 291 mm ahead: stopping (line from the last 180 mm, within 1 mm; car 0 deg to it)
+13:19:17.808 [VC-S5] compass: no good sample at the stop (field 69 percent of the calibration's): encoders only
+13:19:20.364 [VC-S5] pings 1-13 of 25 (deg:mm): -60:0 -58:307 -57:302 -54:294 -48:291 -42:280 -36:275 -30:278 -24:278 -18:272 -12:272 -6:272 0:281
+13:19:20.366 [VC-S5] pings 14-25 of 25 (deg:mm): 6:286 12:291 18:283 19:591 21:1729 24:1738 30:1728 36:1159 42:1149 48:1166 54:1149 60:1214
+13:19:20.383 [VC-S5] sweep: 25 pings, face 272 mm, echoes from -59 to 18 deg, beam 16 deg
+13:19:20.424 [VC-S5] object 212 mm wide: -10 mm left and 222 mm right of the line, left maybe blocked
+13:19:20.434 [VC-S5] left side maybe blocked (beam edge) by an echo at 19 deg, 591 mm
+13:19:20.440 [VC-S5] going LEFT anyway, the shorter way (-10 / 222 mm): only a far echo (floor?) at its beam edge
+13:19:20.549 [VC-S5] going LEFT: axle 100 mm off the line, ramps 294 / 274 mm, back in from 167 mm past the face
+13:19:25.533 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+13:19:28.442 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+13:19:28.530 [VC-S5] no black on the way back: the first line ahead is ours
+13:19:33.048 [VC] MQTT STOP received seq=6
+13:19:33.075 [VC-S5] bypass stopped by the VehicleController
+13:19:33.077 [VC] state 3 -> 4
+13:19:33.367 [VC] MQTT STOP received seq=7
+13:19:39.790 [VC] HUMP_DONE peak side-height=34 mm (seq 20)
+13:19:41.020 [VC] HUMP_DONE peak side-height=9 mm (seq 21)
+13:19:43.065 [VC] HUMP_DONE peak side-height=15 mm (seq 22)
+13:19:54.376 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+13:20:00.723 [VC] HUMP_DONE peak side-height=29 mm (seq 23)
+13:20:03.133 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+13:20:06.759 [VC] HUMP_DONE peak side-height=21 mm (seq 24)
+13:20:09.737 [VC] HUMP_DONE peak side-height=10 mm (seq 25)

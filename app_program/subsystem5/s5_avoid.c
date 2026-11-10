@@ -1363,7 +1363,43 @@ static s5_pick_t s5_pick(void)
                            !p->b_left_maybe &&
                            (p->block_r_mm >= (uint16_t)S5_FLOOR_MIN_MM) &&
                            ((ext_l - ext_r) > (float)S5_TIE_MM);
+    /* the same when the other edge is past the sweep (the box heard to
+     * the sweep's end reaches at least that far round): no side counted
+     * open, so the car backed off to look again from further away, where
+     * the floor still blocked the short side. Only with the object's face
+     * nearer than such echoes (else the "object" may be walls, C11). */
+    const bool b_none =
+        ((S5_PICK_RESCAN == pick) || (S5_PICK_BLOCKED == pick)) &&
+        (p->face_mm < (uint16_t)S5_FLOOR_MIN_MM);
+    const bool b_l_past = b_first && b_none && p->b_left_seen &&
+                          !p->b_right_seen && p->b_left_maybe &&
+                          !p->b_left_blocked &&
+                          (p->block_l_mm >= (uint16_t)S5_FLOOR_MIN_MM) &&
+                          ((ext_r - ext_l) > (float)S5_TIE_MM);
+    const bool b_r_past = b_first && b_none && p->b_right_seen &&
+                          !p->b_left_seen && p->b_right_maybe &&
+                          !p->b_right_blocked &&
+                          (p->block_r_mm >= (uint16_t)S5_FLOOR_MIN_MM) &&
+                          ((ext_l - ext_r) > (float)S5_TIE_MM);
 
+    if (b_l_past || b_r_past)
+    {
+        const s5_pick_t shorter = s5_pick_sides(false);
+
+        if (((S5_PICK_LEFT == shorter) && b_l_past) ||
+            ((S5_PICK_RIGHT == shorter) && b_r_past))
+        {
+            const bool b_left = (S5_PICK_LEFT == shorter);
+
+            S5_LOG("[VC-S5] going %s anyway, the shorter way (%d / at least "
+                   "%d mm): the other edge is past the sweep, only a far "
+                   "echo (floor?) at this side's beam edge\n",
+                   b_left ? "LEFT" : "RIGHT",
+                   (int)s5_mm(b_left ? ext_l : ext_r),
+                   (int)s5_mm(b_left ? ext_r : ext_l));
+            pick = shorter;
+        }
+    }
     if (b_l_short || b_r_short)
     {
         const s5_pick_t shorter = s5_pick_sides(false);
