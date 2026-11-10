@@ -1,7 +1,7 @@
 /*
  *      s5_config.h
  *      Subsystem 5 (ultrasonic + servo obstacle avoidance), rewritten from
- *      scratch by nyx on 2026-11-07. Every pin, size and tuning number of
+ *      scratch on 2026-11-07. Every pin, size and tuning number of
  *      subsystem 5 lives here; a wiring or tuning change never needs a .c
  *      edit. The values marked CALIBRATE come from the calibration build
  *      (S5_CAL_BUILD, testing/subsystem5/CALIBRATION.md).
@@ -42,9 +42,9 @@
 /* ---------------------------------------------------------------------
  *  Car geometry, mm, from the middle of the wheel axle
  * --------------------------------------------------------------------- */
-#define S5_SONAR_AHEAD_MM    (70)  /* sensor face (nyx, 2026-11-07) */
-#define S5_IR_AHEAD_MM       (125) /* IR_L / IR_R pair (nyx, 2026-11-06) */
-/* nyx, 2026-11-09: 25 mm apart, measured (was 15, a guess) */
+#define S5_SONAR_AHEAD_MM    (70)  /* sensor face */
+#define S5_IR_AHEAD_MM       (125) /* IR_L / IR_R pair */
+/* 25 mm apart, measured (was 15, a guess) */
 #define S5_IR_HALF_GAP_MM    (12.5f) /* each IR this far off the centre */
 #define S5_LINE_HALF_MM      (9)   /* 18 mm tape */
 #define S5_CAR_FRONT_MM      (135) /* front of the car */
@@ -61,8 +61,10 @@
 #define S5_SERVO_INVERT (0)
 #endif
 /* CALIBRATE step 1: added to every angle so 0 really is straight ahead.
- * nyx, 2026-11-08: -52 (run 1: box middle 5.2 deg right; run 2 with -52:
- * the box-only echoes and the range profile are centred). */
+ * -52 (run 1: box middle 5.2 deg right; run 2 with -52:
+ * the box-only echoes and the range profile are centred). Run 3 with
+ * -52 read the box 4.5 deg right at 300 mm but ~1 deg at 200 mm, and
+ * track runs with a known box place it within ~3 deg: kept. */
 #ifndef S5_SERVO_TRIM_DDEG
 #define S5_SERVO_TRIM_DDEG (-52)
 #endif
@@ -84,10 +86,11 @@
 #define S5_ECHO_READ_MS (12)
 #define S5_AIR_TEMP_C   (25)
 /* CALIBRATE step 2: added to every range.
- * nyx, 2026-11-08: 0. Run 1 read 11 mm short, run 2 up to 15 mm long;
- * all eight placements average about +3 mm. */
+ * -14: run 3 read the box at 200 mm as 214-215 mm over 20 pings, and
+ * its sweeps at 300 mm read the face 8-16 mm long. (Run 1 read 11 mm
+ * short, run 2 up to 15 mm long.) */
 #ifndef S5_RANGE_OFFSET_MM
-#define S5_RANGE_OFFSET_MM (0)
+#define S5_RANGE_OFFSET_MM (-14)
 #endif
 #define S5_RANGE_MIN_MM (20)   /* closer reads as 20 */
 #define S5_RANGE_MAX_MM (2000) /* further counts as nothing there */
@@ -98,7 +101,7 @@
 /* ---------------------------------------------------------------------
  *  Detection while line following (FR21: within 300 mm)
  * --------------------------------------------------------------------- */
-#define S5_DETECT_MM      (300) /* nyx, 2026-11-07: 30 cm */
+#define S5_DETECT_MM      (300) /* 30 cm */
 #define S5_DETECT_CONFIRM (2U)  /* pings in a row at or under it */
 #define S5_STALE_MS       (250) /* NFR12: an older range is unknown */
 /* FR25: driving with no new ping for this long is a sensor fault */
@@ -117,12 +120,12 @@
 /* a return this far behind the face is something else, not the object */
 #define S5_EDGE_DEPTH_MM (120)
 /* closer than this, the edges may be outside the sweep: back off first.
- * nyx, 2026-11-09: no longer used (the car sweeps from where it stopped,
+ * no longer used (the car sweeps from where it stopped,
  * however close; it backs up only when no way round is open) */
 #define S5_SCAN_MIN_MM  (150)
 #define S5_SCAN_DIST_MM (250) /* ... to here */
 /* an edge outside the sweep: back off this much more and scan again.
- * nyx, 2026-11-09: only when neither side is open (no edge seen on an
+ * only when neither side is open (no edge seen on an
  * open side), and when no way round is open at all */
 #define S5_RESCAN_BACK_MM  (150)
 #define S5_MAX_RESCANS     (2U)
@@ -133,14 +136,23 @@
  * datasheet says 7.5 deg; a flat box face answers ~22 deg off-axis).
  * Measured with the box at two distances; in between it is interpolated,
  * outside it is held. */
-/* nyx, 2026-11-08: two calibration runs gave NEAR 30 and -24, FAR 257
+/* two calibration runs gave NEAR 30 and -24, FAR 257
  * and 244. On the track (face 277..283 mm) 235 reads the 21 cm face as
- * 210 mm and the 16 cm face as 185 mm; 155 read them 355 and 345. */
+ * 210 mm and the 16 cm face as 185 mm; 155 read them 355 and 345.
+ * 0 -> 120: run 3 heard the corners 8-13 deg past at 200 mm, and track
+ * sweeps of a box placed off the line need ~19 deg at 260-280 mm, where
+ * 0 gave 12. */
 #ifndef S5_BEAM_NEAR_DDEG
-#define S5_BEAM_NEAR_DDEG (0)
+#define S5_BEAM_NEAR_DDEG (120)
 #endif
+/* 235 -> 180: at face 292 mm, 235 read the 21 cm box (middle ~4 cm right
+ * of the line) as 41 mm left / 148 mm right, 189 mm wide; its left edge
+ * was ~65 mm left, so the car clipped it. 180 puts that edge at ~65 mm
+ * and reads the box ~40 mm wider than it is, on the safe side.
+ * Run 3 printed 284 (a centred box heard 22-33 deg past its corners),
+ * but a box off the line is heard only ~19 deg past them: kept 180. */
 #ifndef S5_BEAM_FAR_DDEG
-#define S5_BEAM_FAR_DDEG (235)
+#define S5_BEAM_FAR_DDEG (180)
 #endif
 #define S5_BEAM_NEAR_MM (200)
 #define S5_BEAM_FAR_MM  (300)
@@ -148,7 +160,7 @@
 /* Both sides within this of each other: pick one at random. */
 #define S5_TIE_MM (10)
 
-/* nyx, 2026-11-09: the sonar hears the floor 54-71 cm out on every
+/* the sonar hears the floor 54-71 cm out on every
  * bearing the box does not cover (2026-11-08/09 track logs; it moves
  * with the car). A side only "maybe blocked" (beam edge) by an echo at
  * least this far is still taken at the first object when it is the
@@ -167,18 +179,18 @@
 #define S5_MAX_OFFSET_MM   (400) /* never further from the line than this */
 #define S5_MAX_HEADING_DEG (40)  /* steepest point of a ramp */
 #define S5_MIN_RADIUS_MM   (150) /* tightest point of a ramp */
-/* nyx, 2026-11-08: no room for that ramp out (the car stops 30 cm from
+/* no room for that ramp out (the car stops 30 cm from
  * the object): a steeper one, down to this, before backing up at all */
 #define S5_STEEP_HEADING_DEG (60)
 #define S5_STEEP_RADIUS_MM   (110)
-/* nyx, 2026-11-09: no backing up for room to turn out. Too close for the
+/* no backing up for room to turn out. Too close for the
  * steep ramp: turn on the spot towards the side, by as little as clears
  * the object (from S5_OUT_PIVOT_MIN_DEG up to 90 deg, in steps of
  * S5_OUT_PIVOT_STEP_DEG), drive straight out to the pass, turn back on
  * the spot. The car backs up only when not even that is open. */
 #define S5_OUT_PIVOT_MIN_DEG  (45)
 #define S5_OUT_PIVOT_STEP_DEG (15)
-/* nyx, 2026-11-08: the ramp back in, sharper than the ramp out (less for
+/* the ramp back in, sharper than the ramp out (less for
  * the encoders to drift over; the IRs pick the line up) */
 #ifndef S5_IN_HEADING_DEG
 #define S5_IN_HEADING_DEG (50)
@@ -200,8 +212,10 @@
 /* the deepest the far corner may be: one object, or two close together */
 #define S5_DEPTH_MAX_MM (1000)
 
-#define S5_SPEED_MM_S         (100) /* along the bypass */
-#define S5_SLOW_MM_S          (60)  /* settling onto the line */
+/* 100 -> 110 and 60 -> 80 (2026-11-09, faster bypass). In the bypass
+ * sim 120 already put the car within 1 mm of a box turned 15 deg (C22) */
+#define S5_SPEED_MM_S         (110) /* along the bypass */
+#define S5_SLOW_MM_S          (80)  /* settling onto the line */
 #define S5_REVERSE_SPEED_MM_S (60)
 #define S5_REVERSE_MAX_MM     (500) /* never back up further, in total */
 /* Buddy 2 gives a wheel no drive at 5 mm/s or less and kicks one under
@@ -214,10 +228,10 @@
 #define S5_MAX_CURV_PPM  (10000) /* tightest command, 1e6 / radius mm */
 
 /* CALIBRATE step 4: how far the car really turns for 100 deg of encoder
- * turn (wheels slip and scrub). nyx's junction pivots measured 1/1.3 ..
+ * turn (wheels slip and scrub). Junction pivots measured 1/1.3 ..
  * 1/1.6 (63..77); the smooth bypass arcs slip less. Used both to dead
  * reckon and to steer. */
-/* nyx, 2026-11-08: the 40 cm left circle ended ~10 deg past the tape
+/* the 40 cm left circle ended ~10 deg past the tape
  * (370 for 360 by encoder): 100 x 370 / 360. Second circle (step 4 with
  * the compass) stopped short, 355 deg by the compass: 103 x 355 / 360. */
 #ifndef S5_TURN_PCT
@@ -240,30 +254,30 @@
 /* coming back, an IR seeing black further than this from where the line
  * should be is another lane's line, not ours */
 #define S5_LINE_WINDOW_MM (100)
-/* nyx, 2026-11-08: ... and the pick-up (both IRs crossing it) this far.
+/* ... and the pick-up (both IRs crossing it) this far.
  * On the track the encoders put the line 7-12 cm off on the way back;
  * S5_CAP_LINE_DEG keeps a junction's branch near it out */
 #define S5_CAP_WINDOW_MM (150)
-/* nyx, 2026-11-08: a line the IRs cross more than this off the direction
+/* a line the IRs cross more than this off the direction
  * of ours (from where each IR met it, in the encoders' frame) is a
  * junction's branch, not ours. The encoders drift a few degrees on the
- * way round. nyx, 2026-11-09: 20 -> 30, a bend behind the box runs 24 deg
+ * way round. 20 -> 30, a bend behind the box runs 24 deg
  * off 80 mm into a R200 (host tests C61..C67, L3, L4); a branch at 45 deg
  * still stays out (C56) */
 #ifndef S5_CAP_LINE_DEG
 #define S5_CAP_LINE_DEG (30)
 #endif
 /* ... and both IRs black at once is our line only with the car crossing
- * at least this steeply (nyx, 2026-11-09: 25 mm between the IRs, 18 mm
+ * at least this steeply (25 mm between the IRs, 18 mm
  * tape: 44 deg, less the drift; was 45 for 30 mm); less steep, a line
  * across ours */
 #define S5_CAP_BOTH_DEG (36)
 /* line not met at the end of the ramp: carry on at this angle ... */
-/* nyx, 2026-11-08: 12 -> 30. On the track the car ended 5 cm beside the
+/* 12 -> 30. On the track the car ended 5 cm beside the
  * line with the encoders some degrees off; at 12 deg it never got there */
 #define S5_SEEK_DEG    (30)
 #define S5_SEEK_MAX_MM (400) /* ... this far (FR24: within 500 mm) */
-/* nyx, 2026-11-08: nothing black on the way back: looking on, the first
+/* nothing black on the way back: looking on, the first
  * IR black this near where the line should be is our line */
 #define S5_SEEK_WINDOW_MM (300)
 /* settled: IR pair centred on the line within this and this straight */
@@ -281,7 +295,7 @@
 #define S5_HIST_MIN     (8U) /* fewer: use the car's heading */
 
 /* ---------------------------------------------------------------------
- *  Compass (nyx, 2026-11-08)
+ *  Compass
  *
  *  Buddy 4's LSM303D has no gyro, but its magnetometer gives the car's
  *  heading. The encoders' heading drifts a few degrees on the way round
@@ -291,7 +305,7 @@
  *  these four. S5_MAG_SIGN 0 = not calibrated: compass not used.
  * --------------------------------------------------------------------- */
 #ifndef S5_MAG_SIGN
-/* nyx, 2026-11-08: step 4 on the floor: x -4227..3931, y -5626..3625,
+/* step 4 on the floor: x -4227..3931, y -5626..3625,
  * 355 deg by the compass for 360 by the encoders, but up to 13 deg apart
  * on the way round, so S5_MAG_USE 0 below (logged only) */
 #define S5_MAG_SIGN (1)  /* +1 / -1: which way it turns with the car */
@@ -306,7 +320,7 @@
 #define S5_MAG_R (4367)  /* the field's strength round the centre */
 #endif
 /* 1: the compass corrects the encoders' heading; 0: only logged.
- * nyx, 2026-11-08: 0 until a track run shows it agrees with the IRs */
+ * 0 until a track run shows it agrees with the IRs */
 #ifndef S5_MAG_USE
 #define S5_MAG_USE (0)
 #endif
@@ -316,7 +330,7 @@
  * S5_MAG_ARM_MM per radian */
 #define S5_MAG_RATE_DEG (2)
 #define S5_MAG_ARM_MM   (56.0f)
-/* nyx, 2026-11-08: the compass and encoders this far apart or less: left
+/* the compass and encoders this far apart or less: left
  * alone. A compass is a few degrees off at some headings even when
  * calibrated (iron near the IMU); good encoders are better than that over
  * a bypass, so only drift past this is pulled back (in the simulator,
@@ -341,14 +355,14 @@
 #define S5_CLEAR_MM        (450)   /* ... clear means nothing within this */
 /* a wheel asked to move that gives no encoder ticks for this long */
 #define S5_DEAD_WHEEL_MS (600)
-/* nyx, 2026-11-08: ... stops the car this long and goes on, this many
+/* ... stops the car this long and goes on, this many
  * times per bypass, before the bypass fails (a wheel turning on the spot
  * slowly can stall; a dead encoder still fails, 1.5 s later) */
 #define S5_WHEEL_TRIES   (1)
 #define S5_WHEEL_REST_MS (300)
 
 /* ---------------------------------------------------------------------
- *  Line search (nyx, 2026-11-08): robot.ps1 search. The car starts off
+ *  Line search: robot.ps1 search. The car starts off
  *  the line (on white), drives straight until the IRs meet a line, drives
  *  its axle onto it and turns on the spot to face along it, then Buddy 3
  *  follows it. s5_search_begin() in s5_avoid.c.
@@ -376,7 +390,7 @@
 #endif
 /* the turn on the spot onto the line (up to 90 deg) may take this long */
 #define S5_SEARCH_PIVOT_MS (8000)
-/* nyx, 2026-11-09: the turn onto the line stops on the IRs (the first
+/* the turn onto the line stops on the IRs (the first
  * one black, then the other); without them it goes on to this far past
  * the direction worked out from the crossing (a bend's chord can be 25
  * deg further round), then Buddy 3 looks */
@@ -388,13 +402,13 @@
  *  Calibration build (testing/subsystem5/CALIBRATION.md): make S5CAL=1
  *  gives a _s5cal image whose S5 task runs the guided calibration
  *  instead of the obstacle logic. Flash the normal image afterwards.
- *  nyx, 2026-11-08: make S5CAL=2 (_s5cal4 image) runs step 4 only (the
+ *  make S5CAL=2 (_s5cal4 image) runs step 4 only (the
  *  circle: turn and compass).
  * --------------------------------------------------------------------- */
 #ifndef S5_CAL_BUILD
 #define S5_CAL_BUILD (0)
 #endif
-#define S5_CAL_BOX_WIDTH_MM (210) /* nyx's box: 21 x 16 cm */
+#define S5_CAL_BOX_WIDTH_MM (210) /* the track box: 21 x 16 cm */
 #define S5_CAL_RANGE_MM     (200) /* step 2 distance */
 #define S5_CAL_SETUP_S      (15)  /* seconds to place things */
 #define S5_CAL_CIRCLE_MM    (150) /* step 4: radius of the circle */

@@ -1,7 +1,7 @@
 /*
  *      s5_sensor.c
- *      Subsystem 5 -- servo, pings and the sweep, run by the S5 task (nyx,
- *      2026-11-07). See s5_sensor.h.
+ *      Subsystem 5 -- servo, pings and the sweep, run by the S5 task. See
+ *      s5_sensor.h.
  */
 
 #include "s5_sensor.h"
@@ -38,7 +38,7 @@
  * ping: after the echo is in, it follows, and then it waits for the next
  * ping, which goes out where the servo is (each ping carries its angle).
  * Following every step would restart the settle each time and no ping
- * would ever go out (nyx, 2026-11-07, review A1). */
+ * would ever go out. */
 #define S5_LOOK_HOLD_DDEG (50)
 
 _Static_assert(((S5_COARSE_N + (2U * (S5_SCAN_FINE + 1U))) <= S5_SCAN_MAX),

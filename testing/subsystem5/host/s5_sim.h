@@ -1,6 +1,6 @@
 /**
  * @file    s5_sim.h
- * @brief   HOST TEST ONLY (nyx, 2026-11-07). The world subsystem 5 sees
+ * @brief   HOST TEST ONLY. The world subsystem 5 sees
  *          in the host tests, and the s5_hw.h functions working on it.
  *
  *   simulated  boxes; our line and other lanes' lines (18 mm tape); the
@@ -67,11 +67,11 @@ typedef struct
      * it moved sideways by lane[k] mm (lane 0 = ours, offset 0) */
     double lane[SIM_MAX_LANE];
     int    n_lane;
-    /* nyx, 2026-11-08: straight tape pieces (a junction's branch), track
+    /* straight tape pieces (a junction's branch), track
      * frame, from (x0, y0) to (x1, y1) */
     double seg[SIM_MAX_SEG][4];
     int    n_seg;
-    /* nyx, 2026-11-08: the compass. The earth's field (mag_r counts)
+    /* the compass. The earth's field (mag_r counts)
      * points mag_dir_deg in the track frame; seen from the car it turns
      * the other way (so S5_MAG_SIGN -1); hard-iron offset mag_x0 / y0;
      * a heading error of mag_err_deg x sin(2 x heading) left after

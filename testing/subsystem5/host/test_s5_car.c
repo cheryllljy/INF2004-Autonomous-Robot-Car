@@ -1,6 +1,6 @@
 /**
  * @file    test_s5_car.c
- * @brief   HOST TEST (S5-H21, nyx 2026-11-07). 2-D simulation of the
+ * @brief   HOST TEST (S5-H21). 2-D simulation of the
  *          whole obstacle episode on a simulated car.
  *
  *   real       s5_sensor.c (the S5 task), s5_avoid.c, s5_scan.c,
@@ -91,20 +91,20 @@ typedef struct
     double drop;       /* -1: no dropouts */
     double noise;      /* 0: 2 mm */
     int n_obst;        /* obstacles on the line, one after the other (0: 1) */
-    double rev_max;    /* nyx, 2026-11-08: > 0: back up no more than this */
-    double lr_err;     /* nyx, 2026-11-08: left encoder long by this / 2,
+    double rev_max;    /* > 0: back up no more than this */
+    double lr_err;     /* left encoder long by this / 2,
                         * right short by this / 2 */
-    double junc_x;     /* nyx, 2026-11-08: > 0: a junction's branch leaves
+    double junc_x;     /* > 0: a junction's branch leaves
                         * our line here (track frame) ... */
     double junc_deg;   /* ... at this angle to it (+ = to the left) ... */
     double junc_len;   /* ... this long (0: 400) */
-    int no_mag;        /* nyx, 2026-11-08: no compass (IMU unplugged) */
+    int no_mag;        /* no compass (IMU unplugged) */
     double mag_err;    /* compass error after calibration, deg (0: 2) */
     double mag_iron;   /* iron near the box pulls the field, counts */
-    double shift;      /* nyx, 2026-11-08: our line moves this far left
+    double shift;      /* our line moves this far left
                         * (S-bend from the box's face on), so dead
                         * reckoning has it that far off on the way back */
-    double turn_x;     /* nyx, 2026-11-09: > 0: our line bends from here
+    double turn_x;     /* > 0: our line bends from here
                         * (track frame) ... */
     double turn_r;     /* ... with this radius ... */
     double turn_deg;   /* ... this far (+ = to the left), then straight */
@@ -114,7 +114,7 @@ typedef struct
 
 static const scen_t g_scen[] =
 {
-    { "C1", "21x16 cm box on the line (nyx's), 2 m ahead",
+    { "C1", "21x16 cm box on the line (track), 2 m ahead",
       X_ROUND, 0, { BOX(900, 0, 210, 160) }, 1 },
     { "C2", "box 60 mm right of the line: left is shorter",
       X_ROUND, 1, { BOX(900, -60, 210, 160) }, 1 },
@@ -190,7 +190,7 @@ static const scen_t g_scen[] =
       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0.10, 5.0 },
     { "C30", "box 120 mm right: line clear of it on the left",
       X_ROUND, 1, { BOX(900, -120, 210, 160) }, 1 },
-    /* nyx, 2026-11-07 (review D1): the next box close behind the first,
+    /* the next box close behind the first,
      * met on the way back to the line */
     { "C31", "second box 56 cm behind the first",
       X_ROUND, 0, { BOX(900, 0, 210, 160), BOX(1620, 0, 210, 160) }, 2,
@@ -230,7 +230,7 @@ static const scen_t g_scen[] =
         BOX(2020, -30, 210, 160) },
       3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0,
       0, 0.0, 0.0, 3 },
-    /* nyx, 2026-11-07 (review D1 fixes): layouts from the independent
+    /* layouts from the independent
      * review that hit a box before the fixes */
     { "C40", "second box 15 cm behind, 50 mm into the left pass lane",
       X_ROUND, 0, { BOX(900, -20, 210, 160), BOX(1210, 50, 210, 160) }, 2,
@@ -241,7 +241,7 @@ static const scen_t g_scen[] =
       { BOX(900, -20, 210, 160), { 1160, 200, 30, 30, 0.0, 800.0, 0.0 } },
       2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0,
       0, 0.0, 0.0, 2 },
-    /* nyx, 2026-11-08: the car stops 30 cm from the box and goes round
+    /* the car stops 30 cm from the box and goes round
      * without backing up (a steeper ramp out where the gentle one has no
      * room); the car turns 10 % more than the encoders say, so dead
      * reckoning puts the line some 50-70 mm off on the way back and the
@@ -268,7 +268,7 @@ static const scen_t g_scen[] =
                            "it up",
       .expect = X_ROUND, .box = { BOX(900, 0, 210, 160) }, .n_box = 1,
       .shift = -70.0 },
-    /* nyx's track run: the car ended ~5 cm beside the line, no IR saw
+    /* a track run: the car ended ~5 cm beside the line, no IR saw
      * black, and the search at 12 deg did not reach it */
     { .id = "C48", .name = "left encoder 0.5 % long, right 0.5 % short: ends "
                            "~6 cm left of the line",
@@ -286,7 +286,7 @@ static const scen_t g_scen[] =
                            "ends ~10 cm right",
       .expect = X_ROUND, .box = { BOX(900, 0, 210, 160) }, .n_box = 1,
       .lr_err = -0.015 },
-    /* nyx's track runs 2026-11-08: a junction just behind the box. The
+    /* track runs 2026-11-08: a junction just behind the box. The
      * encoders put our line 7-12 cm off; the IRs took a junction's branch
      * 5 cm beside our line for it, or the branch stopped the turn onto
      * the line early. The branch: tape across our line, from it */
@@ -310,7 +310,7 @@ static const scen_t g_scen[] =
                            "(going left): left alone",
       .expect = X_ROUND, .box = { BOX(900, -60, 210, 160) }, .n_box = 1,
       .lr_err = 0.01, .junc_x = 1400.0, .junc_deg = 45.0 },
-    /* nyx, 2026-11-08: the compass (Buddy 4's magnetometer). Every
+    /* the compass (Buddy 4's magnetometer). Every
      * scenario has it unless it says otherwise */
     { .id = "C57", .name = "encoders 2 % apart (left long): the compass "
                            "keeps the heading",
@@ -328,9 +328,9 @@ static const scen_t g_scen[] =
                            "the compass is not used there",
       .expect = X_ROUND, .box = { BOX(900, 0, 210, 160) }, .n_box = 1,
       .lr_err = 0.01, .mag_iron = 750.0 },
-    /* nyx, 2026-11-09: our line bends where the car comes back to it
+    /* our line bends where the car comes back to it
      * (the car comes back about 45 deg to it, the IRs crossing it near
-     * x 1360): the turn onto the line stops on the IRs (nyx's idea, as
+     * x 1360): the turn onto the line stops on the IRs (as
      * the line search), not at the direction the crossing gave */
     { .id = "C61", .name = "line bends left R300 behind the box, car comes "
                            "back from the left",
@@ -362,7 +362,7 @@ static const scen_t g_scen[] =
       .expect = X_ROUND, .side = 1, .box = { BOX(900, -60, 210, 160) },
       .n_box = 1, .lr_err = -0.01, .turn_x = 1100.0, .turn_r = 500.0,
       .turn_deg = -60.0 },
-    /* nyx, 2026-11-09: too close for a ramp out, the car turns out on
+    /* too close for a ramp out, the car turns out on
      * the spot instead of backing up; it backs up only when no way round
      * is open (edges it cannot see, both sides blocked) */
     { .id = "C68", .name = "box put down 150 mm in front: turns out on the "
@@ -391,7 +391,7 @@ static const scen_t g_scen[] =
                           "meets our line",
       .expect = X_ROUND, .box = { BOX(900, 60, 210, 160) }, .n_box = 1,
       .lr_err = 0.01, .junc_x = 1300.0, .junc_deg = -90.0 },
-    /* nyx, 2026-11-09, shown only: a R200 bend away from the car right
+    /* shown only: a R200 bend away from the car right
      * where it comes back; one IR meets the line's edge, the bend takes
      * it away before the other does, and the car can be handed over by
      * the encoders off the line (2 of 10) */
@@ -534,7 +534,7 @@ typedef struct
     int min_wheel;
     int stopped;
     int longest;
-    double rev;        /* nyx, 2026-11-08: backed up in the episode, mm */
+    double rev;        /* backed up in the episode, mm */
 } res_t;
 
 static int g_verbose;
@@ -562,7 +562,7 @@ static void place(const scen_t *s, double *p_bx, double *p_by,
     }
     else if (s->turn_r > 0.0)
     {
-        /* nyx, 2026-11-09: the line bends behind the box */
+        /* the line bends behind the box */
         sim_track_straight(s->turn_x + 400.0); /* starts at -400 */
         sim_track_arc(s->turn_r, s->turn_deg);
         sim_track_straight(5000.0);
@@ -845,9 +845,9 @@ static res_t run(const scen_t *s, uint32_t seed)
         if (after_mm >= 0.0)
         {
             after_mm += fabs(mm_speed_true()) * 0.001;
-            /* nyx, 2026-11-07: an object met on the way back from the
-             * last one is gone round in the same OBSTACLE state (review
-             * D1), so with several objects (straight track) the run ends
+            /* an object met on the way back from the
+             * last one is gone round in the same OBSTACLE state, so with
+             * several objects (straight track) the run ends
              * once the car is past the last of them */
             if ((after_mm >= AFTER_MM) &&
                 ((s->n_obst > 1) ? (x > last_far(s))

@@ -211,6 +211,12 @@ static void s4_hump_step(const imu_vector_t *p_raw)
     }
 }
 
+bool subsystem4_on_hump(void)
+{
+    /* one aligned bool, written only by the monitor task */
+    return s4_hump_state.hump_active;
+}
+
 /*
  * Alarm handler: one-shot, interrupt context (same rules as a cyclic
  * handler: keep it short, never wait).

@@ -79,7 +79,7 @@
 #define MOTION_STOPPED_SPEED_MMPS (10)
 /* start braking this much earlier: speed estimate and motor lag */
 #define MOTION_STOP_LAG_S (0.10f)
-/* permille per mm/s. nyx, 2026-11-09: 1.6 (was 0.5, untuned). The VC's
+/* permille per mm/s. 1.6 (was 0.5, untuned). The VC's
  * curve log on the car: at each bend entry the inner wheel runs 9-20 %
  * faster than asked for the first 100 mm and the outer 2-9 % slower
  * (turning pushes the inner wheel along and loads the outer one), so the

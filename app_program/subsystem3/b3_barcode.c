@@ -204,7 +204,7 @@ static bool decode_widths(b3_barcode_t *p_scan, const uint32_t *p_src)
 #if B3_TRIM_OUTER_BARS
     {
         /*
-         * Retry (nyx, 2026-11-04): on the car the first and last bars read
+         * Retry: on the car the first and last bars read
          * 3-4x too long while every other element was fine (B278 ... B237
          * with narrow bars ~60 ms). In the start/stop '*' the first, ninth,
          * 21st and last elements are narrow bars whichever way the car
@@ -280,7 +280,7 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
     if (!decode_widths(p_scan, enough_ticks ? p_scan->tick_widths
                                             : p_scan->time_widths))
     {
-        /* nyx, 2026-11-09: the car rejected scans (reason 6) whose time
+        /* the car rejected scans (reason 6) whose time
          * widths decode cleanly ('Z' read back to front): the encoder
          * distances were off (a wheel missing ticks or slipping at 30
          * mm/s). Code 39 is ratio-based, so the time widths are tried
@@ -304,7 +304,7 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
     if ((uint64_t)leading <
         (uint64_t)p_scan->decoded.first_narrow * B3_QUIET_NARROW_MULTIPLE)
     {
-        /* nyx, 2026-11-06: keep the numbers so the VC can print them. */
+        /* keep the numbers so the VC can print them. */
         uint64_t need =
             (uint64_t)p_scan->decoded.first_narrow * B3_QUIET_NARROW_MULTIPLE;
 
@@ -320,7 +320,7 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
      * Required trailing quiet zone is based
      * on the decoded narrow element.
      */
-    /* nyx, 2026-11-09: with both '*' read nothing can follow: Code 39 has
+    /* with both '*' read nothing can follow: Code 39 has
      * no data after the stop '*', and a longer barcode would have put a
      * letter, not '*', third. The barcode ended with its last bar, so no
      * trailing white is needed (the car rejected 29/29 decodes because IR_B
@@ -350,7 +350,7 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
  * Encoder mode is skipped because wheel speed may vary between elements.
  */
 /*
- * nyx, 2026-11-06: where to restart after a scan is given up while the
+ * where to restart after a scan is given up while the
  * sensor still reads the same level as the last edge. A black mark on the
  * floor (or a stray bar) starts a scan; the white after it then lasts longer
  * than B3_MAX_ELEMENT_US and the scan is dropped. Restarting at "now" threw
@@ -391,7 +391,7 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
 
 
     /*
-     * Sensor chatter (nyx, 2026-11-04): the DO comparator can flick for tens
+     * Sensor chatter: the DO comparator can flick for tens
      * of microseconds as a bar edge passes (41 us seen on the car). A blip
      * shorter than B3_MIN_EDGE_US is removed, so the element around it
      * carries on, instead of rejecting the whole scan.
@@ -437,7 +437,7 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
 
         if ((0U == p_scan->count) && !edge.black && !p_scan->lead_from.black)
         {
-            /* nyx, 2026-11-06: the "first bar" was only a blip in the white
+            /* the "first bar" was only a blip in the white
              * before the barcode. The white carries on from where it really
              * started. Restarting it at the blip made the leading white look
              * short: one flicker in the last 10 narrow widths before the
@@ -565,7 +565,7 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
 
         if ((B3_REJECT_NONE != reason) && edge.black && !p_scan->last.black)
         {
-            /* nyx, 2026-11-06: the element that was too long is white, so it
+            /* the element that was too long is white, so it
              * can be the white before a barcode and this black edge its first
              * bar: keep the white's start and fall through to the start
              * condition below (see white_start()). */
@@ -666,7 +666,7 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
         p_scan->started_us = edge.time_us;
 
 
-        /* nyx, 2026-11-06: where this white began (see the blip check). */
+        /* where this white began (see the blip check). */
         p_scan->lead_from = p_scan->last;
 
 

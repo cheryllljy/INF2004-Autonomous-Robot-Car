@@ -53,7 +53,7 @@
 
 #define FR3_CHECK_MS   100u
 #define FR3_PROBE_MS   1000u
-/* nyx, 2026-11-09: kept from branch 37 (patch 21, 2026-11-07) when the
+/* kept from branch 37 (2026-11-07) when the
  * dashboard version came back: the link-loss timeout is
  * B1_FR3_TIMEOUT_MS (mqtt_utk.h, 10 s), and a probe still unanswered
  * after FR3_PROBE_STUCK_US no longer blocks the next one (one lost
@@ -364,7 +364,7 @@ static void fr2_receive_command(const u8_t *payload, u16_t length)
         return;
     }
 
-    /* nyx, 2026-11-08: 4 = SEARCH (line search, then start) */
+    /* 4 = SEARCH (line search, then start) */
     if (B1_FR2_START != payload[1] && payload[1] != B1_FR2_STOP &&
         payload[1] != B1_FR2_RESET && payload[1] != B1_FR2_SEARCH)
     {
@@ -674,7 +674,7 @@ static void fr3_monitor_timeout(void *arg)
                 fr3_reported_reason = reason;
 
                 {
-                    /* nyx, 2026-11-07: signal strength and the last broker
+                    /* signal strength and the last broker
                      * answer, to tell a weak spot from a stalled broker */
                     int32_t rssi = 0;
 

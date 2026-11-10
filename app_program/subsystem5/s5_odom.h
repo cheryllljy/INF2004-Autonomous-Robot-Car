@@ -1,7 +1,7 @@
 /*
  *      s5_odom.h
- *      Subsystem 5 -- where the car is, from Buddy 2's encoder ticks (nyx,
- *      2026-11-07). Pure: no kernel, the host tests use the same code.
+ *      Subsystem 5 -- where the car is, from Buddy 2's encoder ticks. Pure: no
+ *      kernel, the host tests use the same code.
  *
  *      Dead reckoning from the two wheels: forward distance is the mean of
  *      the wheels, the turn is their difference over the wheel track. The

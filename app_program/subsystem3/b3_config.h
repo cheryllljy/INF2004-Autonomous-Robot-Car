@@ -34,7 +34,7 @@
 
 /* IR_B barcode input: the module's DO goes to GP28. Edges come from the
  * GPIO interrupt and the module's potentiometer sets the black/white
- * threshold. (The AO/ADC mode was removed on 2026-11-04: nyx is staying on
+ * threshold. (The AO/ADC mode was removed on 2026-11-04: the car stays on
  * DO.) */
 
 #define B3_TASK_PRIORITY       17
@@ -52,13 +52,13 @@
 #define B3_LINE_DEBOUNCE_US 2000U
 /* unused since the straddle layout */
 #define B3_LINE_LOST_GRACE_US 50000U
-/* nyx, 2026-11-06: 100 mm/s; the VC backs up and reads each barcode at
+/* 100 mm/s; the VC backs up and reads each barcode at
  * B3_SCAN_SPEED_MM_S (vehicle_controller/vc_barcode.c) */
 #ifndef B3_BASE_SPEED_MM_S /* host tests build other speeds */
 #define B3_BASE_SPEED_MM_S 100
 #endif
 #define B3_MAX_REQUEST_MM_S 400
-/* Smooth line following (nyx, 2026-11-07). Replaces the sharp-turn rule
+/* Smooth line following. Replaces the sharp-turn rule
  * (one side black for 100 ms: slow to 60 mm/s and pivot on the inner
  * wheel, hold, ease back), which made the car pulse through every bend,
  * stopped and re-kicked the inner wheel, and could swing from side to
@@ -102,15 +102,27 @@
 /* a side that stays black grows the nudge back to B3_STEER_KICK_CURV over
  * this much driving, so a bend is still caught quickly */
 #ifndef B3_STEER_KICK_RAMP_MM
-#define B3_STEER_KICK_RAMP_MM 20 /* nyx, 2026-11-07: was 60 */
+#define B3_STEER_KICK_RAMP_MM 20 /* was 60 */
 #endif
-/* nyx, 2026-11-07: was 100. On the car the wheels turn it less than asked
+/* was 100. On the car the wheels turn it less than asked
  * (caster drag, slip), so a bend learnt at 100 let the line slide out past
  * the outer IR and the car went straight on. Host sim (test_follow -t 0.6:
  * the car turns 1/1.6 as tightly as asked) lost 4 of 22 runs at 100 and 1
  * at 300; with exact wheels it still loses none. */
 #ifndef B3_STEER_LEARN_CURV
 #define B3_STEER_LEARN_CURV 300 /* per 10 mm driven with a side black */
+#endif
+/* Already in a bend tighter than B3_STEER_TIGHT_FROM_CURV (R250) and the
+ * inner side black again: learn at B3_STEER_LEARN_TIGHT_CURV instead.
+ * The second R130 right semicircle on the track was lost: the car only
+ * got to R151 while IR_R stayed black, the line got past the inner IR and
+ * the car straightened. 450 everywhere lost curved branches after a
+ * junction turn in the sim (VC-H01); only in a tight bend it does not. */
+#ifndef B3_STEER_TIGHT_FROM_CURV
+#define B3_STEER_TIGHT_FROM_CURV 4000
+#endif
+#ifndef B3_STEER_LEARN_TIGHT_CURV
+#define B3_STEER_LEARN_TIGHT_CURV 450
 #endif
 #ifndef B3_STEER_FORGET_MM
 #define B3_STEER_FORGET_MM 80
@@ -120,7 +132,7 @@
 #ifndef B3_STEER_CURVE_END_MM
 #define B3_STEER_CURVE_END_MM 40
 #endif
-/* nyx, 2026-11-07: was 8000 (R125) and 60 mm/s. The car lost a normal
+/* was 8000 (R125) and 60 mm/s. The car lost a normal
  * bend about 70 % of the way round, so it now slows earlier and further:
  * down to 40 mm/s once the learnt curve is R400 or tighter. Host sim:
  * line losses with the wheels turning the car 1/1.6 as tightly 1 -> 0,
@@ -128,14 +140,14 @@
  * lines but pivoted on a stopped inner wheel in R200 bends: at 30 the
  * inner wheel's 15 mm/s floor allows no curve tighter than R112. */
 #ifndef B3_CURVE_FULL_CURV
-/* nyx, 2026-11-07 (patch 17): left bends still overshot, so slow down
+/* left bends still overshot, so slow down
  * from R670 (was R400) and to 30 mm/s (was 40), and pivot sooner in a
  * hairpin (B3_STEER_ESCAPE_MM). Host sim with wheels that turn the car
  * less than asked or lag: 23 line losses -> 10. A stronger nudge (6000)
  * lost fewer lines but broke the junction handover tests. */
 #define B3_CURVE_FULL_CURV 1500 /* 670 mm radius */
 #endif
-/* nyx, 2026-11-09: 35 (was 30) and the inner wheel floor 19 (was 15).
+/* 35 (was 30) and the inner wheel floor 19 (was 15).
  * The car's curve log shows Buddy 2 holding a slow inner wheel once
  * settled (16-19 mm/s within 0-6 %), but at each bend entry the inner
  * wheel runs 9-20 % fast for the first 100 mm (its integrator still
@@ -158,10 +170,10 @@
  * already as tight as B3_MIN_WHEEL_MM_S allows. The inner wheel then
  * stops (a pivot on it, as the old sharp turn) until the side is white. */
 #ifndef B3_STEER_ESCAPE_MM
-/* nyx, 2026-11-07 (patch 17): 10 (was 20) */
+/* 10 (was 20) */
 #define B3_STEER_ESCAPE_MM 10
 #endif
-/* nyx, 2026-11-09: 19 (was 15), with B3_CURVE_SPEED_MM_S 35: the inner
+/* 19 (was 15), with B3_CURVE_SPEED_MM_S 35: the inner
  * wheel stays further from Buddy 2's 10 mm/s kick, and the tightest
  * smooth curve is nearly unchanged (R122, was R112). Host sim, 35 mm/s
  * with IR spots that read black at the tape edge (-s 9): floor 15 lost
@@ -169,7 +181,7 @@
 #ifndef B3_MIN_WHEEL_MM_S
 #define B3_MIN_WHEEL_MM_S 19
 #endif
-/* nyx, 2026-11-09: both IRs black in a bend. Following a bend of radius
+/* both IRs black in a bend. Following a bend of radius
  * R, the tape crosses the IR pair at asin(125 / R) to the car (39 deg at
  * R200, 25 at R300), so it spans 18 / cos of that across the pair: two
  * point sensors 25 mm apart read both black from 44 deg, real spots that
@@ -195,7 +207,7 @@
 /* a longer gap between two steps counts as this long */
 #define B3_STEER_MAX_DT_US     50000U
 #define B3_RECOVERY_SPEED_MM_S 60
-/* Slow down over a barcode so IR_B catches thin bars (nyx, 2026-11-04; was
+/* Slow down over a barcode so IR_B catches thin bars (was
  * 100). Any black seen by IR_B starts the slow speed; it ends only after IR_B
  * has read white for B3_SCAN_SLOW_WHITE_US (longer than the widest gap inside
  * a barcode), so the car stays at one speed across the whole barcode even if
@@ -203,7 +215,7 @@
  * is also rescaled by the measured wheel speed (B3_SCAN_SPEED_COMPENSATE).
  * Safety: the slow speed lasts at most B3_SCAN_SLOW_MAX_US, and a crossing
  * (both line sensors black) ends it so a junction is measured at base speed. */
-#define B3_SCAN_SPEED_MM_S    25      /* nyx, 2026-11-06: was 50 */
+#define B3_SCAN_SPEED_MM_S    25      /* was 50 */
 #define B3_SCAN_SLOW_WHITE_US 800000U /* 30 mm of white at 50 mm/s */
 #define B3_SCAN_SLOW_MAX_US   6000000U
 /* Retry a failed decode with the first/last bar trimmed to the other narrow
@@ -231,13 +243,13 @@
 /* real check: leading quiet >= 10 narrow */
 #define B3_MIN_START_WHITE_US    2000U
 #define B3_QUIET_NARROW_MULTIPLE 10U
-/* Trailing white needed after a full 29-element decode (nyx, 2026-11-05).
+/* Trailing white needed after a full 29-element decode.
  * Was the same 10 x narrow as the leading zone, but on the car the next black
  * came back 667 ms (20 mm at 30 mm/s) after a good decode and every scan was
  * rejected with reason 8. Once all 29 elements decoded, the only thing that
  * could follow is an inter-character gap (about 1 narrow), so 4 x narrow
  * already proves the barcode has ended.
- * nyx, 2026-11-09: only when a '*' was spoiled (B3_NEED_BOTH_STARS 0). With
+ * only when a '*' was spoiled (B3_NEED_BOTH_STARS 0). With
  * both '*' read no trailing white is needed (b3_barcode.c prepare_result()):
  * the car rejected 29/29 decodes with reason 8, IR_B black again 4 mm after
  * the last bar at 30 mm/s (`last element 136487 us`). */
@@ -250,21 +262,21 @@
  * Detection threshold is deliberately below the nominal 18 mm track width
  * to tolerate sensor placement, edge error and speed-measurement error.
  */
-/* nyx, 2026-11-06: 14 -> 12 -> 8 mm. Both sensors are black together
+/* 14 -> 12 -> 8 mm. Both sensors are black together
  * only where their crossings of the 18 mm tape overlap; at a slight angle
  * one sensor enters the tape a few mm before the other, and the comparator
  * only reads black once most of the spot is on the tape. On the car real
  * junctions measured 9 and 11 mm. A wide bar of a 100 % barcode is about
  * 7.5 mm, and junctions are blocked anyway while a barcode scan has more
  * than B3_JUNCTION_MAX_SCAN_RUNS elements.
- * nyx, 2026-11-08: 8 -> 6 mm: a real junction measured 7 mm on the car
+ * 8 -> 6 mm: a real junction measured 7 mm on the car
  * ("both line sensors black for 7 mm, not a junction: too short"). */
-/* nyx, 2026-11-08: now each sensor's own run over the tape (the two runs
+/* now each sensor's own run over the tape (the two runs
  * must overlap), not the stretch with both black together, which shrinks
  * when the car meets the tape at an angle (5 mm on the car). See
  * junction_update() in buddy3.c. */
 #define B3_JUNCTION_MIN_PATCH_UM 6000U
-/* nyx, 2026-11-06: was 80, so at the 25 mm/s base speed no junction was
+/* was 80, so at the 25 mm/s base speed no junction was
  * ever reported. The patch length is speed x time, so any steady forward
  * speed works; this only rules out a car that is standing or pivoting.
  * The speed used is the faster wheel when one encoder reads 0 (GP3). */

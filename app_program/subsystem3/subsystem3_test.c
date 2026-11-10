@@ -407,7 +407,7 @@ static void buddy3_unit_tests(INT *p_pass, INT *p_fail)
                    r.left_mm_s < r.right_mm_s && r.left_mm_s >= 0,
                "IR_L black (drifted right): steer left, no wheel reverses");
 
-    /* nyx, 2026-11-07: the steering now eases from one side to the other
+    /* the steering now eases from one side to the other
      * (B3_STEER_SLEW_CURV per mm), so after U09's left nudge the right side
      * stays black for 40 ms before the check */
     r = b3_line_step(&line, false, true, 40000U, B3_BASE_SPEED_MM_S);

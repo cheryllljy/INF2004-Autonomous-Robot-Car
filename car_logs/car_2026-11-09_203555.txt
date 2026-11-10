@@ -1,0 +1,9 @@
+20:35:56.818 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+20:35:56.818 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:35:56.834 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+20:35:56.953 [VC] E-stop, fault bits 0x04
+20:35:56.953 [VC] state 0 -> 5
+20:35:56.969 [BUDDY1] FR3 monitor started
+20:35:56.984 [BUDDY1] FR3 communication unhealthy; monitoring
+20:35:56.984 [BUDDY1] FR3 communication restored
+20:35:57.003 [BUDDY1] FR3 recovery: latch=0 reason=0

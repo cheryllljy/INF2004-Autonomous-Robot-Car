@@ -151,7 +151,7 @@ switch ($Cmd) {
     'test' {
         if (-not (Test-Path $Sub)) { throw "mosquitto_sub not found in $Mosquitto (winget install -e --id EclipseFoundation.Mosquitto)" }
         $ip = Get-BrokerIp
-        # nyx, 2026-11-09: every line is also saved to car_logs\ (one file
+        # every line is also saved to car_logs\ (one file
         # per run, PC time in front) so the run can be read afterwards
         $LogDir = Join-Path $Repo 'car_logs'
         New-Item -ItemType Directory -Force -Path $LogDir | Out-Null

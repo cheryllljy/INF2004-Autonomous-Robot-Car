@@ -1,7 +1,7 @@
 /*
  *      subsystem5.h
  *      Subsystem 5 -- obstacle detection and bypass: HC-SR04P ultrasonic
- *      sensor on an SG90 servo (rewritten from scratch by nyx on
+ *      sensor on an SG90 servo (rewritten from scratch on
  *      2026-11-07; the old version is in git history before this change).
  *
  *      Files

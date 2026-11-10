@@ -49,7 +49,7 @@ typedef struct
     uint32_t glitches;
     /* scans decoded only after trimming the outer bars */ /* blips shorter than B3_MIN_EDGE_US absorbed */
     uint32_t trimmed;
-    /* nyx, 2026-11-09: scans decoded from the time widths after the
+    /* scans decoded from the time widths after the
      * encoder widths failed */
     uint32_t timed_fallbacks;
     bool prev_valid;
@@ -58,7 +58,7 @@ typedef struct
     /* that edge is waiting to be confirmed or dropped */
     bool glitch;
     b3_code39_result_t decoded;
-    /* nyx, 2026-11-06: the white edge the leading white started from, so a
+    /* the white edge the leading white started from, so a
      * blip on the first bar can hand the white back instead of restarting
      * it (that restart caused reason 7 on the car). */
     b3_edge_t lead_from;
@@ -75,7 +75,7 @@ typedef struct
     uint8_t reject_count;
     /* widths (us) of the last DECODE reject */
     uint32_t reject_widths[B3_BARCODE_RUNS];
-    /* nyx, 2026-11-06: last LEADING_QUIET reject: white measured before the
+    /* last LEADING_QUIET reject: white measured before the
      * first bar and the white needed (B3_QUIET_NARROW_MULTIPLE x narrow), in
      * encoder ticks if reject_encoder, else in us. */
     uint32_t reject_lead;

@@ -1,7 +1,7 @@
 /*
  *      s5_scan.c
- *      Subsystem 5 -- what one sweep says about the object (nyx,
- *      2026-11-07). See s5_scan.h for the method.
+ *      Subsystem 5 -- what one sweep says about the object. See s5_scan.h for
+ *      the method.
  */
 
 #include "s5_scan.h"
@@ -233,7 +233,7 @@ bool s5_scan_corner_echo(float vx, float vy, float look, float half, float mm,
     return (d_lo <= half) && (d_hi >= -half);
 }
 
-/* nyx, 2026-11-07 (review D1): with the sonar out beside this side of
+/* with the sonar out beside this side of
  * the object (as after going round another one), it can see along the
  * object's flank to its far corner, which answers from further than the
  * face, past the edge. Such a return is the object itself, not something
@@ -260,7 +260,7 @@ static bool s5_own_far_corner(const s5_sample_t *p_s, int32_t side,
  * known (the object's own echoes can hide where the other one starts), so
  * every point of that arc is tried: any of them in the car's way blocks
  * the side. */
-/* nyx, 2026-11-08: 2 = an echo whose own direction is in the pass lane,
+/* 2 = an echo whose own direction is in the pass lane,
  * 1 = an echo that reaches it only within its beam (+-beam, it may be
  * further out), 0 = clear. *p_at: the sample (the first one at the level
  * returned). */
@@ -387,8 +387,7 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
     {
         /* the face's nearest point: straight in front of the sonar while
          * the sonar is between the corners; the near corner when it is
-         * out beside the object (after going round another one: nyx,
-         * 2026-11-07, review D1) */
+         * out beside the object (after going round another one) */
         const float brg_l = p_view->psi + s5_ddeg_to_rad(l_true);
         const float brg_r = p_view->psi + s5_ddeg_to_rad(r_true);
         float dx = face;

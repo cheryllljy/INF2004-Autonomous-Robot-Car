@@ -1,6 +1,6 @@
 /**
  * @file    test_search.c
- * @brief   HOST TEST (S5-H22, nyx 2026-11-08). The line search
+ * @brief   HOST TEST (S5-H22). The line search
  *          (robot.ps1 search) on the simulated car: the car starts off
  *          the line, s5_search_begin(), s5_avoid_step() until it hands
  *          over, then Buddy 3 follows the line.
@@ -115,7 +115,7 @@ static const scen_t g_scen[] =
       3000, -400, 90, -1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 12.0 },
     { "Q31", "45 deg, real IRs 12 mm off the centre (not 12.5)",
       3000, -400, 45, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 12.0 },
-    /* nyx, 2026-11-09: the line at the start is a bend (R300 left 90
+    /* the line at the start is a bend (R300 left 90
      * from x 2800) */
     { "Q32", "across a R300 left bend, 48 deg to it, from outside",
       3000, -300, 90, 0, 0.0, 0.0, 300.0, 90.0, 2800.0 },

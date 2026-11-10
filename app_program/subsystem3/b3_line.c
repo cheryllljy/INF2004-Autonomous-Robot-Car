@@ -19,7 +19,7 @@ void b3_line_hold(b3_line_t *p_line)
     p_line->last_touch = 0;
 }
 
-/* nyx, 2026-11-07: a new touch on side `side` (-1 / +1) */
+/* a new touch on side `side` (-1 / +1) */
 static void tune_kick(b3_line_t *p_line, int8_t side)
 {
     int64_t kick = p_line->kick;
@@ -89,7 +89,7 @@ static int32_t clamp32(int32_t v, int32_t limit)
     return v;
 }
 
-/* nyx, 2026-11-07: line speed for a curve: from the base speed down to
+/* line speed for a curve: from the base speed down to
  * B3_CURVE_SPEED_MM_S as |curv| reaches B3_CURVE_FULL_CURV. */
 static int32_t curve_speed(int32_t base, int32_t curv)
 {
@@ -182,7 +182,7 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
     }
     p_line->started = true;
     p_line->last_us = now_us;
-    /* nyx, 2026-11-09: both black while a curve is learnt is the bend's
+    /* both black while a curve is learnt is the bend's
      * tape seen at a steep angle (or a crossing in the bend), not a cue to
      * drive straight: keep the curve (B3_STEER_BB_* in b3_config.h). Not
      * when the side against the curve was black: that is the curve ending,
@@ -196,7 +196,7 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
             (((int64_t)p_line->side * p_line->memory) > 0) &&
             (p_line->black_um >= (B3_STEER_CURVE_END_MM * 1000U)))
         {
-            /* nyx, 2026-11-07: the side against the learnt curve stayed
+            /* the side against the learnt curve stayed
              * black, so the curve has ended: keep the steering it left
              * instead of turning back to the old curve */
             p_line->memory = p_line->steer;
@@ -217,7 +217,7 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
     {
         p_line->touch_um += (uint32_t)ds_um;
     }
-    /* nyx, 2026-11-09: how long both have been black */
+    /* how long both have been black */
     if (B3_LINE_CROSSING != result.state)
     {
         p_line->bb_um = 0U;
@@ -231,11 +231,11 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         /* long enough: no need to count on (no overflow) */
     }
 
-    /* nyx, 2026-11-07: curve memory and nudge (B3_STEER_* in b3_config.h).
+    /* curve memory and nudge (B3_STEER_* in b3_config.h).
      * error -1 = IR_L black = steer left = + curvature. */
     if (bend_bb)
     {
-        /* nyx, 2026-11-09: the learnt curve stays (no fading, no
+        /* the learnt curve stays (no fading, no
          * learning). The black side's run is broken, so a side black again
          * afterwards learns, and pivots (B3_STEER_ESCAPE_MM), from 0 as
          * before. Longer than any crossing, the tape runs across the pair
@@ -253,7 +253,7 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         p_line->black_um += (uint32_t)ds_um;
         if (((int64_t)result.error * p_line->memory) > 0)
         {
-            /* nyx, 2026-11-07: the black side is against the learnt
+            /* the black side is against the learnt
              * curve: forget it at least as fast as with both sides white */
             p_line->memory -= (int32_t)(((int64_t)p_line->memory * ds_um) /
                                         ((int64_t)B3_STEER_FORGET_MM * 1000));
@@ -261,11 +261,21 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         /* learns faster the longer the side stays black: a touch is a
          * nudge, a bend the car is not turning enough for is learnt
          * quickly */
-        p_line->memory -=
-            (int32_t)(((int64_t)result.error * B3_STEER_LEARN_CURV * ds_um *
-                       ((B3_STEER_ESCAPE_MM * 1000) +
-                        (int64_t)p_line->black_um)) /
-                      ((int64_t)10000 * B3_STEER_ESCAPE_MM * 1000));
+        {
+            /* faster when the black side asks for more of a tight curve
+             * already learnt (B3_STEER_LEARN_TIGHT_CURV) */
+            const int64_t rate =
+                ((((int64_t)result.error * p_line->memory) < 0) &&
+                 (abs32(p_line->memory) >= B3_STEER_TIGHT_FROM_CURV))
+                    ? B3_STEER_LEARN_TIGHT_CURV
+                    : B3_STEER_LEARN_CURV;
+
+            p_line->memory -=
+                (int32_t)(((int64_t)result.error * rate * ds_um *
+                           ((B3_STEER_ESCAPE_MM * 1000) +
+                            (int64_t)p_line->black_um)) /
+                          ((int64_t)10000 * B3_STEER_ESCAPE_MM * 1000));
+        }
         /* a touch gets the tuned nudge; a side that stays black grows it
          * back to the full nudge over B3_STEER_KICK_RAMP_MM */
         int64_t kick = p_line->kick;

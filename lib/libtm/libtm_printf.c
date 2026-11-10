@@ -336,7 +336,7 @@ LOCAL	void	out_cons( UB *str, INT len,  OutPar *par )
 
 #if defined(S5_CAL_BUILD) && S5_CAL_BUILD
 /*
- * nyx, 2026-11-08: temporary. The subsystem 5 calibration image
+ * temporary. The subsystem 5 calibration image
  * (make S5CAL=1) shows only its own "[VC-S5] CAL" lines, plus kernel
  * "***" fault lines, on every console (USB, UART0 and the MQTT test
  * topic). All other tm_printf output is dropped. Normal builds are

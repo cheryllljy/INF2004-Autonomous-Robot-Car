@@ -1,6 +1,6 @@
 /**
  * @file    test_follow.c
- * @brief   HOST TEST (B3-H10, nyx 2026-11-07). 2-D simulation of Buddy 3's
+ * @brief   HOST TEST (B3-H10). 2-D simulation of Buddy 3's
  *          line following (the REAL b3_line.c) on bends, S-curves, a
  *          hairpin and the handover after a junction turn (car starting
  *          at an angle to the line).
@@ -41,7 +41,7 @@
 
 #define PI          (3.14159265358979323846)
 #define LINE_HALF   (9.0)   /* 18 mm tape */
-#define IR_AHEAD    (125.0) /* nyx, 2026-11-06 */
+#define IR_AHEAD    (125.0)
 #define MAX_PTS     (8000)
 #define STEP_MM     (2.0)
 #define START_MM    (400.0) /* straight before the shape */
@@ -49,7 +49,7 @@
 #define SETTLE_MM   (150.0) /* metrics start after this */
 #define VC_MS       (20U)
 
-/* nyx, 2026-11-09: 25 mm apart, measured (was 15) */
+/* 25 mm apart, measured (was 15) */
 static double g_spread = 12.5; /* each IR this far off the centre line */
 static int    g_lag_ms = 60;
 static int    g_verbose;
@@ -60,7 +60,7 @@ static double g_sb_ks, g_sb_kk, g_sb_vs;
 static double g_cs_ask_in, g_cs_got_in, g_cs_ask_out, g_cs_got_out; static long g_cs_n;
 static double g_track_err;      /* -t E: the car turns 1/(1+E) as tightly */
 static double g_y_pm, g_y_w;    /* -y PM,W: turning load (mm_set_yaw_load) */
-/* nyx, 2026-11-09: -c prints the car's curve log (vehicle_controller.c
+/* -c prints the car's curve log (vehicle_controller.c
  * curve_log()): every 100 mm driven while |curvature| >= 1000, the means
  * of the wheel speeds asked and of Buddy 2's measured ones. The first
  * window of each curve and the later ones are summed apart (-q). */
@@ -70,13 +70,13 @@ static int    g_cl_n[2];
 static double g_cl_rmin, g_cl_rmax; /* asked |R| swing within one curve */
 static double g_cl_swing;       /* sum over curves of max/min asked |R| */
 static int    g_cl_curves;
-/* nyx, 2026-11-09: -e A,B,TH: each IR sees an elliptic spot (semi-axes A
+/* -e A,B,TH: each IR sees an elliptic spot (semi-axes A
  * mm sideways, B mm forward) and reads black when at least TH of it is on
  * the tape (the module's comparator threshold). TH < 0.5 reads black
  * beyond the tape edge; a tape crossing the pair at an angle (in a bend)
  * then covers both IRs. 0 = the old point sensors. */
 static double g_spot_a, g_spot_b, g_spot_th;
-/* nyx, 2026-11-09: -x D,LEN: both IRs read black for LEN mm of the track
+/* -x D,LEN: both IRs read black for LEN mm of the track
  * from D mm after the straight start (a crossing tape, a junction patch or
  * the car's long both-black runs, 52..67 mm, put into the bend) */
 static double g_bb_at, g_bb_len;
@@ -177,7 +177,7 @@ static double track_dist(double x, double y, int *p_idx)
     return best;
 }
 
-/* nyx, 2026-11-09: IR reading at world (x, y) with the car heading psi
+/* IR reading at world (x, y) with the car heading psi
  * (deg): point sensor, or the elliptic spot of -e. The tape is taken as
  * straight across the spot (the spot is a few mm, the bends >= R40). */
 static int ir_black(double x, double y, double psi)
@@ -273,12 +273,12 @@ static const scen_t g_scen[] =
     { "F16 straight at 30 mm/s, start 20 deg off", T_STRAIGHT, 0,   0,   20,   0, 30 },
     { "F17 S-curve R250 at 150 mm/s",              T_S,      250,  90,    0,   0, 150 },
     { "F18 bend R300 left 90, start 25 deg off",   T_BEND,   300,  90,  -25,   0, 0 },
-    /* nyx, 2026-11-07: from the review, tight S-bends */
+    /* from the review, tight S-bends */
     { "F19 S-curve R130 left 90, right 90",        T_S,      130,  90,    0,   0, 0 },
     { "F20 S-curve R130 right 90, left 90",        T_S,      130, -90,    0,   0, 0 },
     { "F21 S-curve R150 left 90, right 90",        T_S,      150,  90,    0,   0, 0 },
     { "F22 S-curve R140 left 180, right 180",      T_S,      140, 180,    0,   0, 0 },
-    /* tight bends and corners (nyx, 2026-11-07): shown, LIMIT if lost */
+    /* tight bends and corners: shown, LIMIT if lost */
     { "F23 bend R40 left 90",                      T_BEND,    40,  90,    0,   0, 0 },
     { "F24 bend R60 right 90",                     T_BEND,    60, -90,    0,   0, 0 },
     { "F25 bend R80 left 90",                      T_BEND,    80,  90,    0,   0, 0 },
@@ -293,6 +293,12 @@ static const scen_t g_scen[] =
     { "F34 start standing on R200 right 120",      T_ONBEND, 200, -120,   0,   0, 0 },
     { "F35 start standing on R500 left 90",        T_ONBEND, 500, 90,     0,   0, 0 },
     { "F36 start standing on R150 right 150",      T_ONBEND, 150, -150,   0,   0, 0 },
+    /* the track's 13 cm semicircles; the second (right) one was lost on
+     * the car (B3_STEER_LEARN_TIGHT_CURV) */
+    { "F37 S-curve R130 left 180, right 180",      T_S,      130, 180,    0,   0, 0 },
+    { "F38 S-curve R130 right 180, left 180",      T_S,      130, -180,   0,   0, 0 },
+    { "F39 semicircle R130 right 180",             T_BEND,   130, -180,   0,   0, 0 },
+    { "F40 semicircle R130 left 180",              T_BEND,   130, 180,    0,   0, 0 },
 };
 
 #define N_SCEN ((int)(sizeof(g_scen) / sizeof(g_scen[0])))
@@ -389,7 +395,7 @@ static out_t run(const scen_t *s)
     int idx = 0;
     double total;
     const double settle = (T_ONBEND == s->shape) ? 0.0 : SETTLE_MM;
-    /* nyx, 2026-11-09: curve log, as vehicle_controller.c */
+    /* curve log, as vehicle_controller.c */
     long cv_um = 0, cv_n = 0, cv_al = 0, cv_ar = 0, cv_gl = 0, cv_gr = 0;
     long cv_curv = 0;
     int cv_first = 1;
@@ -462,7 +468,7 @@ static out_t run(const scen_t *s)
                                     forced || ir_black(rx, ry, psi),
                                     t_ms * 1000U, (int16_t)base);
             }
-            /* nyx, 2026-11-09: how often both IRs read black */
+            /* how often both IRs read black */
             {
                 const int bb = snap.left_black && snap.right_black;
                 const int bend = (snap.curvature >= 1000) ||
@@ -526,7 +532,7 @@ static out_t run(const scen_t *s)
                 }
                 if (g_verbose && (0U == (t_ms % 50U)))
                 {
-                    /* nyx, 2026-11-09: the tape's angle to the car at
+                    /* the tape's angle to the car at
                      * the IRs, deg (+ = runs to the left) */
                     const int j = (idx + 1 < g_np) ? idx : idx - 1;
                     double tang = atan2(g_px[j + 1] - g_px[j],
@@ -582,7 +588,7 @@ static out_t run(const scen_t *s)
                 sent_l = l;
                 sent_r = r;
             }
-            /* nyx, 2026-11-09: the car's curve log (curve_log()) */
+            /* the car's curve log (curve_log()) */
             if ((snap.curvature < 1000) && (snap.curvature > -1000))
             {
                 if (!cv_first && (g_cl_rmin > 0.0))
@@ -777,7 +783,7 @@ int main(int argc, char **argv)
                          run(s));
         /* smooth: at most 2.5 left/right reversals per metre (the old
          * steering made 30 to 40 after a handover) */
-        /* nyx, 2026-11-07: below R140 the steering may pivot, so staying
+        /* below R140 the steering may pivot, so staying
          * on the line is enough; losing it there is the known limit of
          * the smooth steering (shown as LIMIT, not counted) */
         const int sharp = (s->radius > 0) && (s->radius < 140);

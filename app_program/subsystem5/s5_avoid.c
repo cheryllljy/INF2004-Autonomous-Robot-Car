@@ -1,7 +1,7 @@
 /*
  *      s5_avoid.c
  *      Subsystem 5 -- the obstacle bypass, run in the VehicleController's
- *      task (nyx, 2026-11-07). See s5_avoid.h for the episode, s5_scan.h
+ *      task. See s5_avoid.h for the episode, s5_scan.h
  *      for the width and s5_path.h for the path.
  *
  *      Frames: while Buddy 3 follows the line, the car's pose is dead
@@ -47,7 +47,7 @@
  * there */
 #define S5_FIT_TURN_DEG    (8.0f)
 #define S5_REV_HEADING_MAX (0.17f) /* rad: backing up, steer at most 10 deg */
-/* nyx, 2026-11-07 (review D1): on the way back a ping within S5_DETECT_MM
+/* on the way back a ping within S5_DETECT_MM
  * that is this much shorter than anything of the object just passed could
  * answer at (its calibrated beam plus S5_KNOWN_BEAM_DDEG) is another
  * object: stop and start again from the sweep. */
@@ -58,7 +58,7 @@
 #define S5_SQUARE_DEG (10.0f)
 #define S5_SQUARE_MM  (100.0f) /* ... by this much */
 #define S5_PLAN_DEG   (15.0f)  /* plan only from closer to straight */
-/* nyx, 2026-11-07 (review D1): straightening on the spot instead, when
+/* straightening on the spot instead, when
  * a sweep hears nothing within S5_PIVOT_ROOM_MM (but the object just gone
  * round) and the car's outline stays S5_PIVOT_MARGIN_MM clear of that
  * object (checked every S5_PIVOT_STEP_DEG); wheels at +-S5_PIVOT_MM_S,
@@ -67,11 +67,11 @@
 #define S5_PIVOT_MARGIN_MM (15.0f)
 #define S5_PIVOT_STEP_DEG  (2.0f)
 #define S5_PIVOT_MM_S      (40)
-/* nyx, 2026-11-08: 20 stalled on the car, but 30 turned past the line in
+/* 20 stalled on the car, but 30 turned past the line in
  * the simulator (C44, C53, C56); the kick below gets a stalled wheel
  * going instead */
 #define S5_PIVOT_SLOW_MM_S (20)
-/* nyx, 2026-11-08: turning on the spot, a wheel that gives no ticks for
+/* turning on the spot, a wheel that gives no ticks for
  * S5_PIVOT_KICK_MS is asked for S5_PIVOT_KICK_MM_S (both wheels, the same
  * turn) until it moves. Buddy 2 starts a standing wheel at its breakaway
  * duty and builds up from there slowly at a low speed; on the car both
@@ -84,36 +84,35 @@
 /* backing up past the object just gone round: its outline checked this
  * often */
 #define S5_BACK_STEP_MM (10.0f)
-/* nyx, 2026-11-07: passing, the sensor looks across for the far corner;
+/* passing, the sensor looks across for the far corner;
  * this often it looks once along the pass lane instead (something there
- * that the object being passed cannot explain is another object). Review
- * D1 fixes: was 80, which let a box 40 mm behind this one, sticking into
+ * that the object being passed cannot explain is another object). It
+ * was 80, which let a box 40 mm behind this one, sticking into
  * the lane, slip between two looks */
 #define S5_AHEAD_EVERY_MM (60.0f)
 /* ... put off by up to this while the far corner is in view and not yet
- * fixed, so the look does not cost the fix (review D1 fixes: was 60) */
+ * fixed, so the look does not cost the fix (was 60) */
 #define S5_AHEAD_HOLD_MM (30.0f)
 /* ... and steeper than this to the line (on the ramp out), only an echo
- * from further on than the depth planned for counts (nyx, 2026-11-07,
- * review D1 fixes: see s5_lane_counts()) */
+ * from further on than the depth planned for counts (see s5_lane_counts()) */
 #define S5_AIM_STEEP_DEG (20.0f)
 /* ... and once the far corner is fitted, an echo from this much further
  * on is another object close behind (s5_far_behind()); the fit is good to
- * about 10 mm (nyx, 2026-11-07, review D1 fixes: was 80) */
+ * about 10 mm (was 80) */
 #define S5_FAR_JUMP_MM (40.0f)
-/* nyx, 2026-11-07 (review D1 fixes): a look along the pass lane that heard
+/* a look along the pass lane that heard
  * something maybe in it goes on through this many pings with no echo (a
  * dropout is not a clear lane) */
 #define S5_MAYBE_GAPS (3U)
 /* ... and other objects met in one bypass: one more is a fault */
 #define S5_NEXT_MAX (4U)
-/* nyx, 2026-11-07 (review C2): handing back to Buddy 3. With one IR on our
+/* handing back to Buddy 3. With one IR on our
  * line the car may be this far off its direction; with both IRs white an
  * IR must have seen our line within the last S5_FRESH_MM (the line may
  * bend after the object; dead reckoning alone cannot tell). */
 #define S5_HANDOVER_DEG (10.0f)
 #define S5_FRESH_MM     (200.0f)
-/* nyx, 2026-11-08: picking the line up with the IRs on the way back. Both
+/* picking the line up with the IRs on the way back. Both
  * IRs black together, or one and then the other within this much driving
  * (about 1.5 s at the bypass speeds), near where the line should be: the
  * car is crossing our line. It drives on until the axle is on the line,
@@ -125,14 +124,14 @@
 #define S5_CAP_REACH_MM (250.0f) /* drive on at most this, then turn */
 #define S5_CAP_OVER_DEG (25.0f)  /* turn at most this far past straight */
 #define S5_CAP_MAX_DEG  (70.0f)  /* the IRs' timing: no steeper than this */
-/* nyx, 2026-11-08: after the IRs crossed a line that is not ours (see
+/* after the IRs crossed a line that is not ours (see
  * S5_CAP_LINE_DEG), both IRs white this far before they look again */
 #define S5_CAP_REARM_MM (20.0f)
-/* nyx, 2026-11-08: turning onto the line, an IR black counts only this
+/* turning onto the line, an IR black counts only this
  * near where the line is (tape 9 mm either side, plus the encoders' error
  * over the turn) */
 #define S5_CAP_GATE_MM (30.0f)
-/* nyx, 2026-11-08: turning to the line's direction from where the two
+/* turning to the line's direction from where the two
  * IRs met it, the IRs count only this near straight (a junction's branch
  * beside the line goes under them earlier in the turn), and the turn
  * stops this far past straight if they have not ended it (1 deg: the
@@ -142,7 +141,7 @@
 #ifndef S5_CAP_PAST_DEG
 #define S5_CAP_PAST_DEG (1.0f)
 #endif
-/* nyx, 2026-11-08: the wheels run on after the drive onto the line
+/* the wheels run on after the drive onto the line
  * stops (13 mm in the simulator, the axle 8 mm past the line), so that
  * drive stops this much short of the line, along the way the car goes,
  * and "straight" for the turn is pointing the IRs back at the line from
@@ -153,7 +152,7 @@
 #ifndef S5_CAP_AIM_DEG
 #define S5_CAP_AIM_DEG  (10.0f)
 #endif
-/* nyx, 2026-11-09: turning onto the line after a bypass, the IRs decide
+/* turning onto the line after a bypass, the IRs decide
  * (as in a line search): they count from this far before the direction
  * the crossing gave, and the turn stops this far past it. The IRs, 125 mm
  * ahead of the axle, meet a bend where its chord runs, asin(125 / 2R) off
@@ -167,12 +166,12 @@
 #define S5_CAP_EXTRA_DEG                                                      \
     ((((float)(S5_IR_HALF_GAP_MM - S5_LINE_HALF_MM)) / (float)S5_IR_AHEAD_MM) \
      * S5_RAD2DEG_F)
-/* nyx, 2026-11-07 (review C3): a far corner fit counts only when the
+/* a far corner fit counts only when the
  * pings saw it from bearings this far apart and it lies this far towards
  * the object from the sensor's track */
 #define S5_FAR_SPREAD_DEG (8.0f)
 #define S5_FAR_INSIDE_MM  (40.0f)
-/* nyx, 2026-11-07 (review D1): a corner fitted further inside the sweep's
+/* a corner fitted further inside the sweep's
  * edge than this is not this object's far corner on the passing side (a
  * box turned 30 deg puts it 80 mm in) but another object's, further
  * across: not used */
@@ -190,8 +189,8 @@ typedef enum
     S5_PH_ALIGN,    /* settling on the line */
     S5_PH_CAPTURE,  /* the IRs crossed our line: onto it, face along it */
     S5_PH_BLOCKED,  /* no way round */
-    S5_PH_SEARCH,   /* nyx, 2026-11-08: line search, straight on */
-    S5_PH_OUT       /* nyx, 2026-11-09: turning out on the spot */
+    S5_PH_SEARCH,   /* line search, straight on */
+    S5_PH_OUT       /* turning out on the spot */
 } s5_phase_t;
 
 typedef enum
@@ -209,7 +208,7 @@ typedef enum
     S5_PICK_RESCAN
 } s5_pick_t;
 
-/* nyx, 2026-11-08: what the IRs had made of the line before a crossing,
+/* what the IRs had made of the line before a crossing,
  * put back when that crossing turns out to be a junction's branch */
 typedef struct
 {
@@ -287,34 +286,34 @@ typedef struct
     float ir_entry[2];
     float seek_from;
     float align_from;
-    /* nyx, 2026-11-08: picking the line up with the IRs */
+    /* picking the line up with the IRs */
     int32_t cap_first;   /* IR that went black first (0 L, 1 R), -1 none */
     float cap_first_at;  /* ... odometer then */
     int32_t cap_dir;     /* the car crosses the line to +1 left, -1 right */
     uint32_t cap_step;   /* 0 drive on, 3 stop, 1 turn, 2 the last bit,
-                          * 4 stop before Buddy 3 (nyx, 2026-11-09) */
+                          * 4 stop before Buddy 3 */
     const char *p_cap_why; /* ... why the turn ended */
     float cap_from;      /* odometer when the pick-up began */
     float cap_psi;       /* heading when the last bit of the turn began */
     bool b_cap_seen;     /* turning: the far-side IR has seen the tape */
-    bool b_cap_wide;     /* nyx, 2026-11-09: ... both IRs black at once
+    bool b_cap_wide;     /* ... both IRs black at once
                           * (a junction): turn by the crossing's angle */
     bool b_cap_back;     /* ... turning towards an IR black at the start */
-    bool b_out_pivot;    /* nyx, 2026-11-09: the plan turns out on the
+    bool b_out_pivot;    /* the plan turns out on the
                           * spot (too close for a ramp) ... */
     float out_th;        /* ... to this heading (+ = left) ... */
     uint32_t out_step;   /* ... 0 turn, 1 stand, 2 drive out, 3 stand,
                           * 4 turn back, 5 stand */
     float out_from;      /* ... odometer where the drive out began */
     float cap_psi0;      /* ... heading then */
-    float cap_x1;        /* nyx, 2026-11-08: where the first IR met the */
+    float cap_x1;        /* where the first IR met the */
     float cap_y1;        /* tape (encoders' frame) */
     float cap_phi;       /* the crossed line's direction, encoders' frame */
     bool b_cap_phi;      /* ... known (one IR and then the other) */
     bool b_cap_skip;     /* the IRs are on a line that is not ours */
     float cap_skip_at;   /* ... odometer when an IR was last black on it */
     s5_line_snap_t cap_snap; /* the line as it was before this crossing */
-    /* nyx, 2026-11-08: the compass (S5_MAG_*) */
+    /* the compass (S5_MAG_*) */
     bool b_mag;          /* its heading of the line is known: in use */
     bool b_mag_fixed;    /* ... taken, or not, for this episode */
     float mag_s;         /* standing at the stop: sums of sin and cos of */
@@ -360,7 +359,7 @@ typedef struct
     uint32_t rand;
     uint32_t init_us;
     bool b_fault_said;
-    /* nyx, 2026-11-08: line search (s5_search_begin()) */
+    /* line search (s5_search_begin()) */
     bool b_search;       /* this episode is a line search */
     bool b_search_first; /* ... its first pass */
     bool b_search_held;  /* ... standing: something ahead */
@@ -457,7 +456,7 @@ static void s5_enter(s5_phase_t ph)
 {
     if ((S5_PH_STOP == g.ph) && (S5_PH_STOP != ph) && !g.b_mag_fixed)
     {
-        s5_mag_fix(); /* nyx, 2026-11-08: the car is about to move */
+        s5_mag_fix(); /* the car is about to move */
     }
     g.ph = ph;
     g.ph_ms = 0U;
@@ -679,7 +678,7 @@ bool s5_avoid_sensor_fault(void)
 }
 
 /* ===================================================================== */
-/*  Compass (nyx, 2026-11-08)                                             */
+/*  Compass                                             */
 /* ===================================================================== */
 
 /* The compass's heading of the car (rad, + = left), false if it is not
@@ -958,7 +957,7 @@ static void s5_block(const char *p_why)
     }
     else
     {
-        /* nyx, 2026-11-07 (review D2): said again after every look, for
+        /* said again after every look, for
          * whoever starts watching later */
         S5_LOG("[VC-S5] still no way round after %d s: fault bit 0x40, no "
                "E-stop\n",
@@ -1091,7 +1090,7 @@ static void s5_plan_back(float x_now)
     g.path.x_back = hi;
 }
 
-/* nyx, 2026-11-09: the car's outline at (x, y), heading psi, clear of
+/* the car's outline at (x, y), heading psi, clear of
  * the object (margin) and of the one just gone round? */
 static bool s5_out_free(float x, float y, float psi, float margin)
 {
@@ -1100,7 +1099,7 @@ static bool s5_out_free(float x, float y, float psi, float margin)
             !s5_path_car_hits(x, y, psi, &g.passed, S5_PIVOT_MARGIN_MM));
 }
 
-/* nyx, 2026-11-09: turning out on the spot to heading th (+ = left),
+/* turning out on the spot to heading th (+ = left),
  * straight out until the axle is at the pass (g.path.a), turning back
  * on the spot there: clear of the object all the way? *p_x1: where the
  * axle reaches the pass. */
@@ -1154,17 +1153,17 @@ static bool s5_plan(int32_t side)
     {
         /* already further out on that side (on the way back from the
          * last object): stay there, never turn in across the object's
-         * front (nyx, 2026-11-07, review D1) */
+         * front */
         g.path.a = g.odo.y;
     }
     g.path.l_out = s5_path_ramp_len(g.path.a - g.path.y0);
     g.path.y_end = g.line_est;
-    /* nyx, 2026-11-08: back in more sharply (S5_IN_*: shorter, less for
+    /* back in more sharply (S5_IN_*: shorter, less for
      * the encoders to drift over; the IRs pick the line up) */
     g.path.l_in = s5_path_ramp_len_in(g.path.a - g.line_est);
     if (!s5_out_clear(x_here))
     {
-        /* nyx, 2026-11-08: no room for the gentle ramp out from here: the
+        /* no room for the gentle ramp out from here: the
          * gentlest that fits, as steep as S5_STEEP_HEADING_DEG, before
          * backing up at all (from 30 cm the car should just go round) */
         const float l_soft = g.path.l_out;
@@ -1195,7 +1194,7 @@ static bool s5_plan(int32_t side)
     g.b_out_pivot = false;
     if (!s5_out_clear(x_here))
     {
-        /* nyx, 2026-11-09: no backing up for room to turn out: turn out
+        /* no backing up for room to turn out: turn out
          * on the spot, by as little as clears the object */
         int32_t deg;
         float x1 = x_here;
@@ -1226,7 +1225,7 @@ static bool s5_plan(int32_t side)
     if (!s5_out_clear(x_here))
     {
         /* not even turning out on the spot: no way round from here, so
-         * back up (nyx, 2026-11-09) */
+         * back up */
         float lo = x_here - budget; /* clear, if anything is */
         float hi = x_here;          /* not clear */
         uint32_t i;
@@ -1252,7 +1251,7 @@ static bool s5_plan(int32_t side)
     }
     g.path.x0 = x0;
     s5_plan_back(x0); /* the car will be at x0 when it sets off */
-    /* nyx, 2026-11-07 (review D1 fixes): the whole path, out, along and
+    /* the whole path, out, along and
      * back in, clear of the object just gone round too (the ramp out was
      * checked above; a path planned after backing up past it can still
      * run alongside or back across it) */
@@ -1270,14 +1269,14 @@ static s5_pick_t s5_pick_sides(bool b_maybe)
     const float ext_r = -p->y_right; /* ... and right */
     const float room = (float)(S5_CAR_HALF_WIDTH_MM + S5_CLEARANCE_MM);
     /* an edge hidden by the object just gone round: not that way, and no
-     * point looking again (nyx, 2026-11-07, review D1 fixes) */
+     * point looking again */
     const bool b_ok_l = !b_blk_l && !p->b_left_hidden &&
                         ((ext_l + room) <= (float)S5_MAX_OFFSET_MM);
     const bool b_ok_r = !b_blk_r && !p->b_right_hidden &&
                         ((ext_r + room) <= (float)S5_MAX_OFFSET_MM);
     const bool b_more_l = !p->b_left_hidden && (g.rescans < S5_MAX_RESCANS);
     const bool b_more_r = !p->b_right_hidden && (g.rescans < S5_MAX_RESCANS);
-    /* nyx, 2026-11-07: the shorter way round. From the line that is the
+    /* the shorter way round. From the line that is the
      * side the object reaches less far to (cost: out and back, twice the
      * offset); a car still off the line after the last object (b_rejoin)
      * also counts the way across. An edge outside the sweep gives a lower
@@ -1293,7 +1292,7 @@ static s5_pick_t s5_pick_sides(bool b_maybe)
     {
         return (b_more_l || b_more_r) ? S5_PICK_RESCAN : S5_PICK_BLOCKED;
     }
-    /* nyx, 2026-11-09: no backing up to see the other edge while one side
+    /* no backing up to see the other edge while one side
      * is open (it may be the longer way round) */
     if (!p->b_left_seen)
     {
@@ -1335,7 +1334,7 @@ static s5_pick_t s5_pick_sides(bool b_maybe)
     return S5_PICK_BLOCKED;
 }
 
-/* nyx, 2026-11-08: a side where only the edge of an echo's beam reaches
+/* a side where only the edge of an echo's beam reaches
  * the pass lane is used when the other side is blocked outright (on the
  * track something 55-65 cm out beside the box ruled out both sides).
  * Both sides only maybe blocked (walls either side): wait as before. */
@@ -1343,7 +1342,7 @@ static s5_pick_t s5_pick(void)
 {
     const s5_profile_t *p = &g.prof;
     s5_pick_t pick = s5_pick_sides(true);
-    /* nyx, 2026-11-09: the car went the long way round nyx's box all
+    /* the car went the long way round the box all
      * day: the sonar hears the floor 54-71 cm out on every bearing the
      * box does not cover, and the edge of that echo's beam made the short
      * side "maybe blocked". At the first object (not after another one),
@@ -1395,9 +1394,93 @@ static s5_pick_t s5_pick(void)
     return pick;
 }
 
+/* append v as decimal text at p_buf[at], return the new length (stops
+ * short of max, which leaves room for the terminating NUL) */
+static uint32_t s5_put_int(char *p_buf, uint32_t at, uint32_t max, int32_t v)
+{
+    char digits[11];
+    uint32_t n = 0U;
+    uint32_t u = (v < 0) ? (uint32_t)(-v) : (uint32_t)v;
+
+    if ((v < 0) && ((at + 1U) < max))
+    {
+        p_buf[at] = '-';
+        at++;
+    }
+    do
+    {
+        digits[n] = (char)('0' + (char)(u % 10U));
+        n++;
+        u /= 10U;
+    } while ((u > 0U) && (n < sizeof(digits)));
+    while ((n > 0U) && ((at + 1U) < max))
+    {
+        n--;
+        p_buf[at] = digits[n];
+        at++;
+    }
+    return at;
+}
+
+/* every ping of the sweep, right to left, as deg:mm (0: no echo, x: left
+ * out, the last object is that way), S5_PINGS_PER_LINE to a line */
+#define S5_PINGS_PER_LINE (13U)
+
+static void s5_say_pings(void)
+{
+    char text[S5_PINGS_PER_LINE * 10U];
+    uint32_t first;
+
+    for (first = 0U; first < g.sweep.n; first += S5_PINGS_PER_LINE)
+    {
+        uint32_t i;
+        uint32_t at = 0U;
+        const uint32_t last = ((first + S5_PINGS_PER_LINE) < g.sweep.n)
+                                  ? (first + S5_PINGS_PER_LINE)
+                                  : g.sweep.n;
+
+        for (i = first; i < last; i++)
+        {
+            const s5_sample_t *p_s = &g.sweep.s[i];
+
+            at = s5_put_int(text, at, sizeof(text),
+                            (int32_t)p_s->ddeg / 10);
+            if ((at + 3U) < sizeof(text))
+            {
+                text[at] = ':';
+                at++;
+                if (S5_MM_UNKNOWN == p_s->mm)
+                {
+                    text[at] = 'x';
+                    at++;
+                }
+                else
+                {
+                    at = s5_put_int(text, at, sizeof(text),
+                                    (int32_t)p_s->mm);
+                }
+            }
+            if ((at + 1U) < sizeof(text))
+            {
+                text[at] = ' ';
+                at++;
+            }
+        }
+        if ((at > 0U) && (' ' == text[at - 1U]))
+        {
+            at--;
+        }
+        text[at] = '\0';
+        S5_LOG("[VC-S5] pings %d-%d of %d (deg:mm): %s\n", (int)first + 1,
+               (int)last, (int)g.sweep.n, text);
+    }
+}
+
 static void s5_say_sweep(void)
 {
     const s5_profile_t *p = &g.prof;
+
+    s5_say_pings();
 
     S5_LOG("[VC-S5] sweep: %d pings, face %d mm, echoes from %d to %d deg, "
            "beam %d deg\n",
@@ -1416,7 +1499,7 @@ static void s5_say_sweep(void)
            p->b_left_maybe ? ", left maybe blocked" : "",
            p->b_right_blocked ? ", right side blocked" : "",
            p->b_right_maybe ? ", right maybe blocked" : "");
-    /* nyx, 2026-11-08: what blocked it */
+    /* what blocked it */
     if (p->b_left_blocked || p->b_left_maybe)
     {
         S5_LOG("[VC-S5] left side %s by an echo at %d deg, %d mm\n",
@@ -1436,7 +1519,7 @@ static void s5_start_bypass(void);
 /* Nothing to go round any more. Normally the car is on the line and Buddy
  * 3 takes over; an episode begun on the way back from the last one
  * (b_rejoin) first goes back onto the line along a ramp, as a bypass
- * ends (nyx, 2026-11-07, review D1). */
+ * ends. */
 static s5_avoid_result_t s5_end_here(const char *p_why)
 {
     float dy;
@@ -1466,13 +1549,13 @@ static s5_avoid_result_t s5_end_here(const char *p_why)
     return S5_AVOID_RUNNING;
 }
 
-/* nyx, 2026-11-07 (review D1): a sweep after another object met on the
+/* a sweep after another object met on the
  * way back may still see a corner of the object just gone round. Its far
  * corners are where they were fitted passing it, else anywhere from the
  * shallowest it can be to S5_DEPTH_DEFAULT_MM (never as far as something
  * else heard further on pushed it: that may be the new object). Those
  * returns are not the new object, and not clear either (S5_MM_UNKNOWN:
- * an edge next to them is not seen; review D1 fixes). */
+ * an edge next to them is not seen). */
 static void s5_drop_passed(const s5_view_t *p_v)
 {
     const s5_box_t *p_b = &g.passed;
@@ -1608,7 +1691,7 @@ static s5_avoid_result_t s5_decide(void)
     if (S5_PICK_RESCAN == pick)
     {
         g.rescans++;
-        /* nyx, 2026-11-09: only with no side open (s5_pick_sides()) */
+        /* only with no side open (s5_pick_sides()) */
         S5_LOG("[VC-S5] an edge is outside the sweep and no side is open: "
                "backing off %d mm to look again\n",
                (int)S5_RESCAN_BACK_MM);
@@ -1617,7 +1700,7 @@ static s5_avoid_result_t s5_decide(void)
     }
     if (S5_PICK_BLOCKED == pick)
     {
-        /* nyx, 2026-11-09: no way round open from here: back up and look
+        /* no way round open from here: back up and look
          * again (the only backing up for room), then wait */
         if ((g.rescans < S5_MAX_RESCANS) &&
             (s5_back_room() >= (float)S5_RESCAN_BACK_MM))
@@ -1654,7 +1737,7 @@ static s5_avoid_result_t s5_decide(void)
     g.b_blocked = false;
     if (g.b_out_pivot)
     {
-        /* nyx, 2026-11-09 */
+
         S5_LOG("[VC-S5] going %s: axle %d mm off the line; too close for a "
                "ramp: turn %d deg on the spot, out %d mm, turn back; back "
                "in from %d mm past the face\n",
@@ -1876,7 +1959,7 @@ static bool s5_far_solve(uint32_t skip, float *p_x, float *p_y,
     return worst <= S5_FAR_FIT_MM;
 }
 
-/* nyx, 2026-11-07 (review D1): the far corner was fitted at far_x, and
+/* the far corner was fitted at far_x, and
  * something answers from well past it, at about x: another object close
  * behind. Its side cannot be seen (only corners and faces square on
  * answer), so the pass goes on past both: from here the far end is taken
@@ -1899,8 +1982,8 @@ static void s5_far_behind(float x)
 }
 
 /* Whatever answered a ping across is at least this far along the line:
- * its range along the edge of the beam nearest square-on (nyx,
- * 2026-11-07, review C1). Two pings in a row past the object's far side
+ * its range along the edge of the beam nearest square-on. Two pings in a row
+ * past the object's far side
  * push the far side on, so the way back never starts before something
  * the sensor has heard, however deep the object is and whether or not
  * its corner can be fixed. */
@@ -1938,7 +2021,7 @@ static void s5_far_bound(float xf, int16_t ddeg, uint16_t mm)
         if (g.far_lo > (g.box.x_far + 5.0f))
         {
             g.box.x_far = (x_lo < g.far_lo) ? x_lo : g.far_lo;
-            /* never undone by a shallower fit (review D1 fixes) */
+            /* never undone by a shallower fit */
             g.far_floor =
                 (g.box.x_far > g.far_floor) ? g.box.x_far : g.far_floor;
             s5_plan_back(g.odo.x);
@@ -2002,7 +2085,7 @@ static void s5_far_ping(float xf, float yf, float r)
         skip = worst;
         b_ok = s5_far_solve(skip, &x, &y, &worst); /* one odd ping out */
     }
-    /* nyx, 2026-11-07 (review C1, C3): a fit counts only when the pings
+    /* a fit counts only when the pings
      * saw the corner from bearings S5_FAR_SPREAD_DEG apart and it lies
      * well towards the object from the sensor's track; one deeper than
      * S5_DEPTH_MAX_MM is taken as that deep, not thrown away */
@@ -2048,7 +2131,7 @@ static void s5_far_ping(float xf, float yf, float r)
         {
             /* shallower, so the way back earlier: only when two fits in
              * a row agree, and never shallower than any fit of this
-             * corner so far (nyx, 2026-11-07, review D1 fixes: fits that
+             * corner so far (fits that
              * creep, one step at a time, towards the corner of something
              * close behind must not pull the way back in), something
              * heard further on (s5_far_bound()) or another object close
@@ -2160,7 +2243,7 @@ static float s5_box_range(const s5_box_t *p_b, float xs, float ys, float dir,
 }
 
 /* What a fresh ping p within S5_DETECT_MM, on the way back or along the
- * pass lane, may have come from (nyx, 2026-11-07, review D1). */
+ * pass lane, may have come from. */
 typedef enum
 {
     S5_FROM_KNOWN = 0, /* the object being gone round, as far as known (at
@@ -2226,7 +2309,7 @@ static bool s5_next_ahead(const motion_status_t *p_m)
 }
 
 /* An echo the object being passed cannot explain, heard looking along the
- * pass lane: does it stop the car? (nyx, 2026-11-07, review D1 fixes) On
+ * pass lane: does it stop the car? On
  * the steep part of the ramp out the sensor is still close to the
  * object's side, and the look takes in the corner a box turned towards
  * the pass lane sticks out there; that corner is no further on than the
@@ -2265,8 +2348,8 @@ static bool s5_lane_ahead(const motion_status_t *p_m, bool *p_b_busy)
     }
     g.b_ahead = true;
     *p_b_busy = true;
-    /* along the lane, whatever the car's heading (nyx, 2026-11-07, review
-     * D1 fixes: on the ramp out the car points well off it) */
+    /* along the lane, whatever the car's heading (on the ramp out the car
+     * points well off it) */
     s5_look(-s5_roundf(g.odo.psi * S5_RAD2DEG_F * 10.0f));
     if (!s5_new_ping(&p, g.look_ddeg))
     {
@@ -2301,8 +2384,8 @@ static bool s5_lane_ahead(const motion_status_t *p_m, bool *p_b_busy)
     return false;
 }
 
-/* Another object on the way back or in the pass lane (nyx, 2026-11-07,
- * review D1): stop and start again from the sweep, in the same line
+/* Another object on the way back or in the pass lane: stop and start again from
+ * the sweep, in the same line
  * frame. The line is where the IRs found it, the car never backs into
  * the object it is going round (g.passed), and if there turns out to be
  * nothing to go round it goes back onto the line (b_rejoin). */
@@ -2312,7 +2395,7 @@ static s5_avoid_result_t s5_next_object(void)
            (int)g.ping.mm);
     if (g.n_next >= S5_NEXT_MAX)
     {
-        /* nyx, 2026-11-07 (review D1 fixes): the episode's time and
+        /* the episode's time and
          * reverse limits run on across objects; this ends a car that
          * keeps meeting them */
         return s5_fail("another object again: S5_NEXT_MAX in one bypass");
@@ -2345,7 +2428,7 @@ static s5_avoid_result_t s5_next_object(void)
  * along the pass lane every S5_AHEAD_EVERY_MM. False: another object
  * ahead (g.p_where says where).
  *
- * (nyx, 2026-11-07, review A2) There is no near-corner check: while the
+ * There is no near-corner check: while the
  * sensor is inside the edge the face answers before the corner does, and
  * once it is outside the edge the car is heading out so steeply that the
  * corner is past the servo's 60 deg. The near corner's gap is the sweep's
@@ -2411,7 +2494,7 @@ static bool s5_bypass_sensor(const motion_status_t *p_m)
                 const float look =
                     g.odo.psi + ((float)p.ddeg * 0.1f * S5_DEG2RAD_F);
 
-                /* nyx, 2026-11-07: from the far corner unless the near
+                /* from the far corner unless the near
                  * corner could have answered (it can only while the
                  * sensor is short of the face): a box turned towards the
                  * pass lane shows its far corner well before that */
@@ -2467,7 +2550,7 @@ static void s5_ir_watch(bool b_ir_l, bool b_ir_r, int32_t dir)
         {
             g.b_ir_black[k] = true;
             g.ir_entry[k] = yk;
-            /* nyx, 2026-11-08: nothing counts while the IRs are on a line
+            /* nothing counts while the IRs are on a line
              * that s5_cap_watch() found is not ours */
             if (!g.b_cap_skip)
             {
@@ -2507,7 +2590,7 @@ static void s5_ir_watch(bool b_ir_l, bool b_ir_r, int32_t dir)
     }
 }
 
-/* nyx, 2026-11-08: the line as the IRs have it now, before a crossing
+/* the line as the IRs have it now, before a crossing
  * that may turn out not to be ours */
 static void s5_cap_snap(void)
 {
@@ -2519,7 +2602,7 @@ static void s5_cap_snap(void)
     g.cap_snap.b_ret_black = g.b_ret_black;
 }
 
-/* nyx, 2026-11-08: the IRs crossed a line that is not ours (a junction's
+/* the IRs crossed a line that is not ours (a junction's
  * branch): forget what they made of it and drive on; look again once
  * both IRs are white */
 static void s5_cap_reject(void)
@@ -2537,7 +2620,7 @@ static void s5_cap_reject(void)
     g.cap_skip_at = g.odo.dist;
 }
 
-/* nyx, 2026-11-08: the IRs on the way back, for the pick-up. True: the
+/* the IRs on the way back, for the pick-up. True: the
  * car is crossing our line (one IR and then the other within
  * S5_CAP_PAIR_MM, each near where the line should be, and the two places
  * they met it in a line along ours; or both IRs black at once with the
@@ -2668,7 +2751,7 @@ static bool s5_cap_watch(bool b_ir_l, bool b_ir_r)
     return false;
 }
 
-/* nyx, 2026-11-08: line search. Something within S5_DETECT_MM ahead
+/* line search. Something within S5_DETECT_MM ahead
  * stops the car until it has gone: there is no line yet to plan a way
  * round it against. True: standing. */
 static bool s5_search_held(void)
@@ -2704,7 +2787,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
 static s5_avoid_result_t s5_cap_start(const motion_status_t *p_m, bool b_ir_l,
                                       bool b_ir_r)
 {
-    /* nyx, 2026-11-08: a line search has the line only from the IRs and
+    /* a line search has the line only from the IRs and
      * says so itself (s5_search_found()) */
     const float max_th =
         (g.b_search ? 90.0f : S5_CAP_MAX_DEG) * S5_DEG2RAD_F;
@@ -2718,7 +2801,7 @@ static s5_avoid_result_t s5_cap_start(const motion_status_t *p_m, bool b_ir_l,
     }
     if (g.b_cap_phi)
     {
-        /* nyx, 2026-11-08: where the two IRs met the tape says which way
+        /* where the two IRs met the tape says which way
          * the line really runs; the encoders' heading may have drifted on
          * the way round. Turn the encoders' frame to it, then drive on and
          * turn by that. */
@@ -2738,7 +2821,7 @@ static s5_avoid_result_t s5_cap_start(const motion_status_t *p_m, bool b_ir_l,
                    (int)s5_deg(th), (int)s5_deg(g.odo.psi));
         }
         g.cap_dir = (th > 0.0f) ? 1 : -1;
-        /* nyx, 2026-11-08: from here the IRs have the line; the compass
+        /* from here the IRs have the line; the compass
          * (maybe bent by iron here) is not used for the turn onto it */
         g.b_mag = false;
         s5_odom_set_pose(&g.odo, g.odo.x, g.odo.y, th);
@@ -2769,7 +2852,7 @@ static bool s5_standing(const motion_status_t *p_m)
     return (g.still_ms >= (uint32_t)S5_STILL_MS);
 }
 
-/* nyx, 2026-11-09: the turn onto the line has ended: stand still, then
+/* the turn onto the line has ended: stand still, then
  * Buddy 3 takes over. Handed over while still turning, the car on the
  * track went on turning past the line (Buddy 2 lets the wheel that was
  * going backwards coast down before it drives it forwards) */
@@ -2799,7 +2882,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
     const float psi = g.odo.psi;
     /* the IR on the side the car came from meets the tape first as the
      * car turns to face along the line; the other one means turned past.
-     * nyx, 2026-11-08: only black where our line is counts (on the track
+     * only black where our line is counts (on the track
      * a junction's branch beside it stopped the turn early) */
     const float near_side = (g.cap_dir > 0) ? -(float)S5_IR_HALF_GAP_MM
                                             : (float)S5_IR_HALF_GAP_MM;
@@ -2819,7 +2902,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
             (s5_absf(yf - g.line_y) <= S5_CAP_GATE_MM);
     if (g.b_search || (g.b_cap_phi && !g.b_cap_wide))
     {
-        /* nyx, 2026-11-09: the line may be a bend, which is not where the
+        /* the line may be a bend, which is not where the
          * straight line through the crossing runs: the IRs themselves
          * decide (S5_CAP_BEND_DEG) */
         b_near = (g.cap_dir > 0) ? b_ir_r : b_ir_l;
@@ -2861,7 +2944,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
     }
     if (3U == g.cap_step)
     {
-        /* nyx, 2026-11-08: stand still first. On the car the wheel that
+        /* stand still first. On the car the wheel that
          * has to reverse straight from driving on gave no ticks for 0.6 s
          * (Buddy 2 lets it coast down before it turns it the other way);
          * the turn from standing at the start of a bypass never did. */
@@ -2877,7 +2960,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
             (((float)g.cap_dir * (psi - s5_cap_aim())) <=
              (S5_CAP_BEND_DEG * S5_DEG2RAD_F)))
         {
-            /* nyx, 2026-11-09: an IR is on the line already, and the car
+            /* an IR is on the line already, and the car
              * is near its direction: the line bends that way. Turn
              * towards that IR until the tape is between the IRs, as a
              * line search does (host test C66) */
@@ -2932,7 +3015,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
             }
             else if (b_far && (b_near || !g.b_cap_seen))
             {
-                /* nyx, 2026-11-09: black wider than the IRs are apart, or
+                /* black wider than the IRs are apart, or
                  * under the far IR before the near one met any: not our
                  * line crossed, a junction (host tests C53, C54) */
                 S5_LOG("[VC-S5] IR_%c black %s while turning onto the "
@@ -2950,7 +3033,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
                 /* the IRs count */
             }
         }
-        /* nyx, 2026-11-09 (nyx's idea): the turn onto the line (a
+        /* the turn onto the line (a
          * search's, and a bypass's) stops on the IRs, not at an angle.
          * The IR on the side the car turns towards going black means the
          * line is there; the turn
@@ -2999,12 +3082,12 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
     }
     else if ((1U == g.cap_step) && g.b_cap_phi)
     {
-        /* nyx, 2026-11-08: the line's direction is known from where the
+        /* the line's direction is known from where the
          * two IRs met it, and the encoders' frame turned to it. At a
          * junction the IRs see its branch while the car turns, so they
          * count only near straight (or near pointing back at the line,
          * S5_CAP_AIM_DEG), and the encoders stop the turn a little past
-         * it if they have not. nyx, 2026-11-09: only once both IRs were
+         * it if they have not. only once both IRs were
          * black at once (g.b_cap_wide); else the IRs decide, above */
         const float left = (float)g.cap_dir * (psi - s5_cap_aim());
 
@@ -3077,7 +3160,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
             return s5_cap_end("back on the line (picked up by the IRs)");
         }
     }
-    /* nyx, 2026-11-08: a line search turns up to 90 deg, so it slows
+    /* a line search turns up to 90 deg, so it slows
      * down further out (S5_SEARCH_SLOW_DEG): a car that turns 10 % more
      * than the encoders say was still at full speed when it got there */
     w = ((2U == g.cap_step) || g.b_cap_seen ||
@@ -3094,7 +3177,7 @@ static s5_avoid_result_t s5_do_capture(const motion_status_t *p_m,
     return S5_AVOID_RUNNING;
 }
 
-/* nyx, 2026-11-08: line search. Both IRs have met a line: IR k just now
+/* line search. Both IRs have met a line: IR k just now
  * (on the tape's near edge), the other one where g.cap_x1 / cap_y1 say
  * (b_square: both at once, or it is too near square to tell which way it
  * runs). Turn the encoders' frame to the line and do the bypass's
@@ -3153,7 +3236,7 @@ static s5_avoid_result_t s5_search_found(const motion_status_t *p_m,
     return s5_cap_start(p_m, b_ir_l, b_ir_r);
 }
 
-/* nyx, 2026-11-08: line search, the straight run. Watches where each IR
+/* line search, the straight run. Watches where each IR
  * goes black:
  *   both at once                    a line straight across
  *   one, then the other within      a line at an angle: its direction
@@ -3185,9 +3268,9 @@ static s5_avoid_result_t s5_do_search(bool b_ir_l, bool b_ir_r,
         g.b_search_first = false;
         if (b_ir_l != b_ir_r)
         {
-            /* nyx, 2026-11-09: started with one IR on a line. Turn on
+            /* started with one IR on a line. Turn on
              * the spot towards that IR until the tape is between the IRs
-             * (nyx's rule, s5_do_capture()), so Buddy 3 starts with the
+             * (s5_do_capture()), so Buddy 3 starts with the
              * line in the middle: on a bend the line was soon past the IR
              * and Buddy 3, seeing both white, went straight on (host test
              * Q22, IRs 25 mm apart) */
@@ -3387,7 +3470,7 @@ static s5_avoid_result_t s5_do_turn(void)
     return S5_AVOID_RUNNING;
 }
 
-/* nyx, 2026-11-09: too close for a ramp out (s5_plan()): turn on the
+/* too close for a ramp out (s5_plan()): turn on the
  * spot to g.out_th, stand, drive straight out until the axle is at the
  * pass, stand, turn back on the spot to along the line, stand, then
  * follow the rest of the path. Stands between, as before the turn onto
@@ -3480,7 +3563,7 @@ static s5_avoid_result_t s5_do_stop(const motion_status_t *p_m, uint32_t dt)
         {
             float d = 0.0f;
 
-            /* nyx, 2026-11-09: however close it is, the sweep is from
+            /* however close it is, the sweep is from
              * here (it backed off to S5_SCAN_DIST_MM under S5_SCAN_MIN_MM);
              * the car backs up only when no way round is open */
             if (s5_get_ping(&p) && (0 == p.ddeg) && p.b_valid && s5_fresh(&p) &&
@@ -3496,8 +3579,8 @@ static s5_avoid_result_t s5_do_stop(const motion_status_t *p_m, uint32_t dt)
                  * else back up, which straightens the car too. Room: the
                  * object just gone round clear of the car's outline all
                  * the way round, and the sweep (s5_decide()) hears
-                 * nothing else within S5_PIVOT_ROOM_MM (nyx, 2026-11-07,
-                 * review D1 fixes: one ping ahead missed a box turned
+                 * nothing else within S5_PIVOT_ROOM_MM (one ping ahead missed a
+                 * box turned
                  * towards the car's front corner) */
                 if ((d <= 0.0f) && s5_pivot_clear())
                 {
@@ -3572,7 +3655,7 @@ static void s5_enter_end(void)
     }
     else if (g.b_line)
     {
-        /* nyx, 2026-11-08: one IR on a line, the other not yet: on until
+        /* one IR on a line, the other not yet: on until
          * it is (or it turns out to be a junction's branch) */
         g.seek_from = g.odo.dist;
         s5_enter(S5_PH_SEEK);
@@ -3584,7 +3667,7 @@ static void s5_enter_end(void)
                (int)S5_SEEK_DEG);
         if (!g.b_ret_black)
         {
-            /* nyx, 2026-11-08: no IR has seen black on the way back, so
+            /* no IR has seen black on the way back, so
              * the car has not crossed our line yet: the first line ahead
              * is ours, however far the encoders have drifted */
             S5_LOG("[VC-S5] no black on the way back: the first line "
@@ -3651,7 +3734,7 @@ static s5_avoid_result_t s5_do_seek(const motion_status_t *p_m, bool b_ir_l,
         return s5_cap_start(p_m, b_ir_l, b_ir_r);
     }
     s5_ir_watch(b_ir_l, b_ir_r, -g.side);
-    /* nyx, 2026-11-08: one IR on the line, at an angle to it: straight on
+    /* one IR on the line, at an angle to it: straight on
      * until the other one crosses too (the pick-up), as the encoders'
      * idea of the line's direction may be well off by now */
     if (g.b_line && (g.cap_first < 0))
@@ -3689,7 +3772,7 @@ static s5_avoid_result_t s5_do_align(const motion_status_t *p_m, bool b_ir_l,
     b_cap = s5_cap_watch(b_ir_l, b_ir_r);
     if (!g.b_line)
     {
-        /* nyx, 2026-11-08: that was a junction's branch: look on */
+        /* that was a junction's branch: look on */
         S5_LOG("[VC-S5] the line is not where the encoders put it: "
                "looking on at %d deg\n",
                (int)S5_SEEK_DEG);
@@ -3699,7 +3782,7 @@ static s5_avoid_result_t s5_do_align(const motion_status_t *p_m, bool b_ir_l,
     }
     s5_ir_watch(b_ir_l, b_ir_r, 0);
     s5_odom_point(&g.odo, (float)S5_IR_AHEAD_MM, 0.0f, &xc, &yc);
-    /* nyx, 2026-11-07 (review C2): Buddy 3 takes over as soon as one IR
+    /* Buddy 3 takes over as soon as one IR
      * is on our line and the car is near its direction (it steers by the
      * IRs from there, also where the line bends), or with both IRs white
      * once the encoders say the pair is centred and an IR saw our line
@@ -3760,7 +3843,7 @@ static s5_avoid_result_t s5_do_blocked(uint32_t dt)
     return S5_AVOID_RUNNING;
 }
 
-/* nyx, 2026-11-08: what the bypass was doing, for the log */
+/* what the bypass was doing, for the log */
 static const char *s5_ph_name(void)
 {
     const char *p_name;
@@ -3852,7 +3935,7 @@ s5_avoid_result_t s5_avoid_step(const motion_status_t *p_m, bool b_ir_l,
     g.dt_ms = dt;
     s5_mag_step(dt);
     g.ph_ms += dt;
-    /* nyx, 2026-11-08: the straight run of a line search has its own
+    /* the straight run of a line search has its own
      * limit (S5_SEARCH_MAX_MM) */
     if ((S5_PH_BLOCKED != g.ph) && (S5_PH_SEARCH != g.ph))
     {
@@ -3871,7 +3954,7 @@ s5_avoid_result_t s5_avoid_step(const motion_status_t *p_m, bool b_ir_l,
     }
     else if (s5_wheel_dead(p_m, dt))
     {
-        /* nyx, 2026-11-08: which wheel, how fast it was asked to go, and
+        /* which wheel, how fast it was asked to go, and
          * what the car was doing */
         S5_LOG("[VC-S5] wheels asked for L %d / R %d mm/s while %s; no "
                "ticks for L %d / R %d ms (%d deg, %d mm on)\n",

@@ -1,7 +1,7 @@
 /*
  *      s5_hw.h
  *      Subsystem 5 -- the hardware: HC-SR04P on TRIG GP16 / ECHO GP17 and
- *      the SG90 servo on GP15 (nyx, 2026-11-07).
+ *      the SG90 servo on GP15.
  *
  *      Only the S5 task calls these (s5_sensor.c), so nothing here locks.
  *      Nothing here blocks either: a ping is fire now, read S5_ECHO_READ_MS
@@ -46,7 +46,7 @@ bool s5_hw_fire(void);
 /* The ping fired last, read at least S5_ECHO_READ_MS later. */
 s5_echo_t s5_hw_echo(uint32_t *p_us);
 
-/* nyx, 2026-11-08: Buddy 4's latest magnetometer sample (LSM303D, z up,
+/* Buddy 4's latest magnetometer sample (LSM303D, z up,
  * 0.16 mgauss per count), x and y. False if there is none from the last
  * S5_MAG_AGE_MS. Called from the VehicleController task and the
  * calibration; Buddy 4's mutex is held only to copy the sample. */

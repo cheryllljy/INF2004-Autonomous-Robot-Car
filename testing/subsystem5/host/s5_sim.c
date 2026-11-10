@@ -1,6 +1,6 @@
 /**
  * @file    s5_sim.c
- * @brief   HOST TEST ONLY (nyx, 2026-11-07). See s5_sim.h. Also the
+ * @brief   HOST TEST ONLY. See s5_sim.h. Also the
  *          host's s5_hw.c (the same five functions) and s5_host_log().
  */
 
@@ -30,7 +30,7 @@ sim_world_t g_sim;
 static uint32_t g_us;
 static uint32_t g_ms;
 static uint64_t g_rng;
-/* nyx, 2026-11-08: the compass's noise has its own generator, so adding
+/* the compass's noise has its own generator, so adding
  * the compass leaves every other noise (pings, dropouts) as it was for a
  * seed and the logs stay comparable with the ones before it */
 static uint64_t g_rng_mag;
@@ -96,7 +96,7 @@ void sim_reset(uint32_t seed)
     g_sim.no_echo_ms = 38.0;
     g_sim.servo_dps = 450.0;
     g_sim.ir_ahead = 125.0;
-    g_sim.ir_half = 12.5; /* nyx, 2026-11-09: 25 mm apart (was 15) */
+    g_sim.ir_half = 12.5; /* 25 mm apart (was 15) */
     g_sim.n_lane = 1;
     g_sim.mag_on = 1;
     g_sim.mag_r = 2500.0;
@@ -768,7 +768,7 @@ int sim_log_longest(void)
     return g_log_longest;
 }
 
-/* nyx, 2026-11-08: Buddy 4's magnetometer on the simulated car */
+/* Buddy 4's magnetometer on the simulated car */
 bool s5_hw_mag(int32_t *p_x, int32_t *p_y)
 {
     double x;

@@ -1,7 +1,6 @@
 /*
  *      s5_hw.c
- *      Subsystem 5 -- HC-SR04P and servo, register level (nyx,
- *      2026-11-07). See s5_hw.h.
+ *      Subsystem 5 -- HC-SR04P and servo, register level. See s5_hw.h.
  *
  *      This port does not link the Pico SDK runtime, so the PWM block is
  *      driven through the micro T-Kernel register map (sys/machine.h) and

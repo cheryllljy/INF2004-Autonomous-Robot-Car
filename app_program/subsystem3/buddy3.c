@@ -28,7 +28,7 @@ static int32_t g_max_speed;
 
 static uint32_t g_sequence;
 
-/* nyx, 2026-11-08: junction rule by each line sensor's own run over the
+/* junction rule by each line sensor's own run over the
  * tape (junction_update()). Distances are encoder distance driven, in um,
  * read from g_jodo_um, which counts all the time (wraps after 4 km). */
 typedef struct
@@ -59,7 +59,7 @@ static uint8_t g_patch_miss_why;
  * snapshot reads. Added 2026-10-30. */
 static bool g_prev_junction;
 
-/* Barcode slowdown (nyx, 2026-11-04): set by any IR_B black, cleared after
+/* Barcode slowdown: set by any IR_B black, cleared after
  * B3_SCAN_SLOW_WHITE_US of white. */
 static bool g_bar_slow;
 static uint32_t g_bar_slow_since_us;
@@ -76,7 +76,7 @@ static void bar_slow_black(uint32_t time_us)
 }
 static uint32_t g_junction_sequence;
 
-/* nyx, 2026-11-06: the last decoded letter is held here until the car
+/* the last decoded letter is held here until the car
  * reaches a junction. At the junction it moves to g_junction_symbol and
  * the VehicleController maps it (Buddy 1's MQTT mapping) to the turn.
  * Both are written only by the sensor task. */
@@ -103,7 +103,7 @@ static void note_fault_locked(b3_fault_t source, ER error)
     }
 }
 
-/* Junction speed (nyx, 2026-11-06): the mean of both wheels, or the faster
+/* Junction speed: the mean of both wheels, or the faster
  * wheel when one reads 0 or less while the other moves (the right encoder
  * on GP3 has read 0 ticks on the car), so a dead encoder does not hide
  * every junction. */
@@ -134,7 +134,7 @@ static uint16_t um_to_mm16(uint32_t um)
     return (uint16_t)(((um / 1000U) > 65535U) ? 65535U : (um / 1000U));
 }
 
-/* nyx, 2026-11-08: a junction is IR_L and IR_R each black for
+/* a junction is IR_L and IR_R each black for
  * B3_JUNCTION_MIN_PATCH_UM of driving, with both black together on at least
  * one pass. The old rule (both black together for that long) missed real
  * junctions: when the car meets the tape at an angle one sensor enters it
@@ -486,7 +486,7 @@ static void publish_barcode(b3_snapshot_t *p_output,
 
     event.barcode = barcode;
 
-    /* Hold the letter until the next junction (nyx, 2026-11-06). A newer
+    /* Hold the letter until the next junction. A newer
      * barcode replaces an older one that never reached a junction. */
     g_held_symbol = barcode.symbol;
 
@@ -656,7 +656,7 @@ static void service_once(void)
         base_speed = B3_SCAN_SPEED_MM_S;
     }
 
-    /* nyx, 2026-11-06: the VehicleController sets the speed itself (fast,
+    /* the VehicleController sets the speed itself (fast,
      * then slow for the barcode after backing up); no own slowdown then. */
     if (context.base_speed_mm_s > 0)
     {
@@ -680,7 +680,7 @@ static void service_once(void)
     if (context.steer_hold || !fresh || !context.follow_enabled ||
         context.stop_requested)
     {
-        /* nyx, 2026-11-07: someone else drives; forget the curve */
+        /* someone else drives; forget the curve */
         b3_line_hold(&g_line);
     }
 
@@ -735,7 +735,7 @@ static void service_once(void)
      */
     if (!scan_enabled)
     {
-        /* nyx, 2026-11-06: scanning is off during turns, obstacle bypasses
+        /* scanning is off during turns, obstacle bypasses
          * and stops, and the decoder is reset on every pass. If IR_B had
          * no edge and is still white, the white before the next barcode
          * began at the last edge, not now, so that edge is kept. Resetting
@@ -743,7 +743,7 @@ static void service_once(void)
          * (reason 7, white before barcode too short). */
         b3_edge_t from = sample.barcode;
 
-        /* nyx, 2026-11-06: ... unless the car went backwards since (the
+        /* ... unless the car went backwards since (the
          * VC backs up to read a barcode slowly): the white then starts
          * where the reverse ended, as the decoder measures net distance. */
         if (!b3_ir_flush() && !sample.barcode.black && !g_scan.last.black &&
@@ -837,8 +837,8 @@ static void service_once(void)
 
 
     /*
-     * Junction: IR_L and IR_R each run over a wide patch (nyx, 2026-11-08,
-     * junction_update()). IR_B may already have crossed the tape and
+     * Junction: IR_L and IR_R each run over a wide patch
+     * (junction_update()). IR_B may already have crossed the tape and
      * started a scan with one element; more means a real barcode.
      */
     {
@@ -862,7 +862,7 @@ static void service_once(void)
 
     if (output.junction_candidate && !g_prev_junction)
     {
-        /* Hand the held letter to this junction (nyx, 2026-11-06). The
+        /* Hand the held letter to this junction. The
          * sequence goes up last, so a reader that sees the new count also
          * sees its letter (both are in the same published snapshot). */
         g_junction_symbol = g_held_symbol;
@@ -889,7 +889,7 @@ static void service_once(void)
     output.control_active = fresh && context.follow_enabled;
 
 
-    /* Serious faults from any Buddy 3 task (nyx, 2026-11-06). */
+    /* Serious faults from any Buddy 3 task. */
     b3_port_lock(&saved);
 
     output.fault_source = g_fault_source;
@@ -1219,7 +1219,7 @@ ER buddy3_start(b3_position_reader_t position_reader)
 }
 
 /*
- * Report a serious fault from another Buddy 3 task (nyx, 2026-11-06).
+ * Report a serious fault from another Buddy 3 task.
  */
 void buddy3_report_fault(b3_fault_t source, ER error)
 {
@@ -1240,7 +1240,7 @@ void buddy3_report_fault(b3_fault_t source, ER error)
 
 
 /*
- * Forget the held barcode letter (nyx, 2026-11-06).
+ * Forget the held barcode letter.
  */
 void buddy3_clear_held_symbol(void)
 {

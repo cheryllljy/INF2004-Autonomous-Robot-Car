@@ -1,7 +1,7 @@
 /**
  * @file    mock/tk/tkernel.h
  * @brief   HOST TEST ONLY. The micro T-Kernel types vc_turn.c needs to
- *          compile in the junction-turn test (nyx, 2026-11-07: the
+ *          compile in the junction-turn test (the
  *          kernel shim went with the old subsystem 5).
  *
  * Types and constants match include/tk/typedef.h and syscall.h of the

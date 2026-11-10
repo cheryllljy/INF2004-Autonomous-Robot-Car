@@ -1,7 +1,7 @@
 /*
  *      s5_path.c
  *      Subsystem 5 -- the bypass path and the steering that follows it
- *      (nyx, 2026-11-07). See s5_path.h.
+ *. See s5_path.h.
  */
 
 #include "s5_path.h"
@@ -65,7 +65,7 @@ float s5_path_ramp_len_steep(float dy)
     return s5_ramp_len(dy, S5_STEEP_HEADING_DEG, S5_STEEP_RADIUS_MM);
 }
 
-/* nyx, 2026-11-08: the ramp back in, sharper than the default */
+/* the ramp back in, sharper than the default */
 float s5_path_ramp_len_in(float dy)
 {
     return s5_ramp_len(dy, S5_IN_HEADING_DEG, S5_IN_RADIUS_MM);
@@ -178,7 +178,7 @@ bool s5_path_car_hits(float x, float y, float psi, const s5_box_t *p_box,
 bool s5_path_clear(const s5_path_t *p_p, const s5_box_t *p_box, float margin,
                    float x_from, float x_to)
 {
-    /* nyx, 2026-11-07 (review C4): only where the outline can reach the
+    /* only where the outline can reach the
      * box: no part of the car is further ahead of the axle than
      * S5_REACH_FRONT_MM, nor further behind than S5_REACH_REAR_MM,
      * whatever its heading */

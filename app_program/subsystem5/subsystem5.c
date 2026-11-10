@@ -1,6 +1,6 @@
 /*
  *      subsystem5.c
- *      Subsystem 5 -- start-up and the S5 task (nyx, 2026-11-07). See
+ *      Subsystem 5 -- start-up and the S5 task. See
  *      subsystem5.h.
  */
 
@@ -14,7 +14,7 @@
 
 static ID g_s5_tid;
 
-/* nyx, 2026-11-07 (review A1): the S5 task is woken every S5_POLL_MS by
+/* the S5 task is woken every S5_POLL_MS by
  * this cyclic handler, like Buddy 3's. tk_dly_tsk() after each poll
  * would wait for the second 10 ms tick (the kernel adds a tick to every
  * relative wait), so the polls would be 20 ms apart. */

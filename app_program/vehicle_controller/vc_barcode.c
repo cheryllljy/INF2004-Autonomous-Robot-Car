@@ -1,7 +1,7 @@
 /*
  *      vc_barcode.c
  *      VehicleController -- back up and read a barcode slowly
- *      (nyx, 2026-11-06). See vc_barcode.h.
+ *. See vc_barcode.h.
  */
 
 #include "vc_barcode.h"

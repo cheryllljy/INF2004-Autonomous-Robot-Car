@@ -1,7 +1,7 @@
 /*
  *      s5_sensor.h
  *      Subsystem 5 -- the sensor task's side: servo, pings, the sweep
- *      (nyx, 2026-11-07).
+ *.
  *
  *      The S5 task calls s5_sensor_poll() every few milliseconds. It never
  *      blocks: a ping is fired, read S5_ECHO_READ_MS later, and the next

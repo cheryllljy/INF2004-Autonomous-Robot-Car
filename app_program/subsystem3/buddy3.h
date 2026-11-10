@@ -14,7 +14,7 @@ typedef enum
     B3_NAV_UTURN
 } b3_nav_command_t;
 
-/* Serious Buddy 3 faults (nyx, 2026-11-06). Any of these latches
+/* Serious Buddy 3 faults. Any of these latches
  * stop_required in the snapshot; the VehicleController then E-stops the
  * car (VC_FAULT_LINE). The first cause is kept for the log. */
 typedef enum
@@ -44,11 +44,11 @@ typedef struct
     bool imu_valid;
     int32_t yaw_rate_mdeg_s;
     bool terrain_unstable;
-    /* nyx, 2026-11-06: line speed set by the VehicleController (it backs
+    /* line speed set by the VehicleController (it backs
      * up and reads barcodes slowly, vc_barcode.c). 0 = B3_BASE_SPEED_MM_S
      * with Buddy 3's own barcode slowdown. */
     int16_t base_speed_mm_s;
-    /* nyx, 2026-11-07: the VehicleController drives the wheels itself
+    /* the VehicleController drives the wheels itself
      * (junction turn, obstacle bypass, barcode back-up): line following
      * starts again from straight when it hands back (b3_line_hold()). */
     bool steer_hold;
@@ -62,7 +62,7 @@ typedef struct
     bool navigation_allowed;
 } b3_nav_event_t;
 
-/* nyx, 2026-11-06: why a black patch under both line sensors was not a
+/* why a black patch under both line sensors was not a
  * junction (2026-11-08: B3_PATCH_SHORT = a sensor's run was short). */
 typedef enum
 {
@@ -88,7 +88,7 @@ typedef struct
     uint8_t reject_edges;
     /* widths (us) of the last "not Code 39" reject */
     uint32_t reject_widths[B3_BARCODE_RUNS];
-    /* nyx, 2026-11-06: last "white before barcode too short" reject: the
+    /* last "white before barcode too short" reject: the
      * white measured and the white needed, in encoder ticks (the mean of
      * both wheels) if reject_encoder, else in us. */
     uint32_t reject_lead;
@@ -98,23 +98,23 @@ typedef struct
     uint32_t max_service_gap_us;
     int32_t task_error;
     bool scan_active;
-    /* nyx, 2026-11-06: elements measured so far in the scan under way
+    /* elements measured so far in the scan under way
      * (0 when none); a crossing line gives at most 1 */
     uint8_t scan_elements;
     bool junction_candidate;
     /* +1 per junction reached; compare to detect a new one */
     uint32_t junction_sequence;
-    /* nyx, 2026-11-06: last decoded letter, held until a junction ('\0' = none) */
+    /* last decoded letter, held until a junction ('\0' = none) */
     char held_symbol;
     /* letter handed over at junction_sequence ('\0' = none) */
     char junction_symbol;
     uint8_t fault_source; /* b3_fault_t of the first serious fault */
-    /* nyx, 2026-11-06: the last time both line sensors were black and it
+    /* the last time both line sensors were black and it
      * was NOT counted as a junction: how long the patch was and why. The
      * count goes up once per such patch, so the VC can print each one. */
     uint32_t patch_misses;
     uint16_t patch_miss_mm; /* both black together (2026-11-08) */
-    /* nyx, 2026-11-08: each sensor's own run over the patch */
+    /* each sensor's own run over the patch */
     uint16_t patch_miss_l_mm;
     uint16_t patch_miss_r_mm;
     uint8_t patch_miss_why; /* b3_patch_why_t */
@@ -132,12 +132,12 @@ void buddy3_get_snapshot(b3_snapshot_t *p_snapshot);
 bool buddy3_pop_navigation(b3_nav_event_t *p_event);
 b3_nav_command_t buddy3_map_symbol(char symbol);
 
-/* nyx, 2026-11-06. Report a serious fault from another Buddy 3 task (the
+/* Report a serious fault from another Buddy 3 task (the
  * consumer task's message buffer / mailbox). Never blocks; safe from any
  * task. The car stays stopped until the board is reset. */
 void buddy3_report_fault(b3_fault_t source, ER error);
 
-/* nyx, 2026-11-06. Forget the held barcode letter (VehicleController calls
+/* Forget the held barcode letter (VehicleController calls
  * it on STOP and RESET, so an old letter is not used at the next junction).
  * Single caller (the VehicleController); never blocks. */
 void buddy3_clear_held_symbol(void);

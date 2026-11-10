@@ -1,6 +1,6 @@
 /*
  *      vc_turn.c
- *      VehicleController -- the turn at a junction (nyx, 2026-11-06).
+ *      VehicleController -- the turn at a junction.
  *      See vc_turn.h for what it does and why.
  */
 
@@ -171,7 +171,7 @@ bool vc_turn_start(b3_nav_command_t turn, const motion_status_t *p_motion)
             {
                 now = 0;
             }
-            /* nyx, 2026-11-07: was 2 * VC_CORNER_MAX_MM_S; kept at 160 so
+            /* was 2 * VC_CORNER_MAX_MM_S; kept at 160 so
              * the slower arc does not make the U-turn brake at once */
             if (now > VC_UTURN_EASE_MAX_MM_S)
             {
@@ -236,7 +236,7 @@ static vc_turn_result_t arc_step(const motion_status_t *p_motion,
     }
 
 #if VC_CORNER_PIVOT
-    /* nyx, 2026-11-07: pivot on the inner wheel (see vc_turn.h) */
+    /* pivot on the inner wheel (see vc_turn.h) */
     if (centre < VC_CORNER_PREDRIVE_MM)
     {
         wheels(p_motion, (int16_t)v, (int16_t)v);
@@ -255,7 +255,7 @@ static vc_turn_result_t arc_step(const motion_status_t *p_motion,
 
     /* Wheel speed difference for the arc, plus a correction that pulls
      * the heading back onto it. Past 90 deg (the line not found yet) the
-     * arc tightens as far as the inner wheel allows (nyx, 2026-11-07). */
+     * arc tightens as far as the inner wheel allows. */
     diff = (w * v) / r;
     if (turned < deg_to_mrad(VC_CORNER_DEG))
     {

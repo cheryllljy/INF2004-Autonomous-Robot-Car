@@ -1,0 +1,468 @@
+20:09:02.110 [VC] MQTT RESET received seq=70
+20:09:02.177 [VC] state 5 -> 0
+20:09:04.160 [VC] MQTT SEARCH received seq=71: line search, then line following
+20:09:04.227 [VC] state 0 -> 3
+20:09:04.227 [VC-S5] line search: straight on at 60 mm/s until the IRs meet a line (at most 2000 mm), then onto it and along it
+20:09:04.377 [VC-S5] line search: both IRs met a line straight across (0 mm apart): onto it, then turning LEFT to face along it (S5_SEARCH_TURN)
+20:09:05.972 [VC] MQTT STOP received seq=72
+20:09:05.974 [VC-S5] line search stopped by the VehicleController
+20:09:05.986 [VC] state 3 -> 4
+20:09:09.643 [VC] line sensors black L 118 / R 119 mm, 118 mm together, not a junction: too slow on average (needs 6 mm each at 15 mm/s)
+20:11:47.778 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:11:52.428 [VC] MQTT RESET received seq=73
+20:11:52.471 [VC] state 4 -> 0
+20:11:54.685 [VC] MQTT START received seq=74
+20:11:54.769 [VC] state 0 -> 1
+20:11:55.869 [VC] state 1 -> 3
+20:11:56.500 [VC-S5] object 300 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)
+20:11:57.469 [VC-S5] compass: no good sample at the stop (field 59 percent of the calibration's): encoders only
+20:11:58.901 [VC-S5] sweep: 25 pings, face 286 mm, echoes from -56 to 27 deg, beam 15 deg
+20:11:59.330 [VC-S5] object 309 mm wide: 63 mm left and 246 mm right of the line
+20:11:59.332 [VC-S5] going LEFT: axle 173 mm off the line, ramps 387 / 360 mm, back in from 163 mm past the face
+20:11:59.464 [VC] line sensors black L 11 / R 5 mm, 5 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:12:04.736 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+20:12:09.251 [VC-S5] both IRs black at once 136 mm from where the encoders put the line, car -14 deg to it: a line across ours (junction); driving on
+20:12:09.251 [VC] junction #1 reached, letter '-', turn STRAIGHT (none)
+20:12:09.272 [VC-S5] IRs found the line (edge), -57 mm from where the encoders put it
+20:12:09.352 [VC-S5] both IRs crossed the line (-65 mm from where the encoders put it, -40 deg to it): onto it and facing along it
+20:12:09.368 [VC-S5] by where the two IRs met it, the car is -29 deg to the line (the encoders said -40)
+20:12:09.735 [VC-S5] axle on the line (107 mm on): turning on the spot to face along it
+20:12:11.285 [VC-S5] back on the line (picked up by the IRs): line following again (1019 mm, 15.4 s)
+20:12:11.416 [VC] state 3 -> 1
+20:12:17.435 [VC] barcode scan started
+20:12:17.535 [VC] barcode ahead at 92 mm/s: stopping to back up
+20:12:20.760 [VC] barcode: stopped 11 mm past it, backing up 111 mm
+20:12:20.763 [VC] barcode: backed up, reading it at 25 mm/s
+20:12:22.587 [VC] barcode scan started
+20:12:33.917 [VC] barcode 'A' (#1) held for the next junction
+20:12:34.033 [VC] barcode read, back to 100 mm/s
+20:12:36.967 [VC] barcode scan started
+20:12:37.050 [VC] junction #2 reached, letter 'A', turn U-TURN
+20:12:37.051 [VC] junction: U-turn, easing to a stop from 95 mm/s
+20:12:37.116 [VC] state 1 -> 2
+20:12:37.521 [VC] U-turn: pivoting left at up to 45 deg/s
+20:12:42.967 [VC] U-turn done: line centred between the IRs, turned 190 deg
+20:12:43.074 [VC] state 2 -> 1
+20:12:48.150 [VC] curve: asked R-311 (L 44 R 31 mm/s), wheels L 44 R 37 mm/s = R-648, IRs ww
+20:12:49.582 [VC] barcode scan started
+20:12:52.349 [VC] barcode ahead at 100 mm/s: stopping to back up
+20:12:52.349 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:12:52.383 [VC] barcode: backed up, reading it at 25 mm/s
+20:12:55.567 [VC] barcode scan started
+20:13:00.349 [VC] barcode 'Z' (#2) held for the next junction
+20:13:00.447 [VC] barcode read, back to 100 mm/s
+20:13:02.651 [VC] barcode scan started
+20:13:02.699 [VC] junction #3 reached, letter 'Z', turn RIGHT
+20:13:02.715 [VC] junction: RIGHT, pivot on the right wheel, the other at 60 mm/s, until IR_R crosses the line
+20:13:02.734 [VC] state 1 -> 2
+20:13:04.189 [VC] turn RIGHT done: line centred between the IRs, turned 68 deg, axle drove 92 mm (wheels 159 / 26 mm)
+20:13:04.249 [VC] state 2 -> 1
+20:13:07.149 [VC] curve: asked R-334 (L 47 R 34 mm/s), wheels L 49 R 36 mm/s = R-366, IRs ww
+20:13:13.032 [VC] curve: asked R-148 (L 53 R 24 mm/s), wheels L 52 R 29 mm/s = R-197, IRs ww
+20:13:14.599 [VC] curve: asked R-158 (L 47 R 22 mm/s), wheels L 47 R 22 mm/s = R-154, IRs wB
+20:13:17.572 [VC] curve: asked R-351 (L 40 R 29 mm/s), wheels L 40 R 29 mm/s = R-351, IRs ww
+20:13:21.148 [VC] barcode scan started
+20:13:21.249 [VC] barcode ahead at 92 mm/s: stopping to back up
+20:13:21.511 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:13:23.081 [VC] barcode: backed up, reading it at 25 mm/s
+20:13:26.648 [VC] barcode scan started
+20:13:34.980 [VC] barcode 'F' (#3) held for the next junction
+20:13:35.052 [VC] barcode read, back to 100 mm/s
+20:13:43.718 [VC] curve: asked R-150 (L 53 R 24 mm/s), wheels L 52 R 29 mm/s = R-197, IRs ww
+20:13:46.549 [VC] curve: asked R-148 (L 48 R 21 mm/s), wheels L 48 R 22 mm/s = R-150, IRs wB
+20:13:49.413 [VC] curve: asked R-126 (L 53 R 16 mm/s), wheels L 52 R 17 mm/s = R-110, IRs wB
+20:13:52.263 [VC] curve: asked R-151 (L 49 R 20 mm/s), wheels L 49 R 20 mm/s = R-133, IRs ww
+20:13:59.213 [VC] curve: asked R150 (L 24 R 53 mm/s), wheels L 28 R 52 mm/s = R186, IRs ww
+20:14:02.080 [VC] curve: asked R149 (L 21 R 48 mm/s), wheels L 22 R 47 mm/s = R154, IRs wB
+20:14:03.263 [VC] barcode scan started
+20:14:03.631 [VC] junction #4 reached, letter 'F', turn LEFT
+20:14:03.734 [VC] junction: LEFT, pivot on the left wheel, the other at 60 mm/s, until IR_L crosses the line
+20:14:03.734 [VC] state 1 -> 2
+20:14:07.296 [VC] turn LEFT done: line centred between the IRs, turned 89 deg, axle drove 112 mm (wheels 25 / 200 mm)
+20:14:07.412 [VC] state 2 -> 1
+20:14:13.312 [VC] curve: asked R-181 (L 47 R 26 mm/s), wheels L 46 R 28 mm/s = R-230, IRs wB
+20:14:16.329 [VC] curve: asked R-130 (L 50 R 19 mm/s), wheels L 46 R 20 mm/s = R-142, IRs ww
+20:14:19.078 [VC] curve: asked R-132 (L 50 R 19 mm/s), wheels L 54 R 19 mm/s = R-116, IRs wB
+20:14:21.845 [VC] curve: asked R-146 (L 50 R 19 mm/s), wheels L 50 R 20 mm/s = R-130, IRs ww
+20:14:28.813 [VC] curve: asked R-165 (L 48 R 25 mm/s), wheels L 47 R 28 mm/s = R-221, IRs ww
+20:14:31.744 [VC] curve: asked R-140 (L 48 R 21 mm/s), wheels L 48 R 21 mm/s = R-143, IRs ww
+20:14:34.572 [VC] junction #5 reached, letter '-', turn STRAIGHT (none)
+20:14:34.746 [VC] barcode scan started
+20:14:37.111 [VC] barcode rejected (total 1): 1/29 elements, last element 2008819 us, reason 3: element too long
+20:14:39.593 [VC] curve: asked R-190 (L 48 R 27 mm/s), wheels L 46 R 30 mm/s = R-266, IRs wB
+20:14:42.378 [VC] curve: asked R-140 (L 49 R 20 mm/s), wheels L 49 R 21 mm/s = R-140, IRs ww
+20:14:51.045 [VC] curve: asked R149 (L 25 R 54 mm/s), wheels L 28 R 51 mm/s = R192, IRs Bw
+20:14:53.916 [VC] curve: asked R142 (L 20 R 49 mm/s), wheels L 21 R 48 mm/s = R143, IRs Bw
+20:14:56.662 [VC] curve: asked R124 (L 11 R 58 mm/s), wheels L 13 R 58 mm/s = R88, IRs ww
+20:15:13.943 [VC] curve: asked R142 (L 25 R 53 mm/s), wheels L 28 R 51 mm/s = R192, IRs Bw
+20:15:16.759 [VC] curve: asked R153 (L 21 R 48 mm/s), wheels L 21 R 49 mm/s = R140, IRs ww
+20:15:22.493 [VC] barcode scan started
+20:15:22.625 [VC] junction #6 reached, letter '-', turn STRAIGHT (none)
+20:15:25.309 [VC] curve: asked R-156 (L 49 R 22 mm/s), wheels L 49 R 26 mm/s = R-182, IRs ww
+20:15:25.547 [VC] barcode ahead at 45 mm/s: stopping to back up
+20:15:25.759 [VC] barcode: stopped 3 mm past it, backing up 103 mm
+20:15:27.394 [VC] barcode: backed up, reading it at 25 mm/s
+20:15:27.926 [VC] line sensors black L 16 / R 4 mm, 4 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:15:29.237 [VC] barcode scan started
+20:15:31.996 [VC] state 1 -> 3
+20:15:31.997 [VC-S5] object 176 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)
+20:15:32.095 [VC] junction #7 reached, letter '-', turn STRAIGHT (none)
+20:15:32.201 [VC-S5] compass: no good sample at the stop (field 32 percent of the calibration's): encoders only
+20:15:34.832 [VC-S5] sweep: 23 pings, face 257 mm, echoes from -38 to 60 deg, beam 10 deg
+20:15:34.892 [VC-S5] object 442 mm wide: 308 mm left and 134 mm right of the line, left edge past the sweep
+20:15:34.892 [VC-S5] going RIGHT: axle -244 mm off the line; too close for a ramp: turn 45 deg on the spot, out 346 mm, turn back; back in from 159 mm past the face
+20:18:53.583 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+20:18:53.598 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+20:18:53.600 [VC] E-stop, fault bits 0x04
+20:18:53.666 [VC] state 0 -> 5
+20:18:53.666 [BUDDY1] FR3 monitor started
+20:18:58.148 [VC] MQTT RESET received seq=75
+20:18:58.222 [VC] state 5 -> 0
+20:18:58.222 [VC] E-stop, fault bits 0x04
+20:18:58.285 [VC] state 0 -> 5
+20:19:00.181 [VC] MQTT START received seq=76
+20:19:25.904 [VC] IMU fault: sample too old (status 3, age 680 ms)
+20:19:26.079 [VC] HUMP_DONE peak side-height=11 mm (seq 1)
+20:19:26.080 [VC] HUMP_DONE peak side-height=23 mm (seq 2)
+20:19:26.097 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:19:26.120 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:19:26.131 [BUDDY1] FR3 communication unhealthy; monitoring
+20:19:26.147 [BUDDY1] FR3 LINK_LOST latched, reason=2, rssi -59 dBm, last broker answer 10039 ms ago
+20:19:26.164 [BUDDY1] FR3 VehicleController STOP REQUIRED
+20:19:26.197 [BUDDY1] FR3 communication restored
+20:19:26.197 [BUDDY1] FR3 recovery: latch=1 reason=2
+20:19:31.933 [VC] MQTT RESET requested for FR3 safety latch
+20:19:32.053 [BUDDY1] FR3 controller reset accepted
+20:19:32.054 [VC] Communication reset complete
+20:19:32.131 [VC] state 5 -> 0
+20:19:33.890 [VC] MQTT START received seq=78
+20:19:33.968 [VC] state 0 -> 1
+20:19:34.677 [VC] HUMP_DONE peak side-height=14 mm (seq 3)
+20:19:35.268 [VC] barcode scan started
+20:19:35.431 [VC] HUMP_DONE peak side-height=8 mm (seq 4)
+20:19:37.020 [VC] barcode ahead at 94 mm/s: stopping to back up
+20:19:37.312 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:19:38.230 [VC] HUMP_DONE peak side-height=15 mm (seq 5)
+20:19:38.896 [VC] barcode: backed up, reading it at 25 mm/s
+20:19:42.813 [VC] barcode scan started
+20:19:46.063 [VC] HUMP_DONE peak side-height=9 mm (seq 6)
+20:19:47.395 [VC] line sensors black L 42 / R 43 mm, 42 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:19:52.647 [VC] barcode rejected (total 1): 29/29 elements, last element 290327 us, reason 6: not a valid Code 39 pattern
+20:19:52.763 [VC]   widths ms 0-9: B286.8 w189.8 B303.2 w199.5 B41.2 w1230.8 B272.8 w688.8 B1365.1 w1415.8
+20:19:52.763 [VC]   widths ms 10-19: B56.6 w235.1 B344.8 w221.3 B315.6 w177.9 B57.8 w427.1 B39.1 w205.6
+20:19:52.832 [VC]   widths ms 20-28: B35.7 w209.0 B30.7 w196.1 B286.1 w211.9 B28.9 w444.9 B290.3
+20:19:52.833 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:19:52.845 [VC] barcode scan started
+20:19:54.246 [VC] line sensors black L 63 / R 64 mm, 63 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:19:55.483 [VC] barcode ahead at 93 mm/s: stopping to back up
+20:19:55.734 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:19:55.824 [VC] HUMP_DONE peak side-height=17 mm (seq 7)
+20:19:55.943 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:19:56.213 [VC] HUMP_DONE peak side-height=11 mm (seq 8)
+20:19:57.130 [VC] barcode: backed up, reading it at 25 mm/s
+20:19:59.129 [VC] barcode scan started
+20:20:04.815 [VC] barcode 'Y' (#1) held for the next junction
+20:20:04.905 [VC] barcode read, back to 100 mm/s
+20:20:05.914 [VC] HUMP_DONE peak side-height=9 mm (seq 9)
+20:20:06.135 [VC] barcode scan started
+20:20:08.268 [VC] barcode rejected (total 2): 2/29 elements, last element 2007494 us, reason 3: element too long
+20:20:08.368 [VC] barcode 'Y' has no MQTT mapping, going straight
+20:20:08.368 [VC] junction #1 reached, letter 'Y', turn STRAIGHT
+20:20:08.452 [VC] HUMP_DONE peak side-height=8 mm (seq 10)
+20:20:13.178 [VC] HUMP_DONE peak side-height=20 mm (seq 11)
+20:20:15.328 [VC] HUMP_DONE peak side-height=12 mm (seq 12)
+20:20:17.995 [VC] barcode scan started
+20:20:19.588 [VC] barcode ahead at 100 mm/s: stopping to back up
+20:20:21.037 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:20:21.129 [VC] HUMP_DONE peak side-height=19 mm (seq 13)
+20:20:21.445 [VC] barcode: backed up, reading it at 25 mm/s
+20:20:25.540 [VC] barcode scan started
+20:20:32.928 [VC] barcode rejected (total 3): 25/29 elements, last element 2004890 us, reason 3: element too long
+20:20:33.011 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:20:33.094 [VC] HUMP_DONE peak side-height=9 mm (seq 14)
+20:20:34.527 [VC] barcode scan started
+20:20:34.648 [VC] junction #2 reached, letter '-', turn STRAIGHT (none)
+20:20:35.794 [VC] HUMP_DONE peak side-height=8 mm (seq 15)
+20:20:36.527 [VC] barcode rejected (total 4): 0/29 elements, last element 2000633 us, reason 3: element too long
+20:20:38.689 [VC] HUMP_DONE peak side-height=27 mm (seq 16)
+20:20:48.450 [VC] HUMP_DONE peak side-height=51 mm (seq 17)
+20:20:48.460 [VC] barcode scan started
+20:20:48.494 [VC] junction #3 reached, letter '-', turn STRAIGHT (none)
+20:20:48.529 [VC] HUMP_DONE peak side-height=9 mm (seq 18)
+20:20:48.529 [VC] HUMP_DONE peak side-height=8 mm (seq 19)
+20:20:48.861 [VC] barcode ahead at 94 mm/s: stopping to back up
+20:20:49.176 [VC] barcode: stopped 12 mm past it, backing up 112 mm
+20:20:50.148 [VC] HUMP_DONE peak side-height=10 mm (seq 20)
+20:20:50.210 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:20:50.677 [VC] barcode: backed up, reading it at 25 mm/s
+20:20:52.946 [VC] barcode scan started
+20:20:59.080 [VC] barcode 'Y' (#2) held for the next junction
+20:20:59.082 [VC] barcode read, back to 100 mm/s
+20:20:59.660 [VC] barcode scan started
+20:20:59.727 [VC] barcode 'Y' has no MQTT mapping, going straight
+20:20:59.727 [VC] junction #4 reached, letter 'Y', turn STRAIGHT
+20:21:00.793 [VC] HUMP_DONE peak side-height=10 mm (seq 21)
+20:21:01.676 [VC] barcode rejected (total 5): 0/29 elements, last element 2003755 us, reason 3: element too long
+20:21:02.491 [VC] HUMP_DONE peak side-height=24 mm (seq 22)
+20:21:05.309 [VC] HUMP_DONE peak side-height=17 mm (seq 23)
+20:21:08.811 [VC] HUMP_DONE peak side-height=11 mm (seq 24)
+20:21:12.911 [VC] MQTT STOP received seq=79
+20:21:12.991 [VC] state 1 -> 4
+20:21:14.661 [VC] HUMP_DONE peak side-height=22 mm (seq 25)
+20:21:16.797 [VC] HUMP_DONE peak side-height=22 mm (seq 26)
+20:21:28.091 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:22:01.706 [VC] HUMP_DONE peak side-height=10 mm (seq 27)
+20:22:06.780 [VC] line sensors black L 0 / R 3 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:22:16.060 [VC] HUMP_DONE peak side-height=9 mm (seq 28)
+20:22:47.423 [VC] HUMP_DONE peak side-height=13 mm (seq 29)
+20:25:12.300 [VC] HUMP_DONE peak side-height=16 mm (seq 30)
+20:25:13.585 [VC] HUMP_DONE peak side-height=10 mm (seq 31)
+20:25:16.781 [VC] HUMP_DONE peak side-height=12 mm (seq 32)
+20:25:20.497 [VC] HUMP_DONE peak side-height=10 mm (seq 33)
+20:25:50.030 [VC] HUMP_DONE peak side-height=9 mm (seq 34)
+20:25:59.529 [VC] HUMP_DONE peak side-height=8 mm (seq 35)
+20:26:00.563 [VC] HUMP_DONE peak side-height=10 mm (seq 36)
+20:26:03.117 [VC] HUMP_DONE peak side-height=15 mm (seq 37)
+20:26:03.357 [VC] line sensors black L 4 / R 4 mm, 4 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:26:06.241 [VC] IMU fault: sample too old (status 3, age 840 ms)
+20:26:06.312 [VC] E-stop, fault bits 0x04
+20:26:06.314 [VC] state 4 -> 5
+20:26:11.074 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:26:23.474 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:26:28.011 [VC] HUMP_DONE peak side-height=12 mm (seq 1)
+20:26:30.150 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:26:30.759 [VC] HUMP_DONE peak side-height=52 mm (seq 2)
+20:26:54.185 [VC] HUMP_DONE peak side-height=10 mm (seq 3)
+20:26:54.781 [VC] line sensors black L 4 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:26:58.026 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:27:01.170 [VC] line sensors black L 49 / R 13 mm, 13 mm together, not a junction: car not driving (stopped, no motion data, stale) (needs 6 mm each at 15 mm/s)
+20:27:17.122 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:27:34.011 [VC] line sensors black L 1 / R 1 mm, 1 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:27:37.825 [VC] HUMP_DONE peak side-height=22 mm (seq 4)
+20:27:38.623 [VC] HUMP_DONE peak side-height=12 mm (seq 5)
+20:27:38.743 [VC] MQTT RESET received seq=80
+20:27:38.857 [VC] state 5 -> 0
+20:27:45.674 [VC] HUMP_DONE peak side-height=50 mm (seq 6)
+20:27:45.674 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:27:45.692 [VC] MQTT START received seq=81
+20:27:45.708 [VC] state 0 -> 1
+20:27:48.021 [VC] barcode scan started
+20:27:48.290 [VC] junction #5 reached, letter '-', turn STRAIGHT (none)
+20:27:48.290 [VC] HUMP_DONE peak side-height=17 mm (seq 7)
+20:27:48.473 [VC] HUMP_DONE peak side-height=8 mm (seq 8)
+20:27:48.873 [VC] barcode ahead at 95 mm/s: stopping to back up
+20:27:49.200 [VC] barcode: stopped 10 mm past it, backing up 110 mm
+20:27:50.673 [VC] barcode: backed up, reading it at 25 mm/s
+20:27:50.753 [VC] barcode scan started
+20:27:57.383 [VC] barcode rejected (total 6): 14/29 elements, last element 2002540 us, reason 3: element too long
+20:27:57.478 [VC] junction #6 reached, letter '-', turn STRAIGHT (none)
+20:27:57.479 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:27:59.027 [VC] barcode scan started
+20:27:59.209 [VC] HUMP_DONE peak side-height=44 mm (seq 9)
+20:28:00.289 [VC] barcode ahead at 94 mm/s: stopping to back up
+20:28:00.668 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:28:00.915 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:28:02.232 [VC] barcode: backed up, reading it at 25 mm/s
+20:28:02.609 [VC] HUMP_DONE peak side-height=9 mm (seq 10)
+20:28:02.735 [VC] barcode scan started
+20:28:06.294 [VC] line sensors black L 9 / R 9 mm, 9 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:28:07.671 [VC] HUMP_DONE peak side-height=12 mm (seq 11)
+20:28:09.652 [VC] barcode rejected (total 7): 29/29 elements, last element 45749 us, reason 6: not a valid Code 39 pattern
+20:28:09.754 [VC]   widths ms 0-9: B851.8 w52.3 B485.2 w42.3 B244.3 w451.4 B26.5 w160.5 B26.7 w378.5
+20:28:09.754 [VC]   widths ms 10-19: B266.8 w264.3 B96.7 w13.1 B83.8 w696.6 B86.5 w146.3 B32.6 w551.0
+20:28:09.833 [VC]   widths ms 20-28: B56.3 w213.0 B353.8 w214.7 B336.2 w210.6 B56.4 w469.5 B45.7
+20:28:09.842 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:28:09.859 [VC] barcode scan started
+20:28:10.799 [VC] line sensors black L 34 / R 38 mm, 34 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:28:12.300 [VC] barcode ahead at 94 mm/s: stopping to back up
+20:28:12.651 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:28:12.751 [VC] HUMP_DONE peak side-height=9 mm (seq 12)
+20:28:13.937 [VC] HUMP_DONE peak side-height=18 mm (seq 13)
+20:28:14.339 [VC] barcode: backed up, reading it at 25 mm/s
+20:28:15.879 [VC] barcode scan started
+20:28:21.474 [VC] barcode 'Y' (#3) held for the next junction
+20:28:21.549 [VC] barcode read, back to 100 mm/s
+20:28:22.556 [VC] barcode scan started
+20:28:22.632 [VC] barcode 'Y' has no MQTT mapping, going straight
+20:28:22.634 [VC] junction #7 reached, letter 'Y', turn STRAIGHT
+20:28:24.478 [VC] HUMP_DONE peak side-height=21 mm (seq 14)
+20:28:24.563 [VC] barcode rejected (total 8): 0/29 elements, last element 2000550 us, reason 3: element too long
+20:28:26.448 [VC] HUMP_DONE peak side-height=25 mm (seq 15)
+20:28:37.673 [VC] HUMP_DONE peak side-height=21 mm (seq 16)
+20:28:37.673 [VC] HUMP_DONE peak side-height=9 mm (seq 17)
+20:28:37.693 [VC] barcode scan started
+20:28:37.721 [VC] junction #8 reached, letter '-', turn STRAIGHT (none)
+20:28:37.734 [VC] HUMP_DONE peak side-height=17 mm (seq 18)
+20:28:37.737 [VC] HUMP_DONE peak side-height=8 mm (seq 19)
+20:28:37.785 [VC] HUMP_DONE peak side-height=11 mm (seq 20)
+20:28:37.785 [VC] barcode ahead at 95 mm/s: stopping to back up
+20:28:37.801 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:28:38.128 [VC] barcode: backed up, reading it at 25 mm/s
+20:28:38.233 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:28:40.920 [VC] line sensors black L 3 / R 3 mm, 3 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:28:46.936 [VC] barcode scan started
+20:28:47.072 [VC] junction #9 reached, letter '-', turn STRAIGHT (none)
+20:28:49.177 [VC] barcode rejected (total 9): 1/29 elements, last element 2005417 us, reason 3: element too long
+20:28:49.288 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:28:50.015 [VC] junction #10 reached, letter '-', turn STRAIGHT (none)
+20:28:51.206 [VC] HUMP_DONE peak side-height=9 mm (seq 21)
+20:28:53.126 [VC] barcode scan started
+20:28:55.014 [VC] HUMP_DONE peak side-height=14 mm (seq 22)
+20:28:55.734 [VC] barcode ahead at 113 mm/s: stopping to back up
+20:28:56.087 [VC] barcode: stopped 16 mm past it, backing up 116 mm
+20:28:56.398 [VC] line sensors black L 1 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:28:57.531 [VC] barcode: backed up, reading it at 25 mm/s
+20:28:58.706 [VC] line sensors black L 26 / R 26 mm, 26 mm together, not a junction: too slow on average (needs 6 mm each at 15 mm/s)
+20:28:58.857 [VC] HUMP_DONE peak side-height=16 mm (seq 23)
+20:29:00.939 [VC] barcode scan started
+20:29:07.173 [VC] barcode rejected (total 10): 29/29 elements, last element 106600 us, reason 6: not a valid Code 39 pattern
+20:29:07.375 [VC]   widths ms 0-9: B66.7 w971.8 B120.4 w162.2 B367.5 w148.5 B334.4 w136.9 B98.4 w378.1
+20:29:07.375 [VC]   widths ms 10-19: B97.9 w140.1 B98.7 w146.6 B86.2 w149.1 B331.9 w148.0 B89.0 w428.2
+20:29:07.475 [VC]   widths ms 20-28: B325.6 w145.5 B86.8 w141.2 B334.0 w133.5 B344.4 w135.8 B106.6
+20:29:07.475 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:29:07.491 [VC] barcode scan started
+20:29:10.541 [VC] barcode ahead at 100 mm/s: stopping to back up
+20:29:10.610 [VC] line sensors black L 155 / R 152 mm, 151 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:29:10.685 [VC] HUMP_DONE peak side-height=17 mm (seq 24)
+20:29:10.781 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:29:13.523 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:29:13.683 [VC] barcode: backed up, reading it at 25 mm/s
+20:29:13.685 [VC] HUMP_DONE peak side-height=8 mm (seq 25)
+20:29:13.733 [VC] barcode scan started
+20:29:19.091 [VC] barcode 'Y' (#4) held for the next junction
+20:29:19.196 [VC] barcode read, back to 100 mm/s
+20:29:20.346 [VC] barcode scan started
+20:29:20.435 [VC] barcode 'Y' has no MQTT mapping, going straight
+20:29:20.435 [VC] junction #11 reached, letter 'Y', turn STRAIGHT
+20:29:22.266 [VC] barcode ahead at 99 mm/s: stopping to back up
+20:29:24.966 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:29:25.045 [VC] HUMP_DONE peak side-height=9 mm (seq 26)
+20:29:25.045 [VC] barcode: backed up, reading it at 25 mm/s
+20:29:25.078 [VC] barcode scan started
+20:29:25.078 [VC] junction #12 reached, letter '-', turn STRAIGHT (none)
+20:29:26.351 [VC] state 1 -> 3
+20:29:26.432 [VC-S5] object 295 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)
+20:29:26.434 [VC] barcode rejected (total 11): 0/29 elements, last element 2001960 us, reason 3: element too long
+20:29:26.577 [VC-S5] compass: no good sample at the stop (field 50 percent of the calibration's): encoders only
+20:29:29.620 [VC] HUMP_DONE peak side-height=27 mm (seq 27)
+20:29:29.713 [VC-S5] sweep: 23 pings, face 352 mm, echoes from 18 to 22 deg, beam 18 deg
+20:29:29.713 [VC-S5] object 0 mm wide: 125 mm left and -125 mm right of the line, left side blocked
+20:29:29.739 [VC-S5] left side blocked by an echo at 24 deg, 598 mm
+20:29:29.748 [VC-S5] going RIGHT: axle 0 mm off the line, ramps 40 / 40 mm, back in from -359 mm past the face
+20:29:29.764 [VC] HUMP_DONE peak side-height=8 mm (seq 28)
+20:29:29.841 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+20:29:29.842 [VC-S5] both IRs black at once -1 mm from where the encoders put the line, car 0 deg to it: a line across ours (junction); driving on
+20:29:30.204 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+20:29:30.221 [VC-S5] no black on the way back: the first line ahead is ours
+20:29:35.284 [VC] HUMP_DONE peak side-height=45 mm (seq 29)
+20:29:38.052 [VC-S5] bypass failed: the line was not found (FR24)
+20:29:38.052 [VC] E-stop, fault bits 0x40
+20:29:38.065 [VC] state 3 -> 5
+20:29:43.513 [VC] HUMP_DONE peak side-height=14 mm (seq 30)
+20:29:45.355 [VC] HUMP_DONE peak side-height=8 mm (seq 31)
+20:29:47.030 [VC] HUMP_DONE peak side-height=8 mm (seq 32)
+20:29:47.446 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:29:54.574 [VC] MQTT RESET received seq=82
+20:29:54.666 [VC] state 5 -> 0
+20:29:56.689 [VC] MQTT START received seq=83
+20:29:56.691 [VC] state 0 -> 1
+20:29:57.330 [VC] barcode scan started
+20:29:57.377 [VC] barcode ahead at 101 mm/s: stopping to back up
+20:29:57.700 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:29:59.259 [VC] barcode: backed up, reading it at 25 mm/s
+20:30:03.229 [VC] barcode scan started
+20:30:11.023 [VC] HUMP_DONE peak side-height=12 mm (seq 33)
+20:30:12.276 [VC] barcode rejected (total 12): 20/29 elements, last element 2004491 us, reason 3: element too long
+20:30:12.340 [VC] junction #13 reached, letter '-', turn STRAIGHT (none)
+20:30:12.351 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:30:13.683 [VC] HUMP_DONE peak side-height=20 mm (seq 34)
+20:30:19.339 [VC] HUMP_DONE peak side-height=33 mm (seq 35)
+20:30:19.858 [VC] barcode scan started
+20:30:21.154 [VC] barcode ahead at 91 mm/s: stopping to back up
+20:30:21.230 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:30:21.230 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:30:21.762 [VC] barcode: backed up, reading it at 25 mm/s
+20:30:21.969 [VC] line sensors black L 4 / R 5 mm, 4 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:30:23.181 [VC] HUMP_DONE peak side-height=10 mm (seq 36)
+20:30:23.702 [VC] barcode scan started
+20:30:29.795 [VC] barcode 'Y' (#5) held for the next junction
+20:30:29.892 [VC] barcode read, back to 100 mm/s
+20:30:30.520 [VC] barcode scan started
+20:30:30.731 [VC] barcode 'Y' has no MQTT mapping, going straight
+20:30:30.731 [VC] junction #14 reached, letter 'Y', turn STRAIGHT
+20:30:31.292 [VC] barcode ahead at 106 mm/s: stopping to back up
+20:30:31.688 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:30:33.679 [VC] barcode: backed up, reading it at 25 mm/s
+20:30:45.489 [VC] barcode scan started
+20:30:45.728 [VC] line sensors black L 4 / R 2 mm, 2 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+20:30:47.630 [VC] barcode rejected (total 13): 1/29 elements, last element 2006798 us, reason 3: element too long
+20:30:47.698 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:30:49.033 [VC] barcode scan started
+20:30:51.128 [VC] HUMP_DONE peak side-height=17 mm (seq 37)
+20:30:53.499 [VC] line sensors black L 78 / R 77 mm, 77 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:30:53.501 [VC] barcode ahead at 106 mm/s: stopping to back up
+20:30:54.188 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:30:54.583 [VC] HUMP_DONE peak side-height=14 mm (seq 38)
+20:30:55.106 [VC] barcode: backed up, reading it at 25 mm/s
+20:30:56.105 [VC] barcode scan started
+20:31:01.601 [VC] barcode 'Y' (#6) held for the next junction
+20:31:01.713 [VC] barcode read, back to 100 mm/s
+20:31:02.873 [VC] barcode scan started
+20:31:03.527 [VC] line sensors black L 54 / R 54 mm, 54 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:31:03.614 [VC] barcode ahead at 106 mm/s: stopping to back up
+20:31:03.890 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:31:04.968 [VC] HUMP_DONE peak side-height=9 mm (seq 39)
+20:31:05.290 [VC] barcode: backed up, reading it at 25 mm/s
+20:31:07.477 [VC] barcode scan started
+20:31:09.493 [VC] barcode rejected (total 14): 1/29 elements, last element 2000125 us, reason 3: element too long
+20:31:09.573 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:31:11.317 [VC] barcode scan started
+20:31:13.067 [VC] HUMP_DONE peak side-height=13 mm (seq 40)
+20:31:14.386 [VC] barcode ahead at 113 mm/s: stopping to back up
+20:31:14.481 [VC] barcode 'Y' has no MQTT mapping, going straight
+20:31:14.494 [VC] junction #15 reached, letter 'Y', turn STRAIGHT
+20:31:14.819 [VC] barcode: stopped 15 mm past it, backing up 115 mm
+20:31:16.300 [VC] barcode: backed up, reading it at 25 mm/s
+20:31:17.498 [VC] barcode scan started
+20:31:23.350 [VC] barcode 'Y' (#7) held for the next junction
+20:31:23.513 [VC] barcode read, back to 100 mm/s
+20:31:25.338 [VC] barcode scan started
+20:31:25.463 [VC] barcode 'Y' has no MQTT mapping, going straight
+20:31:25.464 [VC] junction #16 reached, letter 'Y', turn STRAIGHT
+20:31:26.841 [VC] HUMP_DONE peak side-height=10 mm (seq 41)
+20:31:27.430 [VC] HUMP_DONE peak side-height=8 mm (seq 42)
+20:31:27.712 [VC] barcode ahead at 96 mm/s: stopping to back up
+20:31:28.031 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+20:31:29.593 [VC] barcode: backed up, reading it at 25 mm/s
+20:31:29.688 [VC] HUMP_DONE peak side-height=24 mm (seq 43)
+20:31:30.177 [VC] barcode scan started
+20:31:30.383 [VC] junction #17 reached, letter '-', turn STRAIGHT (none)
+20:31:32.320 [VC] barcode rejected (total 15): 1/29 elements, last element 2002568 us, reason 3: element too long
+20:31:32.476 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+20:31:34.191 [VC] barcode scan started
+20:31:35.694 [VC] HUMP_DONE peak side-height=18 mm (seq 44)
+20:31:37.472 [VC] line sensors black L 56 / R 57 mm, 56 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:31:37.610 [VC] barcode ahead at 107 mm/s: stopping to back up
+20:31:37.791 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:31:39.446 [VC] barcode: backed up, reading it at 25 mm/s
+20:31:40.957 [VC] barcode scan started
+20:31:46.792 [VC] barcode 'Y' (#8) held for the next junction
+20:31:46.887 [VC] barcode read, back to 100 mm/s
+20:31:48.508 [VC] barcode scan started
+20:31:51.632 [VC] line sensors black L 63 / R 63 mm, 63 mm together, not a junction: barcode scan in progress under IR_B (needs 6 mm each at 15 mm/s)
+20:31:51.641 [VC] barcode ahead at 100 mm/s: stopping to back up
+20:31:51.658 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+20:31:51.772 [VC] HUMP_DONE peak side-height=15 mm (seq 45)
+20:31:52.451 [VC] HUMP_DONE peak side-height=11 mm (seq 46)
+20:31:53.020 [VC] barcode: backed up, reading it at 25 mm/s
+20:31:54.373 [VC] barcode scan started
+20:32:00.057 [VC] barcode 'Y' (#9) held for the next junction
+20:32:00.168 [VC] barcode read, back to 100 mm/s
+20:33:12.611 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+20:33:12.619 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+20:33:12.635 [VC] E-stop, fault bits 0x04
+20:33:12.661 [VC] state 0 -> 5
+20:33:12.671 [BUDDY1] FR3 monitor started
+20:33:12.682 [BUDDY1] FR3 communication unhealthy; monitoring
+20:33:12.694 [BUDDY1] FR3 communication restored
+20:33:12.694 [BUDDY1] FR3 recovery: latch=0 reason=0
