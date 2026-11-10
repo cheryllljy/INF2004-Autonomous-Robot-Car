@@ -14,11 +14,11 @@
  */
 
 #include "vehicle_controller.h"
-#include "vc_turn.h"     /* nyx, 2026-11-06: turns at a junction */
-#include "vc_barcode.h"  /* nyx, 2026-11-06: back up, read barcodes slowly */
+#include "vc_turn.h"     /* turns at a junction */
+#include "vc_barcode.h"  /* back up, read barcodes slowly */
 #include "../subsystem2/motion_control.h"
 #include "../subsystem3/b3_port.h"
-#include "../subsystem5/subsystem5.h" /* nyx, 2026-11-07: s5_avoid_*() */
+#include "../subsystem5/subsystem5.h" /* s5_avoid_*() */
 #include "../subsystem4/subsystem4.h"
 #include "../subsystem1/buddy1_fr2.h"
 #include "../subsystem1/buddy1_mapping.h"
@@ -30,7 +30,11 @@ ID flg_vc = 0;
 
 static volatile uint32_t g_status_word; /* written only by vc_task */
 
-/* nyx, 2026-11-06: the arc takes about 4 s at 50 mm/s (8 s at 25) and the
+/* on a hump (subsystem4_on_hump(), the IMU's roll) line following runs
+ * at this or faster, so the car does not stall on the climb */
+#define VC_HUMP_MIN_MM_S 80
+
+/* the arc takes about 4 s at 50 mm/s (8 s at 25) and the
  * U-turn about 5 s (vc_turn.c), so 5 s was too short. */
 #define VC_TURN_TIMEOUT_MS 15000
 
@@ -41,13 +45,13 @@ typedef struct
     motion_status_t motion;
     b3_snapshot_t line;
     b3_nav_command_t pending_turn; /* from MQTT, done at next junction */
-    b3_nav_command_t turn;         /* nyx, 2026-11-06: turn being done */
-    INT soft_ms; /* nyx, 2026-11-06: time into the soft start after a U-turn */
-    /* nyx, 2026-11-06: measured pass time (the loop runs about every 20 ms,
+    b3_nav_command_t turn;         /* turn being done */
+    INT soft_ms; /* time into the soft start after a U-turn */
+    /* measured pass time (the loop runs about every 20 ms,
      * not VC_PERIOD_MS) for vc_turn's ramps and the soft start */
     INT dt_ms;
     uint32_t pass_us;
-    /* nyx, 2026-11-06: this pass Buddy 3 decoded / rejected a barcode */
+    /* this pass Buddy 3 decoded / rejected a barcode */
     bool bar_decoded;
     bool bar_rejected;
     char last_symbol;
@@ -59,10 +63,10 @@ typedef struct
     INT since_send_ms;
     int16_t sent_l;
     int16_t sent_r;
-    /* nyx, 2026-11-08: the next START came as SEARCH (robot.ps1 search):
+    /* the next START came as SEARCH (robot.ps1 search):
      * look for a line first (s5_search_begin), then follow it */
     bool b_search_req;
-    /* nyx, 2026-11-09: curve log (curve_log()): sums over the last
+    /* curve log (curve_log()): sums over the last
      * VC_CURVE_LOG_MM of a curve */
     int32_t cv_um;     /* driven, um */
     int32_t cv_n;      /* passes */
@@ -71,6 +75,7 @@ typedef struct
     int32_t cv_got_l;  /* Buddy 2's measured speeds, mm/s */
     int32_t cv_got_r;
     int32_t cv_curv;   /* Buddy 3's curve, 1e6 / radius mm */
+    bool b_hump;       /* subsystem4_on_hump() last pass */
 } vc_t;
 
 static vc_t vc;
@@ -126,7 +131,7 @@ static void enter(vc_state_t next)
 {
     if (next != vc.state)
     {
-        /* Buddy 5 (nyx, 2026-11-07): leaving OBSTACLE any way but
+        /* Buddy 5: leaving OBSTACLE any way but
                    "back on the line" (STOP, E-stop, RESET) ends the bypass
                    and puts the sensor back on guard. */
         if ((VC_STATE_OBSTACLE == vc.state) && (VC_STATE_LINE_FOLLOW != next))
@@ -138,12 +143,12 @@ static void enter(vc_state_t next)
         vc.state_ms = 0;
         if (VC_STATE_LINE_FOLLOW == next)
         {
-            vc_bar_reset(&vc.motion); /* nyx, 2026-11-06: fast again */
+            vc_bar_reset(&vc.motion); /* fast again */
         }
     }
 }
 
-/* nyx, 2026-11-06: time since the last pass, measured. tk_dly_tsk(10)
+/* time since the last pass, measured. tk_dly_tsk(10)
  * waits for the tick after 10 ms, so a pass is about 20 ms, not
  * VC_PERIOD_MS. Clamped so a long first pass or a stall cannot jump a
  * ramp. */
@@ -196,7 +201,7 @@ static void poll_buddy1(void)
             vc.state == VC_STATE_OBSTACLE)
         {
             /* Diagnostic (Buddy 3, 2026-11-04): say which link failed */
-            /* nyx, 2026-11-07: say how to drive again */
+            /* say how to drive again */
             tm_printf((UB *)"[VC] link lost while driving: %s%d s); once "
                             "it is back, robot.ps1 go\n",
                       !status_valid ? "no status ("
@@ -263,7 +268,7 @@ static void poll_buddy1(void)
 
         case B1_FR2_SEARCH:
 
-            /* nyx, 2026-11-08: START, but drive straight until the IRs
+            /* START, but drive straight until the IRs
              * meet a line and line up along it first (s5_avoid.c) */
             if (status_valid && link.healthy && !link.link_lost_latched &&
                 !b1_reset_pending)
@@ -370,7 +375,7 @@ static void handle_flags(void)
     }
     vc.faults = rflg.flgptn & VC_FAULT_MASK;
     cmds = rflg.flgptn & VC_FLG_CMD_MASK;
-    /* nyx, 2026-11-08: a SEARCH counts for this START only, also when the
+    /* a SEARCH counts for this START only, also when the
      * START is refused (E-stop, already driving) */
     if (0U != (cmds & VC_FLG_CMD(VC_CMD_START)))
     {
@@ -391,12 +396,12 @@ static void handle_flags(void)
         vc.faults = 0U;
         motion_estop_clear(MOTION_ESTOP_VEHICLE);
         (void)motion_reset();
-        /* nyx, 2026-11-06: Buddy 2's RESET does not stop velocity mode, so
+        /* Buddy 2's RESET does not stop velocity mode, so
          * a RESET while turning (or line following) left the wheels running
          * with the VehicleController IDLE and Buddy 5 disarmed. */
         stop_motors();
         vc.pending_turn = B3_NAV_NONE;
-        buddy3_clear_held_symbol(); /* nyx, 2026-11-06 */
+        buddy3_clear_held_symbol();
         enter(VC_STATE_IDLE);
         return;
     }
@@ -414,7 +419,7 @@ static void handle_flags(void)
     {
         stop_motors();
         vc.pending_turn = B3_NAV_NONE;
-        buddy3_clear_held_symbol(); /* nyx, 2026-11-06 */
+        buddy3_clear_held_symbol();
         enter(VC_STATE_STOPPED);
     }
     else if ((cmds & VC_FLG_CMD(VC_CMD_START)) &&
@@ -422,7 +427,7 @@ static void handle_flags(void)
     {
         if (b_search)
         {
-            /* nyx, 2026-11-08: S5 drives (OBSTACLE state) until the car is
+            /* S5 drives (OBSTACLE state) until the car is
              * on a line, then hands over like after a bypass */
             stop_motors();
             enter(VC_STATE_OBSTACLE);
@@ -578,7 +583,7 @@ static void read_imu(b3_context_t *p_ctx)
     p_ctx->accel_z_lsb = snapshot.accel.z;
 }
 
-/* OWNER: Buddy 5 -- obstacles (nyx, 2026-11-07, subsystem 5 rewritten).
+/* OWNER: Buddy 5 -- obstacles (subsystem 5 rewritten).
    The S5 task only works the sensor; the bypass runs here, in
    s5_avoid.c, so only this task drives Buddy 2. */
 static void read_obstacle(void)
@@ -612,7 +617,7 @@ static void read_obstacle(void)
 /* ------------------------------------------------------------------ */
 
 /* OWNER: Buddy 1 -- a barcode letter was decoded. Buddy 3 holds it until
-   the next junction (nyx, 2026-11-06), so nothing is mapped here any more;
+   the next junction, so nothing is mapped here any more;
    Buddy 1 may publish the letter to the dashboard from this hook. */
 static void on_barcode(char symbol, uint32_t sequence)
 {
@@ -621,8 +626,8 @@ static void on_barcode(char symbol, uint32_t sequence)
 }
 
 /* OWNER: Buddy 1 -- map a barcode letter to a turn with the mapping that
-   came over MQTT. Moved here from on_barcode() by Buddy 3 (nyx,
-   2026-11-06): the letter is now mapped when the junction is reached, so a
+   came over MQTT. Moved here from on_barcode() by Buddy 3: the letter is now
+   mapped when the junction is reached, so a
    mapping that arrives after the barcode was read still applies. */
 static bool symbol_to_turn(char symbol, b3_nav_command_t *p_turn)
 {
@@ -665,7 +670,7 @@ static void on_junction(uint32_t count)
     (void)count; /* TODO Buddy 1 */
 }
 
-/* nyx, 2026-11-06: say once why Buddy 3 stopped the car. */
+/* say once why Buddy 3 stopped the car. */
 #define VC_LINE_STALE_US    100000U /* 10 Buddy 3 periods */
 #define VC_LINE_FAULT_STALE ((uint8_t)B3_FAULT_COUNT)
 
@@ -707,7 +712,7 @@ static const char *turn_name(b3_nav_command_t turn)
 }
 
 /* Do the pending turn at the junction. None pending: keep going straight.
- * nyx, 2026-11-06: the turn is vc_turn.c's: a smooth arc for LEFT/RIGHT
+ * the turn is vc_turn.c's: a smooth arc for LEFT/RIGHT
  * (no stop) and an eased stop + gentle pivot for the U-turn, both ending
  * when the IRs have the new line centred. The old stop + 90 deg pivot
  * turned where the IRs met the junction, 125 mm before the wheels got
@@ -734,7 +739,7 @@ static void exchange_line(void)
     b3_nav_event_t ev;
 
     ctx.time_us = b3_port_time_us();
-    /* nyx, 2026-11-06: Buddy 3 keeps following while vc_turn or the
+    /* Buddy 3 keeps following while vc_turn or the
      * obstacle bypass drives (their wheel speeds win in act()). Its
      * snapshot is a pass behind this context: with follow off until the
      * turn ended, the first LINE_FOLLOW pass read control_active false and
@@ -743,12 +748,12 @@ static void exchange_line(void)
     ctx.follow_enabled = (VC_STATE_LINE_FOLLOW == vc.state) ||
                          (VC_STATE_TURNING == vc.state) ||
                          (VC_STATE_OBSTACLE == vc.state);
-    /* nyx, 2026-11-06: no scanning while stopping and backing up for a
+    /* no scanning while stopping and backing up for a
      * barcode (vc_barcode.c), which also sets the line speed */
     ctx.scan_enabled =
         (VC_STATE_LINE_FOLLOW == vc.state) && vc_bar_scan_allowed();
     ctx.base_speed_mm_s = vc_bar_speed_mm_s();
-    /* nyx, 2026-11-07: Buddy 3's curve memory restarts from straight when
+    /* Buddy 3's curve memory restarts from straight when
      * it gets the wheels back */
     ctx.steer_hold = (VC_STATE_TURNING == vc.state) ||
                      (VC_STATE_OBSTACLE == vc.state) || vc_bar_busy();
@@ -770,7 +775,7 @@ static void exchange_line(void)
         vc_raise_fault(VC_FAULT_LINE);
     }
 
-    /* nyx, 2026-11-06: Buddy 3's task must refresh its snapshot every
+    /* Buddy 3's task must refresh its snapshot every
            10 ms. If it stops (task ended, never started) the old wheel
            speeds would keep driving the car, so while the car is meant to
            move, a snapshot older than VC_LINE_STALE_US is a fault too. */
@@ -790,7 +795,7 @@ static void exchange_line(void)
     vc.bar_rejected = false;
     while (buddy3_pop_navigation(&ev))
     {
-        vc.bar_decoded = true; /* nyx, 2026-11-06 */
+        vc.bar_decoded = true;
         vc.last_symbol = ev.barcode.symbol;
         vc.last_seq = ev.sequence;
         on_barcode(ev.barcode.symbol, ev.sequence);
@@ -810,8 +815,8 @@ static void exchange_line(void)
     if (vc.line.rejected_scans != vc.rejected)
     {
         vc.rejected = vc.line.rejected_scans;
-        vc.bar_rejected = true; /* nyx, 2026-11-06 */
-        /* Buddy 3 diagnostics (nyx): elements measured and why. */
+        vc.bar_rejected = true;
+        /* Buddy 3 diagnostics: elements measured and why. */
         static const char *const reject_names[] = {
             "none",
             "same colour twice (missed edge)",
@@ -832,7 +837,7 @@ static void exchange_line(void)
                   (why < sizeof reject_names / sizeof reject_names[0])
                       ? reject_names[why]
                       : "?");
-        /* nyx, 2026-11-06: white before barcode too short: how much white
+        /* white before barcode too short: how much white
          * was measured before the first bar and how much was needed. */
         if (7U == why)
         {
@@ -914,10 +919,10 @@ static void exchange_line(void)
     }
 
     /* Junction: Buddy 3 counts each one, so a new count = just reached.
-           nyx, 2026-11-06: Buddy 3 hands over the letter it held since the
+           Buddy 3 hands over the letter it held since the
            barcode; map it now and do that turn here. A turn command sent
            straight over MQTT (VC_CMD_TURN_*) is used when no letter came. */
-    /* nyx, 2026-11-06: both line sensors went black but Buddy 3 did not
+    /* both line sensors went black but Buddy 3 did not
      * count a junction: print the patch length and the reason once. */
     {
         static uint32_t patch_misses;
@@ -930,7 +935,7 @@ static void exchange_line(void)
         if (vc.line.patch_misses != patch_misses)
         {
             patch_misses = vc.line.patch_misses;
-            /* nyx, 2026-11-08: each sensor's own run, and the part with
+            /* each sensor's own run, and the part with
              * both black together */
             tm_printf((UB *)"[VC] line sensors black L %u / R %u mm, "
                             "%u mm together, not a junction: %s (needs %u "
@@ -966,13 +971,13 @@ static void exchange_line(void)
                   turn_name(turn));
         on_junction(vc.junctions);
         if ((VC_STATE_LINE_FOLLOW == vc.state) &&
-            !vc_bar_busy()) /* nyx, 2026-11-06: not while backing up */
+            !vc_bar_busy()) /* not while backing up */
         {
             take_junction();
         }
         else if (VC_STATE_OBSTACLE == vc.state)
         {
-            /* nyx, 2026-11-07: the bypass crossed a line; keep the turn
+            /* the bypass crossed a line; keep the turn
              * for the real junction after it */
         }
         else
@@ -986,7 +991,7 @@ static void exchange_line(void)
 /*  5. Act on the current state                                       */
 /* ------------------------------------------------------------------ */
 
-/* nyx, 2026-11-09: in a curve, every VC_CURVE_LOG_MM of driving, what
+/* in a curve, every VC_CURVE_LOG_MM of driving, what
  * Buddy 3 asked for and what the wheels did (means over that stretch):
  *   [VC] curve: asked R<r> (L <l> R <r> mm/s), wheels L <l> R <r> mm/s
  *   = R<r>, IRs <L><R>
@@ -1008,6 +1013,35 @@ static int32_t curve_radius(int32_t l, int32_t r)
                            (2 * (int64_t)(r - l)));
     }
     return radius;
+}
+
+/* On a hump: both wheels scaled up together until their average is
+ * VC_HUMP_MIN_MM_S, so the car keeps the curve Buddy 3 asked for. */
+static void hump_min_speed(int16_t *p_left, int16_t *p_right)
+{
+    const bool b_hump = subsystem4_on_hump();
+    const int32_t sum = (int32_t)*p_left + (int32_t)*p_right;
+
+    if (b_hump != vc.b_hump)
+    {
+        vc.b_hump = b_hump;
+        if (b_hump)
+        {
+            tm_printf((UB *)"[VC] hump (IMU): at least %d mm/s until level "
+                            "again (asked L %d R %d mm/s)\n",
+                      (int)VC_HUMP_MIN_MM_S, (int)*p_left, (int)*p_right);
+        }
+        else
+        {
+            tm_printf((UB *)"[VC] hump over: Buddy 3's speeds again\n");
+        }
+    }
+    if ((!b_hump) || (sum <= 0) || (sum >= (2 * VC_HUMP_MIN_MM_S)))
+    {
+        return;
+    }
+    *p_left = (int16_t)(((int32_t)*p_left * 2 * VC_HUMP_MIN_MM_S) / sum);
+    *p_right = (int16_t)(((int32_t)*p_right * 2 * VC_HUMP_MIN_MM_S) / sum);
 }
 
 static void curve_log(int16_t ask_l, int16_t ask_r)
@@ -1063,7 +1097,7 @@ static void curve_log(int16_t ask_l, int16_t ask_r)
 
 static void act(void)
 {
-    /* Buddy 5 (nyx, 2026-11-07): while Buddy 3 follows the line, S5
+    /* Buddy 5: while Buddy 3 follows the line, S5
      * dead reckons the car and keeps the IR pair's track (the line a
      * bypass is planned against); any other pass starts the track again.
      * In OBSTACLE, s5_avoid_step() does it. */
@@ -1084,7 +1118,7 @@ static void act(void)
             else if (vc_bar_step(&vc.motion, &vc.line, vc.bar_decoded,
                                  vc.bar_rejected, vc.dt_ms))
             {
-                /* nyx, 2026-11-06: stopping or backing up for a barcode;
+                /* stopping or backing up for a barcode;
                  * Buddy 3's speeds are sent again afterwards */
                 vc.sent_l = INT16_MIN;
                 vc.sent_r = INT16_MIN;
@@ -1098,19 +1132,20 @@ static void act(void)
                 int16_t left = vc.line.line.left_mm_s;
                 int16_t right = vc.line.line.right_mm_s;
 
-                /* nyx, 2026-11-06: pull away gently after a U-turn */
+                /* pull away gently after a U-turn */
                 vc_turn_soft_start(&left, &right, vc.soft_ms);
                 if (vc.soft_ms < VC_SOFT_START_MS)
                 {
                     vc.soft_ms += vc.dt_ms;
                 }
+                hump_min_speed(&left, &right);
                 drive(left, right);
-                curve_log(left, right); /* nyx, 2026-11-09 */
+                curve_log(left, right);
             }
             break;
         case VC_STATE_TURNING:
         {
-            /* nyx, 2026-11-06: the arc or the U-turn (vc_turn.c), ended by
+            /* the arc or the U-turn (vc_turn.c), ended by
                    the IRs; Buddy 3 takes over afterwards. */
             const vc_turn_result_t r =
                 vc_turn_step(&vc.motion, vc.line.line.left_black,
@@ -1132,7 +1167,7 @@ static void act(void)
         }
         case VC_STATE_OBSTACLE:
         {
-            /* Buddy 5 (nyx, 2026-11-07): stop, sweep, go round on the
+            /* Buddy 5: stop, sweep, go round on the
              * shorter side, find the same line again (s5_avoid.c) */
             int16_t left = 0;
             int16_t right = 0;
@@ -1200,8 +1235,8 @@ static void vc_task(INT stacd, void *exinf)
         pass_time();
         act();
 
-        /* 6. one aligned store: readers see all or nothing. nyx,
-         * 2026-11-07: no way round an obstacle shows as its fault bit
+        /* 6. one aligned store: readers see all or nothing. no way round an
+         * obstacle shows as its fault bit
          * while the car waits, without the E-stop. */
         g_status_word = vc_status_pack(
             vc.state,
@@ -1227,7 +1262,7 @@ ER vc_init(void)
     }
     vc = (vc_t){ 0 };
     vc.state = VC_STATE_IDLE;
-    vc.soft_ms = VC_SOFT_START_MS; /* nyx, 2026-11-06: no soft start yet */
+    vc.soft_ms = VC_SOFT_START_MS; /* no soft start yet */
     vc.dt_ms = VC_PERIOD_MS;
     g_status_word = vc_status_pack(VC_STATE_IDLE, 0U, B3_NAV_NONE, 0, 0U, 0U);
     return E_OK;

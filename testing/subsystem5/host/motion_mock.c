@@ -33,7 +33,7 @@
 #define MM_STILL_MS     (60)        /* 3 control cycles */
 #define MM_TRACK_CFG    (112.0)     /* TRACK_WIDTH_MM the firmware uses */
 #define MM_TICK_CFG     (65.0 * MM_PI / 1271.7) /* MM_PER_TICK, mm */
-/* nyx, 2026-11-09: the motor's mechanical lag, ms (host tests try others) */
+/* the motor's mechanical lag, ms (host tests try others) */
 #ifndef MM_MOTOR_MS
 #define MM_MOTOR_MS (50.0)
 #endif
@@ -60,13 +60,13 @@ typedef struct
     /* measured */
     double dl, dr;                  /* encoder distances */
     double scale;                   /* encoder scale error */
-    double lr;                      /* nyx, 2026-11-08: left reads long by
+    double lr;                      /* left reads long by
                                      * lr / 2, right short by lr / 2 */
     int    dead_r;                  /* v3.2: right encoder reads 0 */
 } mm_t;
 
 static mm_t g;
-/* nyx, 2026-11-07: optional Buddy 2 timing for the line-following
+/* optional Buddy 2 timing for the line-following
  * simulation (mm_set_lag): the goal is taken every 20 ms
  * (MOTION_CONTROL_PERIOD_MS), the setpoint ramps at MOTION_ACCEL_MMPS2
  * and the wheel follows the setpoint with a first-order lag (motor, PI
@@ -74,7 +74,7 @@ static mm_t g;
  * (MC_ZERO_SPEED) gives no drive; restarting a wheel that reads under
  * 10 mm/s counts as a breakaway kick. 0 = the old ideal wheels. */
 static int g_lag_ms;
-/* nyx, 2026-11-07: Buddy 2's real wheel loop instead of a first-order lag
+/* Buddy 2's real wheel loop instead of a first-order lag
  * (mm_set_motor): every 20 ms the speed over the last 80 ms, feed-forward
  * 50 pm + 1.245 pm per mm/s, PI 0.5 / 3.0, duty 0..600, breakaway 120;
  * the motor needs g_m_off pm to move and g_m_ratio x the duty Buddy 2's
@@ -110,14 +110,14 @@ static double g_take_l, g_take_r; /* goal as taken at the last 20 ms tick */
 static int g_tick_ms;
 static int g_kicks;
 static int g_kick_l, g_kick_r;
-static int g_min_cmd = 0x7FFF; /* nyx, 2026-11-06: smallest |wheel speed| asked */
-/* nyx, 2026-11-09: Buddy 2's measured wheel speeds (encoder distance over
+static int g_min_cmd = 0x7FFF; /* smallest |wheel speed| asked */
+/* Buddy 2's measured wheel speeds (encoder distance over
  * the last 80 ms, updated every 20 ms), as the VehicleController and its
  * curve log see them (motion_status_t speed_l/r_mmps) */
 static double g_ms_hist[2][5];
 static double g_ms_v[2];
 static int    g_ms_tick;
-/* nyx, 2026-11-09: turning load (mm_set_yaw_load). Turning the car takes a
+/* turning load (mm_set_yaw_load). Turning the car takes a
  * yaw torque (caster, tyres), so the outer wheel needs g_y_pm more drive
  * and the inner wheel is pushed along by g_y_pm; in full from a wheel
  * speed difference of g_y_w mm/s. 0 = off (the old model). */
@@ -163,7 +163,7 @@ static double m_duty_to_v(double duty)
     return (duty > g_m_off) ? ((duty - g_m_off) / (1.245 * g_m_ratio)) : 0.0;
 }
 
-/* nyx, 2026-11-09: Buddy 2's MOTION_SPEED_KP / KI (motion_config.h), so
+/* Buddy 2's MOTION_SPEED_KP / KI (motion_config.h), so
  * host tests can try other gains. KP 1.6 as in motion_config.h since
  * 2026-11-09 (was 0.5); -DMM_KP=0.5 is Buddy 2 as it was. */
 #ifndef MM_KP
@@ -172,7 +172,7 @@ static double m_duty_to_v(double duty)
 #ifndef MM_KI
 #define MM_KI (3.0)
 #endif
-/* nyx, 2026-11-09 (experiment): 1 = when the setpoint changes, the
+/* experiment: 1 = when the setpoint changes, the
  * integrator is rescaled as if it were a gain error (integ x new / old
  * setpoint), so what it learnt at 100 mm/s does not overdrive a wheel
  * just slowed to 20 mm/s */
@@ -404,7 +404,7 @@ void mm_step_1ms(void)
     {
         g.goal_l = 0.0;
         g.goal_r = 0.0;
-        /* nyx, 2026-11-09: as Buddy 2 (MC_ZERO_SPEED 5): its ramped
+        /* as Buddy 2 (MC_ZERO_SPEED 5): its ramped
          * setpoints at zero, the wheels under MOTION_STOPPED_SPEED_MMPS.
          * Was the wheels at exactly 0, which with the wheel lag took
          * 1.2 s, not Buddy 2's 3 cycles */
@@ -515,7 +515,7 @@ void mm_step_1ms(void)
     g.dl += g.vl * dt * (1.0 + g.scale + (g.lr / 2.0));
     if (!g.dead_r) { g.dr += g.vr * dt * (1.0 + g.scale - (g.lr / 2.0)); }
 
-    /* nyx, 2026-11-09: Buddy 2's 80 ms speed window, every 20 ms */
+    /* Buddy 2's 80 ms speed window, every 20 ms */
     if (++g_ms_tick >= 20)
     {
         int k;
@@ -582,7 +582,7 @@ motion_err_t motion_set_wheel_speeds(int32_t l, int32_t r)
     {
         return refuse();
     }
-    /* nyx, 2026-11-06: like Buddy 2's mc_start_velocity, (0, 0) is a stop,
+    /* like Buddy 2's mc_start_velocity, (0, 0) is a stop,
      * and further speeds are refused until it is IDLE again */
     if ((0 == l) && (0 == r))
     {

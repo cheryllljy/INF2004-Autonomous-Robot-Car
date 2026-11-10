@@ -245,3 +245,10 @@
 18:19:20.215 [VC] HUMP_DONE peak side-height=44 mm (seq 29)
 18:19:22.992 [VC] HUMP_DONE peak side-height=17 mm (seq 30)
 18:19:23.000 [VC] line sensors black L 554 / R 554 mm, 554 mm together, not a junction: car not driving (stopped, no motion data, stale) (needs 6 mm each at 15 mm/s)
+18:47:42.520 [BUDDY1] FR3 communication unhealthy; monitoring
+18:47:46.071 [BUDDY1] FR3 LINK_LOST latched, reason=2, rssi -49 dBm, last broker answer 10039 ms ago
+18:47:46.073 [BUDDY1] FR3 VehicleController STOP REQUIRED
+18:47:46.090 [VC] E-stop, fault bits 0x10
+18:47:47.190 [VC] state 4 -> 5
+18:47:47.192 [BUDDY1] FR3 communication restored
+18:47:47.209 [BUDDY1] FR3 recovery: latch=1 reason=2

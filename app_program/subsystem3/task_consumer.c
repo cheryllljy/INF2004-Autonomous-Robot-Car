@@ -30,7 +30,7 @@ void consumer_task(INT stacd, void *exinf)
         if (er < E_OK)
         {
             CHECK(er, "tk_rcv_mbx");
-            /* nyx, 2026-11-06: a failed receive is a serious fault:
+            /* a failed receive is a serious fault:
                            stop the car (VehicleController E-stop). */
             buddy3_report_fault(B3_FAULT_MBX_RECEIVE, er);
             /* do not spin on a broken mailbox */
@@ -73,7 +73,7 @@ void consumer_task(INT stacd, void *exinf)
             }
             else if (E_TMOUT == er)
             {
-                /* nyx, 2026-11-06: full. Dropping one line is
+                /* full. Dropping one line is
                                    fine; S3_MBF_FULL_LIMIT in a row is a fault. */
                 if (++full_in_a_row >= S3_MBF_FULL_LIMIT)
                 {

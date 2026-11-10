@@ -1,6 +1,6 @@
 /**
  * @file    test_s5_unit.c
- * @brief   HOST TEST (S5-H11..H20, nyx 2026-11-07; H01..H10 belonged
+ * @brief   HOST TEST (S5-H11..H20; H01..H10 belonged
  *          to the old subsystem 5 and are not reused). Subsystem 5's parts
  *          one at a time: the maths, the sweep and the width (the real
  *          S5 task code on the simulated sensor, s5_sim.c), the room
@@ -569,7 +569,7 @@ static void h09(void)
     }
 
     /* LOOK follows a creeping angle and keeps pinging: slowly (10 deg/s)
-     * and fast (60 deg/s, review A1: each step used to restart the settle
+     * and fast (60 deg/s: each step used to restart the settle
      * before the ping could go) */
     world(23U);
     {

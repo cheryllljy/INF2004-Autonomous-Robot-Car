@@ -20,7 +20,7 @@
 #include "../app.h"
 
 /*
- * nyx, 2026-11-06: optional built-in mapping, for running without the
+ * optional built-in mapping, for running without the
  * MQTT broker. 0 = none (the original design: the car only knows a
  * mapping once one arrives over MQTT, and until then every letter means
  * "go straight"). 1 = start with the table below. A mapping that arrives
@@ -78,7 +78,7 @@ int32_t b1_mapping_store_init(void)
     mapping_valid = 0;
 
 #if (B1_DEFAULT_MAPPING_ENABLE != 0)
-    /* nyx, 2026-11-06: same checks as an MQTT mapping. */
+    /* same checks as an MQTT mapping. */
     if (b1_mapping_store_latest(&default_mapping) != 0)
     {
         return -1;

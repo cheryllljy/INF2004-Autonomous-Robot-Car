@@ -11,7 +11,7 @@ typedef struct
     bool reversed;
     uint32_t first_narrow;
     uint32_t last_narrow;
-    /* nyx, 2026-11-09: start and stop '*' both read (B3_NEED_BOTH_STARS 0
+    /* start and stop '*' both read (B3_NEED_BOTH_STARS 0
      * lets one be spoiled) */
     bool both_stars;
 } b3_code39_result_t;

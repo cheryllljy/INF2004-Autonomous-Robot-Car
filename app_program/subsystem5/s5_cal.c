@@ -1,6 +1,6 @@
 /*
  *      s5_cal.c
- *      Subsystem 5 -- guided calibration, make S5CAL=1 (nyx, 2026-11-07).
+ *      Subsystem 5 -- guided calibration, make S5CAL=1.
  *      See s5_cal.h and testing/subsystem5/CALIBRATION.md.
  */
 
@@ -29,7 +29,7 @@
 static s5_sweep_t g_sw;
 static s5_profile_t g_pr;
 static int32_t g_off; /* step 2's range correction, used in step 3 */
-/* nyx, 2026-11-08: step 4's compass samples: encoders' heading (rad) and
+/* step 4's compass samples: encoders' heading (rad) and
  * the field (counts) */
 static float g_mag_e[S5_CAL_MAG_N];
 static int16_t g_mag_x[S5_CAL_MAG_N];
@@ -242,7 +242,7 @@ static void s5_cal_beam(int32_t dist, const char *p_name)
     }
 }
 
-/* nyx, 2026-11-08: the compass from step 4's circle. The field's centre
+/* the compass from step 4's circle. The field's centre
  * (min/max), its strength, which way it turns with the car, and how far
  * it strays from the encoders on the way round. */
 static void s5_cal_mag(uint32_t n, float turned)
@@ -373,7 +373,7 @@ static void s5_cal_turn(void)
         s5_odom_update(&o, m.ticks_l, m.ticks_r);
         turned += s5_wrapf(o.psi - last);
         last = o.psi;
-        /* nyx, 2026-11-08: the compass, every 4th pass (80 ms) */
+        /* the compass, every 4th pass (80 ms) */
         if ((0U == (i_loop % 4U)) && (n_mag < S5_CAL_MAG_N) &&
             s5_hw_mag(&mx, &my))
         {
@@ -406,7 +406,7 @@ void s5_cal_run(void)
     }
     else
     {
-        /* nyx, 2026-11-08: make S5CAL=2: the circle only (turn and
+        /* make S5CAL=2: the circle only (turn and
          * compass) */
         S5_LOG("[VC-S5] CAL step 4 only (make S5CAL=2)\n");
     }

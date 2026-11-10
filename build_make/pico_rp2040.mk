@@ -103,10 +103,10 @@ endif
 # 4. the macro the code tests
 # 5. in the PROFILE_ID line, add -cal$(CAL) next to -test$(TEST)
 
-# nyx, 2026-11-07: S5CAL=1 builds subsystem 5's guided calibration (the
+# S5CAL=1 builds subsystem 5's guided calibration (the
 # servo, the range, the beam, the turn; testing/subsystem5/CALIBRATION.md)
 # instead of its obstacle logic. The image gets a _s5cal suffix.
-# nyx, 2026-11-08: S5CAL=2 runs its step 4 only (the circle: turn and
+# S5CAL=2 runs its step 4 only (the circle: turn and
 # compass); the image gets a _s5cal4 suffix.
 S5CAL ?= 0
 ifneq ($(filter $(S5CAL),0 1 2),$(S5CAL))

@@ -1,6 +1,6 @@
 /*
  *      s5_cal.h
- *      Subsystem 5 -- guided calibration (nyx, 2026-11-07).
+ *      Subsystem 5 -- guided calibration.
  *
  *      Built with make S5CAL=1 (the image gets a _s5cal suffix). The S5
  *      task then runs four steps instead of the obstacle logic, printing

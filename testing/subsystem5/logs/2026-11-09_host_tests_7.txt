@@ -1,5 +1,5 @@
 Subsystem 5 host tests, 2026-11-09 03:55 UTC, cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-Source: nyx's PC state (2026-11-09) plus: IRs 25 mm apart (S5_IR_HALF_GAP_MM 12.5, sims too, S5_CAP_BOTH_DEG 36), the search's turn onto the line stops on the IRs (nyx's idea), a start with one IR on a line turns onto it, the VC curve log; not committed
+Source: PC state (2026-11-09) plus: IRs 25 mm apart (S5_IR_HALF_GAP_MM 12.5, sims too, S5_CAP_BOTH_DEG 36), the search's turn onto the line stops on the IRs, a start with one IR on a line turns onto it, the VC curve log; not committed
 
 $ make clean && make
 === subsystem 5 parts (S5-H11..H20) ===
@@ -24,9 +24,9 @@ cc -std=c99 -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion 
     ../../../app_program/subsystem3/b3_line.c test_s5_car.c -lm -o build/test_s5_car
 S5 task polls every 10 ms
      scenario                                                    side wide  clear max y  hand  after  rev   time    ok
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  206     37   215    -1    1.8    0  16.5s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  207     38   215    -2    1.1    0  16.6s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  200     34   212     2    1.2    0  16.4s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  206     37   215    -1    1.8    0  16.5s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  207     38   215    -2    1.1    0  16.6s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  200     34   212     2    1.2    0  16.4s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  210     42   158     1    3.5    0  15.1s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     1    2.7    0  14.7s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     1    3.2    0  14.8s PASS 
@@ -562,16 +562,16 @@ subsystem 5 unit tests: 0 failed
 $ build/test_s5_car -s 10       # S5-H21, 10 seeds
 S5 task polls every 10 ms
      scenario                                                    side wide  clear max y  hand  after  rev   time    ok
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  206     37   215    -1    1.8    0  16.5s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  207     38   215    -2    1.1    0  16.6s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  200     34   212     2    1.2    0  16.4s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  201     35   213    -2    1.2    0  16.5s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  214     41   219     1    3.3   17  18.6s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  202     35   213    -2    1.8    0  16.5s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  202     35   213     2    1.8    0  16.5s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  202     35   213     2    1.8    0  16.5s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  201     35   213     2    1.2    0  16.5s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  214     41   219    -1    3.3   17  18.6s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  206     37   215    -1    1.8    0  16.5s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  207     38   215    -2    1.1    0  16.6s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  200     34   212     2    1.2    0  16.4s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  201     35   213    -2    1.2    0  16.5s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  214     41   219     1    3.3   17  18.6s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  202     35   213    -2    1.8    0  16.5s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  202     35   213     2    1.8    0  16.5s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  202     35   213     2    1.8    0  16.5s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  201     35   213     2    1.2    0  16.5s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  214     41   219    -1    3.3   17  18.6s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  210     42   158     1    3.5    0  15.1s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     1    2.7    0  14.7s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     1    3.2    0  14.8s PASS 
@@ -1198,16 +1198,16 @@ L3   LIMIT: crossing right where a junction's branch meets our  RIGHT  201     3
 $ build/test_s5_car -s 10 -p 20 # S5-H21, 10 seeds, 20 ms polls
 S5 task polls every 20 ms
      scenario                                                    side wide  clear max y  hand  after  rev   time    ok
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  206     37   215    -1    1.8    0  16.8s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  207     38   215    -2    1.1    0  16.8s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  200     34   212     2    1.2    0  16.7s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  201     35   213    -2    1.2    0  16.7s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  214     41   219     1    3.3   17  18.8s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  202     35   213    -2    1.8    0  16.7s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  202     35   213     2    1.8    0  16.7s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  202     35   213     2    1.8    0  16.8s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                 LEFT  201     35   213     2    1.2    0  16.7s PASS 
-C1   21x16 cm box on the line (nyx's), 2 m ahead                RIGHT  214     41   219    -1    3.3   17  18.8s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  206     37   215    -1    1.8    0  16.8s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  207     38   215    -2    1.1    0  16.8s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  200     34   212     2    1.2    0  16.7s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  201     35   213    -2    1.2    0  16.7s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  214     41   219     1    3.3   17  18.8s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  202     35   213    -2    1.8    0  16.7s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  202     35   213     2    1.8    0  16.7s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  202     35   213     2    1.8    0  16.8s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  201     35   213     2    1.2    0  16.7s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                RIGHT  214     41   219    -1    3.3   17  18.8s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  210     42   158     1    3.5    0  15.4s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     1    3.5    0  15.0s PASS 
 C2   box 60 mm right of the line: left is shorter                LEFT  203     36   152     1    3.5    0  15.0s PASS 

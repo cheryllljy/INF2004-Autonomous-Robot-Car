@@ -40,7 +40,7 @@ typedef struct
     uint8_t loss_reason;
 } B1_FR3_Status;
 
-/* nyx, 2026-11-07: how long the broker may stay silent before the car
+/* how long the broker may stay silent before the car
  * stops (was 3 s). On the phone hotspot one lost packet's TCP
  * retransmission alone can take a few seconds, which stopped the car
  * many times per run. */

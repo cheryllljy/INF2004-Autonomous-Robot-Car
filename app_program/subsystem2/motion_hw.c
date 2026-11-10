@@ -253,7 +253,7 @@ bool motion_hw_init(void)
 
     MH_GPIO_CTRL(PIN_ENC_L) = MH_FUNCSEL_SIO;
     MH_GPIO_CTRL(PIN_ENC_R) = MH_FUNCSEL_SIO;
-    /* Buddy 3 (nyx, 2026-11-04): the right encoder gave 0 ticks while its
+    /* Buddy 3: the right encoder gave 0 ticks while its
      * wheel was spinning. RP2040 pads default to a pull-down, which an
      * open-collector encoder output cannot lift. Use the pull-up instead
      * (harmless for a push-pull output) and make sure input is enabled. */

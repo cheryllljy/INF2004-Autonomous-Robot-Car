@@ -1,7 +1,7 @@
 /*
  *      s5_scan.h
- *      Subsystem 5 -- what one sweep says about the object (nyx,
- *      2026-11-07). Pure functions: no kernel, no hardware, so the host
+ *      Subsystem 5 -- what one sweep says about the object. Pure functions: no
+ *      kernel, no hardware, so the host
  *      tests run the same code.
  *
  *      How the width is measured
@@ -47,7 +47,7 @@ typedef struct
     uint16_t mm;  /* 0 = nothing came back (clear) */
 } s5_sample_t;
 
-/* nyx, 2026-11-07 (review D1 fixes): a return left out because it may
+/* a return left out because it may
  * have come from the object just gone round. Neither the object nor
  * clear: an edge next to one is not seen. */
 #define S5_MM_UNKNOWN (0xFFFFU)
@@ -75,17 +75,17 @@ typedef struct
     float width;         /* y_left - y_right */
     bool b_left_blocked; /* something else where the car would pass */
     bool b_right_blocked;
-    /* nyx, 2026-11-08: only the edge of the beam of an echo reaches where
+    /* only the edge of the beam of an echo reaches where
      * the car would pass (its own direction is outside the pass lane):
      * that side is used only when no side is clear */
     bool b_left_maybe;
     bool b_right_maybe;
-    /* nyx, 2026-11-07 (review D1 fixes): that edge is next to returns left
+    /* that edge is next to returns left
      * out (S5_MM_UNKNOWN): the object just gone round is that way, and
      * the edge is not seen */
     bool b_left_hidden;
     bool b_right_hidden;
-    /* nyx, 2026-11-08: the echo that blocked a side (for the log) */
+    /* the echo that blocked a side (for the log) */
     int16_t block_l_ddeg;
     uint16_t block_l_mm;
     int16_t block_r_ddeg;
@@ -123,8 +123,7 @@ float s5_scan_offset(float y_edge, int32_t side);
 /* Could a return of mm, looked for along 'look' (line frame, rad) with a
  * beam half-angle 'half', have come from a corner at y = y_c lying
  * somewhere from x_lo to x_hi in front of the sonar at (vx, vy)? Range
- * within tol. Used for corners whose depth is not known exactly (nyx,
- * 2026-11-07, review D1). */
+ * within tol. Used for corners whose depth is not known exactly. */
 bool s5_scan_corner_echo(float vx, float vy, float look, float half, float mm,
                          float y_c, float x_lo, float x_hi, float tol);
 

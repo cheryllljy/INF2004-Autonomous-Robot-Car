@@ -81,7 +81,7 @@ typedef enum
 /* Buddy 3: task error, event queue full */
 #define VC_FAULT_LINE (1U << 5)
 /* Buddy 5: a failed bypass (latched, E-stop); also shown, without an
- * E-stop, while the car waits with no way round (nyx, 2026-11-07) */
+ * E-stop, while the car waits with no way round */
 #define VC_FAULT_OBSTACLE (1U << 6)
 /* VehicleController / kernel call */
 #define VC_FAULT_TASK (1U << 7)

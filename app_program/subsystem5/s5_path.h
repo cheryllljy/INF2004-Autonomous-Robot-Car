@@ -1,7 +1,7 @@
 /*
  *      s5_path.h
  *      Subsystem 5 -- the path round the object and how the car follows it
- *      (nyx, 2026-11-07). Pure: no kernel, the host tests use the same code.
+ *. Pure: no kernel, the host tests use the same code.
  *
  *      Everything is in the line frame: x along the line (driving
  *      direction), y to its left, origin where the IR pair was when the
@@ -64,10 +64,10 @@ typedef struct
  * S5_MAX_HEADING_DEG, no tighter than S5_MIN_RADIUS_MM. */
 float s5_path_ramp_len(float dy);
 
-/* nyx, 2026-11-08: the steepest ramp allowed (S5_STEEP_HEADING_DEG,
+/* the steepest ramp allowed (S5_STEEP_HEADING_DEG,
  * S5_STEEP_RADIUS_MM), for turning out where the gentle one has no room. */
 float s5_path_ramp_len_steep(float dy);
-/* nyx, 2026-11-08: the ramp back in (S5_IN_HEADING_DEG, S5_IN_RADIUS_MM) */
+/* the ramp back in (S5_IN_HEADING_DEG, S5_IN_RADIUS_MM) */
 float s5_path_ramp_len_in(float dy);
 
 void s5_path_eval(const s5_path_t *p_p, float x, s5_ref_t *p_ref);

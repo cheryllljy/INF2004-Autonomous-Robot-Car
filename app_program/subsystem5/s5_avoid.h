@@ -1,7 +1,7 @@
 /*
  *      s5_avoid.h
  *      Subsystem 5 -- the obstacle bypass, run by the VehicleController's
- *      task (nyx, 2026-11-07).
+ *      task.
  *
  *      The VehicleController calls these from its own loop (about every
  *      20 ms), so the bypass and the line following never fight over
@@ -29,7 +29,7 @@
  *           fixed) and where its side really is (further out if closer
  *           than planned). Every S5_AHEAD_EVERY_MM it looks once along the
  *           pass lane instead.
- *        6. another object (nyx, 2026-11-07): one close behind this one and
+ *        6. another object: one close behind this one and
  *           clear of the pass lane is passed too; one in the pass lane, or
  *           ahead on the way back, stops the car and the episode starts
  *           again at 1 from where it is (turned square to the line first,
@@ -75,7 +75,7 @@ bool s5_avoid_sensor_fault(void);
 
 void s5_avoid_begin(const motion_status_t *p_m);
 
-/* nyx, 2026-11-08: line search (robot.ps1 search): the car is off the
+/* line search (robot.ps1 search): the car is off the
  * line; straight on until the IRs meet one, onto it, along it. Driven by
  * s5_avoid_step() like a bypass (the VehicleController's OBSTACLE state):
  * DONE = on the line, Buddy 3 follows; FAULT = no line found. */

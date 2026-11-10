@@ -1,6 +1,6 @@
 /*
  *      subsystem5_test.c
- *      Subsystem 5 -- on-target tests, make TEST=1 (nyx, 2026-11-07).
+ *      Subsystem 5 -- on-target tests, make TEST=1.
  *      IDs as in testing/subsystem5/TEST_LOG.md. The robot can stand
  *      anywhere: S5-T01/T02 only need the sensor wired and powered; the
  *      rest check the maths on the RP2040 itself (soft float, no libm).
@@ -42,7 +42,7 @@ typedef struct
  * point of the face (corners included), or the other corner, whose
  * bearing is within the beam of th. Unlike a real face this has no gap
  * between the face's echo and a corner's, so the result does not depend
- * on the calibrated beam (nyx, 2026-11-07, review B2). */
+ * on the calibrated beam. */
 static uint16_t s5_t_hear(const s5_t_scene_t *p_sc, float th, float beam)
 {
     float best = 0.0f;
@@ -171,7 +171,7 @@ void subsystem5_test(void)
                    s5_t_near(s5_tanf(0.7f), 0.8422884f, 1e-4f),
                "sin, cos, atan2, sqrt, tan within 1e-4");
 
-    /* S5-T04: width of nyx's 21 cm box at 250 mm */
+    /* S5-T04: width of the 21 cm box at 250 mm */
     {
         const s5_t_scene_t sc = { 250.0f, -105.0f, 105.0f, 0.0f, 0.0f };
 

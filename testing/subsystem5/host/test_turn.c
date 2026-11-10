@@ -1,6 +1,6 @@
 /**
  * @file    test_turn.c
- * @brief   HOST TEST (VC-H01, nyx 2026-11-06). 2-D simulation of the turn
+ * @brief   HOST TEST (VC-H01). 2-D simulation of the turn
  *          at a junction: the REAL vc_turn.c (VehicleController) and the
  *          REAL b3_line.c (Buddy 3's line following) drive the simulated
  *          car of motion_mock.c over T, cross and corner junctions.
@@ -41,7 +41,7 @@
 #define AFTER_DEG   (10.0)
 #define START_Y     (-900.0)
 #define MAX_SEG     (800)
-/* nyx, 2026-11-06: the VehicleController loop really runs every 20 ms
+/* the VehicleController loop really runs every 20 ms
  * (tk_dly_tsk(10) on the 10 ms tick); Buddy 3 every 10 ms */
 #define SIM_VC_MS   (20U)
 /* mirrors exchange_line(): Buddy 3 follows while the VC turns; 0 shows the
@@ -65,7 +65,7 @@ typedef struct
     int              delay_ms; /* junction reported this much later */
     int              old_turn; /* the old stop + pivot, comparison only:
                                   1 must miss, 2 either */
-    /* nyx, 2026-11-07: the branch the car turns into bends (radius mm,
+    /* the branch the car turns into bends (radius mm,
      * 0 = straight; angle deg, + = to the left of its own direction;
      * starting this far from the junction) */
     double           bend_r;
@@ -97,7 +97,7 @@ static const scen_t g_scen[] =
     { "J20 U-TURN, track 10 % narrow",          B3_NAV_UTURN, SHAPE_CROSS, 0, 0, 0, 0, -0.10, 0, 0, 0, 0, 0 },
     { "J21 LEFT, IRs 150 mm ahead, 6 deg off",  B3_NAV_LEFT,  SHAPE_CROSS, 150, 6, 3, 0, 0, 0, 0, 0, 0, 0 },
     { "J22 RIGHT, IRs 100 mm ahead, 6 deg off", B3_NAV_RIGHT, SHAPE_CROSS, 100, -6, -3, 0, 0, 0, 0, 0, 0, 0 },
-    /* nyx, 2026-11-07: curved branches (nyx's car missed a curved line) */
+    /* curved branches (the car missed a curved line) */
     { "J23 LEFT, branch bends left R400 at once",  B3_NAV_LEFT,  SHAPE_T, 0, 0, 0, 0, 0, 0, 0, 400,  90, 0 },
     { "J24 LEFT, branch bends right R400 at once", B3_NAV_LEFT,  SHAPE_T, 0, 0, 0, 0, 0, 0, 0, 400, -90, 0 },
     { "J25 RIGHT, branch bends right R400 at once", B3_NAV_RIGHT, SHAPE_T, 0, 0, 0, 0, 0, 0, 0, 400, -90, 0 },
@@ -106,7 +106,7 @@ static const scen_t g_scen[] =
     { "J28 LEFT, branch bends right R300 after 60 mm", B3_NAV_LEFT, SHAPE_T, 0, 0, 0, 0, 0, 0, 0, 300, -90, 60 },
     { "J29 RIGHT, branch bends right R250 after 100 mm", B3_NAV_RIGHT, SHAPE_T, 0, 0, 0, 0, 0, 0, 0, 250, -90, 100 },
     { "J30 LEFT at a cross, branch bends left R500", B3_NAV_LEFT, SHAPE_CROSS, 0, 0, 0, 0, 0, 0, 0, 500, 60, 0 },
-    /* nyx, 2026-11-07: the car missed a right bend of about R130 a few cm
+    /* the car missed a right bend of about R130 a few cm
      * after a LEFT junction turn */
     { "J31 LEFT, branch bends right R130 after 30 mm", B3_NAV_LEFT, SHAPE_T, 0, 0, 0, 0, 0, 0, 0, 130, -90, 30 },
     { "J32 LEFT, branch bends right R130 after 60 mm", B3_NAV_LEFT, SHAPE_T, 0, 0, 0, 0, 0, 0, 0, 130, -90, 60 },
@@ -114,7 +114,7 @@ static const scen_t g_scen[] =
     { "J34 LEFT, branch bends left R130 after 30 mm", B3_NAV_LEFT, SHAPE_T, 0, 0, 0, 0, 0, 0, 0, 130, 90, 30 },
     { "J35 LEFT, wheels turn the car 1/1.4 as tightly", B3_NAV_LEFT, SHAPE_T, 0, 0, 0, 0, 0.4, 0, 0, 0, 0, 0 },
     { "J36 RIGHT, wheels 1/1.4, branch bends left R130 after 30 mm", B3_NAV_RIGHT, SHAPE_T, 0, 0, 0, 0, 0.4, 0, 0, 130, 90, 30 },
-    /* nyx, 2026-11-07: the car's U-turn stopped short of the line */
+    /* the car's U-turn stopped short of the line */
     { "J37 U-TURN, wheels turn the car 1/1.4 as tightly", B3_NAV_UTURN, SHAPE_T, 0, 0, 0, 0, 0.4, 0, 0, 0, 0, 0 },
     { "J38 U-TURN at a cross, wheels 1/1.6",    B3_NAV_UTURN, SHAPE_CROSS, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0 },
     { "J39 U-TURN, wheels 1/1.3, car 6 deg off", B3_NAV_UTURN, SHAPE_T,    0, 6, 5, 0, 0.3, 0, 0, 0, 0, 0 },
@@ -149,7 +149,7 @@ typedef struct { double x0, y0, x1, y1; } seg_t;
 static seg_t g_seg[MAX_SEG];
 static int   g_nseg;
 
-/* nyx, 2026-11-07: a branch from the junction, heading psi (deg, + left;
+/* a branch from the junction, heading psi (deg, + left;
  * forward = (sin, cos)), bending as the scenario says */
 static void branch(double psi, const scen_t *s, int bent)
 {
@@ -297,7 +297,7 @@ static void target(const scen_t *s, double x, double y, double psi,
 {
     if (s->bend_r > 0.0)
     {
-        /* nyx, 2026-11-07: curved branch: distance to the nearest piece
+        /* curved branch: distance to the nearest piece
          * of the branch (not the line the car came in on), heading against
          * that piece's direction */
         double best = 1e18;
@@ -396,7 +396,7 @@ static out_t run(const scen_t *s)
                                 (int16_t)B3_BASE_SPEED_MM_S);
             if (1 == phase)
             {
-                /* nyx, 2026-11-07: buddy3.c holds the steering while the
+                /* buddy3.c holds the steering while the
                  * VC turns (context steer_hold) */
                 b3_line_hold(&line);
             }
@@ -408,7 +408,7 @@ static out_t run(const scen_t *s)
                              "cmd %4d %4d\n", t_ms / 1000.0, phase, x, y, psi,
                              irl, irr, snap.left_mm_s, snap.right_mm_s);
             }
-            /* Buddy 3's junction rule (nyx, 2026-11-08: each sensor's own
+            /* Buddy 3's junction rule (each sensor's own
              * run over the tape, the two runs overlapping in time) */
             {
                 const int blk[2] = { irl != 0, irr != 0 };
@@ -659,7 +659,7 @@ int main(int argc, char **argv)
     {
         const scen_t *s = &g_scen[i];
         const out_t o = run(s);
-        /* nyx, 2026-11-07: an L corner gives no both-black patch, so it is
+        /* an L corner gives no both-black patch, so it is
          * no junction. The old sharp-turn pivot happened to sweep both IRs
          * over it; the smooth steering does not, so J5 is a known limit,
          * shown but not counted. */

@@ -22,7 +22,7 @@ TOPIC_TELEMETRY = "inf2004/robot/telemetry"
 TOPIC_HEARTBEAT = "inf2004/robot/heartbeat"
 TOPIC_TEST = "inf2004/robot/test"
 
-# nyx, 2026-11-09: start/stop buttons for testing. The same FR2 command
+# start/stop buttons for testing. The same FR2 command
 # robot.ps1 sends (Buddy 1): 3 bytes = version 1, command, sequence
 # 0..255. The car ignores a sequence that is not newer than the last one,
 # so the counter is shared with robot.ps1 (%TEMP%\inf2004_seq.txt) and
@@ -405,7 +405,7 @@ st.caption(
 
 st.write(f"Broker from project config: `{BROKER}:{PORT}`")
 
-# nyx, 2026-11-09: drive the car from here for testing (same commands as
+# drive the car from here for testing (same commands as
 # robot.ps1 go / search / stop).
 st.subheader("Drive the car (testing)")
 

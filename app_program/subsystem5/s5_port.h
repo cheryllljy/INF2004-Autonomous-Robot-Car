@@ -1,6 +1,6 @@
 /*
  *      s5_port.h
- *      Subsystem 5 -- console output (nyx, 2026-11-07).
+ *      Subsystem 5 -- console output.
  *
  *      Every S5 line starts with "[VC-S5]" so the console mirror sends it
  *      to inf2004/robot/test too (lines starting "[VC" are mirrored; keep

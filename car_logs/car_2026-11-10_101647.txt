@@ -1,0 +1,10 @@
+11:33:36.745 [VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 300 mm
+11:33:37.166 [VC] IMU fault: no sample yet (status 0, age 0 ms)
+11:33:37.320 [VC] E-stop, fault bits 0x04
+11:33:37.413 [VC] state 0 -> 5
+11:33:37.443 [BUDDY1] FR3 monitor started
+11:33:37.459 [BUDDY1] FR3 communication unhealthy; monitoring
+11:33:37.459 [BUDDY1] FR3 LINK_LOST latched, reason=2, rssi -60 dBm, last broker answer 0 ms ago
+11:33:37.475 [BUDDY1] FR3 VehicleController STOP REQUIRED
+11:33:37.491 [BUDDY1] FR3 communication restored
+11:33:37.843 [BUDDY1] FR3 recovery: latch=1 reason=2

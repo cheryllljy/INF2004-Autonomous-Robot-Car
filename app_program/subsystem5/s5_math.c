@@ -1,6 +1,6 @@
 /*
  *      s5_math.c
- *      Subsystem 5 -- float helpers without libm (nyx, 2026-11-07).
+ *      Subsystem 5 -- float helpers without libm.
  *      See s5_math.h.
  */
 

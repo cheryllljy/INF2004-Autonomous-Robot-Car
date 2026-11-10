@@ -43,6 +43,10 @@ extern ID mtx_imu;
 
 extern ER subsystem4_publish_imu_snapshot(const s4_imu_snapshot_t *p_snapshot);
 extern ER subsystem4_get_imu_snapshot(s4_imu_snapshot_t *p_snapshot);
+/* true from the moment the hump detector (task_monitor.c) sees one side
+ * S4_HUMP_START_HEIGHT_MM up until the car is level again (HUMP_DONE);
+ * the VehicleController keeps the car at VC_HUMP_MIN_MM_S or more */
+extern bool subsystem4_on_hump(void);
 
 /* Private to subsystem 4 */
 extern ID alm_monitor;

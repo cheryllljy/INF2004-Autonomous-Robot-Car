@@ -1,5 +1,5 @@
 Buddy 3 host tests, 2026-11-09 09:53 UTC, gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-Source: nyx's PC state (2026-11-09, branch 37) plus: a barcode whose encoder widths do not decode is decoded from its time widths (b3_barcode.c); new test with the car's reason-6 widths of 09:50 UTC; not committed
+Source: PC state (2026-11-09, branch 37) plus: a barcode whose encoder widths do not decode is decoded from its time widths (b3_barcode.c); new test with the car's reason-6 widths of 09:50 UTC; not committed
 
 $ cd testing/subsystem3/buddy3_host && python3 run_tests.py
 --- core

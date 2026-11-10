@@ -130,7 +130,7 @@ INT usermain(void)
     CHECK(subsystem2_init(), "subsystem2_init");
     CHECK(subsystem3_init(), "subsystem3_init");
     CHECK(subsystem4_init(), "subsystem4_init");
-    /* Buddy 5 (nyx, 2026-11-07: rewritten) */
+    /* Buddy 5 (rewritten) */
     CHECK(subsystem5_init(), "subsystem5_init");
 #if VC_ENABLE
     CHECK(vc_init(), "vc_init"); /* after the subsystems it reads */

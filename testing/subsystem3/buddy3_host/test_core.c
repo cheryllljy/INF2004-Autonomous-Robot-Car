@@ -178,7 +178,7 @@ static void test_stream_and_quiet(void)
     make_frame('A', 10000U, 30000U, times);
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
     CHECK(scan.pending);
-    /* nyx, 2026-11-09: both '*' read, so no trailing white is needed: the
+    /* both '*' read, so no trailing white is needed: the
      * letter comes at the first poll after the last bar */
     edge.time_us += 1000U;
     CHECK(b3_barcode_poll(&scan, edge, &result));
@@ -189,13 +189,13 @@ static void test_stream_and_quiet(void)
     edge.time_us += 200000U;
     CHECK(!b3_barcode_poll(&scan, edge, &result));
     CHECK(1U == scan.rejected);
-    /* nyx, 2026-11-06: the white measured and needed are kept for the VC. */
+    /* the white measured and needed are kept for the VC. */
     CHECK(B3_REJECT_LEADING_QUIET == scan.reject_reason);
     CHECK(B3_BARCODE_RUNS == scan.reject_count);
     CHECK(!scan.reject_encoder);
     CHECK(50000U == scan.reject_lead);
     CHECK((10000U * B3_QUIET_NARROW_MULTIPLE) == scan.reject_need);
-    /* nyx, 2026-11-09: black again 4 mm after the last bar (the car's
+    /* black again 4 mm after the last bar (the car's
      * reason 8 at 30 mm/s, 136 ms) still gives the letter, at that black
      * edge, with no reject */
     edge = feed_frame(&scan, 500000U, times, NULL, 200000U);
@@ -400,7 +400,7 @@ static void test_slowdown_compensation(void)
     (void)puts("PASS: slowing down over a barcode is rescaled by measured speed");
 }
 
-/* nyx, 2026-11-06: one 41 us IR_B flicker in the white just before the
+/* one 41 us IR_B flicker in the white just before the
  * first bar (or chatter on the bar's own edge) used to restart the white
  * count there, so a good scan was rejected: 29/29 elements, reason 7. The
  * white now carries on across the blip, in time and encoder mode. */
@@ -469,7 +469,7 @@ static void test_leading_blip(void)
     (void)puts("PASS: a blip just before the first bar keeps the white before it");
 }
 
-/* nyx, 2026-11-06: an 18 mm black mark 105-125 mm before a barcode at
+/* an 18 mm black mark 105-125 mm before a barcode at
  * 50 mm/s (20 ms/mm, 6 ticks/mm). The mark starts a scan, the white after
  * it passes B3_MAX_ELEMENT_US and the scan is dropped. The white before the
  * barcode must still count from the end of the mark (it used to restart at
@@ -579,7 +579,7 @@ static void test_edge_blips(void)
     }
     CHECK(scan.pending);
     {
-        /* nyx, 2026-11-09: both '*' read, no trailing white is needed
+        /* both '*' read, no trailing white is needed
          * any more, so a blip in it gives the letter at its black edge */
         b3_edge_t blip = edge;
         blip.time_us += 20000U;
@@ -595,9 +595,9 @@ static void test_edge_blips(void)
     (void)puts("PASS: sub-200 us sensor blips inside a barcode are absorbed");
 }
 
-/* Car capture 2026-11-04 (nyx): every element fine except the first and
+/* Car capture 2026-11-04: every element fine except the first and
  * last bars, read 3-4x too long. Trimming them decodes the middle letter. */
-/* nyx, 2026-11-09: the car's reason-6 reject (widths in us as the VC
+/* the car's reason-6 reject (widths in us as the VC
  * printed them): the time widths decode as 'Z' read back to front with one
  * '*' spoiled, but the scan was decoded from wheel-encoder distances that
  * were off. A failed encoder decode now falls back to the time widths. */
@@ -691,7 +691,7 @@ static void test_line_logic(void)
     (void)b3_line_step(&line, true, false, 5000U, 120);
     result = b3_line_step(&line, true, false, 8000U, 120);
     CHECK(B3_LINE_LEFT == result.state);
-    /* nyx, 2026-11-07: the steering slews, so give the nudge 20 ms */
+    /* the steering slews, so give the nudge 20 ms */
     result = b3_line_step(&line, true, false, 28000U, 120);
     CHECK(result.left_mm_s < result.right_mm_s); /* IR_L black: turn left */
     (void)b3_line_step(&line, false, true, 29000U, 120);
@@ -705,12 +705,12 @@ static void test_line_logic(void)
         (void)b3_line_step(&line, true, true, 73000U, 120);
         result = b3_line_step(&line, true, true, 86000U, 120);
         CHECK(B3_LINE_CROSSING == result.state && !result.stop);
-        /* nyx, 2026-11-07: a crossing eases back towards the learnt
+        /* a crossing eases back towards the learnt
          * curve, which is small after these few ms */
         CHECK((turning < 0) && (result.curvature > turning));
     }
     result = b3_line_step(&line, true, true, 176000U, 120);
-    /* nyx, 2026-11-07 (patch 17): straight again; the speed may still be
+    /* straight again; the speed may still be
      * a little under 120 while the learnt curve fades (slows from R670) */
     CHECK((abs(result.left_mm_s - result.right_mm_s) <= 6) &&
           (result.left_mm_s >= 100) && (result.left_mm_s <= 120));
@@ -724,7 +724,7 @@ static void test_line_logic(void)
     CHECK((result.left_mm_s >= 0) && (result.right_mm_s >= 0));
     (void)puts("PASS: straddle line rules, steering direction, filtering and crossings");
 
-    /* Smooth steering (nyx, 2026-11-07, B3_STEER_*): a side going black
+    /* Smooth steering (B3_STEER_*): a side going black
      * nudges towards it at once; held black, the curve tightens and the
      * car slows, but the inner wheel keeps B3_MIN_WHEEL_MM_S; white again,
      * the learnt curve carries on and fades; a hairpin stops the inner
@@ -818,7 +818,7 @@ static void test_line_logic(void)
 
 }
 
-/* nyx, 2026-11-09: both IRs black inside a learnt bend (the tape crosses
+/* both IRs black inside a learnt bend (the tape crosses
  * the pair at a steep angle) keep the curve, and longer than a crossing
  * they nudge to the inside; on a straight both black is still a crossing
  * (B3_STEER_BB_* in b3_config.h). */

@@ -24,7 +24,7 @@
 #define B1_FR2_START 1u
 #define B1_FR2_STOP  2u
 #define B1_FR2_RESET 3u
-/* nyx, 2026-11-08: start with a line search (robot.ps1 search): drive
+/* start with a line search (robot.ps1 search): drive
  * straight until the IRs meet a line, line up along it, then follow it */
 #define B1_FR2_SEARCH 4u
 

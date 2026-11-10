@@ -1,7 +1,7 @@
 /*
  *      vc_barcode.h
  *      VehicleController -- back up and read a barcode slowly
- *      (nyx, 2026-11-06).
+ *.
  *
  *      The car line-follows at B3_BASE_SPEED_MM_S (100 mm/s). When IR_B
  *      starts reading a barcode (VC_BAR_DETECT_ELEMENTS elements: a bar, a
@@ -31,8 +31,8 @@
 #include "../subsystem3/buddy3.h"
 
 #define VC_BAR_DETECT_ELEMENTS 2   /* bar + gap measured: a barcode */
-#define VC_BAR_BACK_MM         150 /* white past its start; nyx: was 100 */
-#define VC_BAR_BACK_SPEED_MM_S 50
+#define VC_BAR_BACK_MM         100 /* white past its start; was 100 */
+#define VC_BAR_BACK_SPEED_MM_S 100
 #define VC_BAR_SLOW_MAX_MM     400  /* slow pass gives up after this */
 #define VC_BAR_REARM_MM        250  /* after a failed pass: no back-up */
 #define VC_BAR_CMD_TIMEOUT_MS  1000 /* Buddy 2 never took the command */

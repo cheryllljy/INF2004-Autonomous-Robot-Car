@@ -8,7 +8,7 @@
 
 static uint32_t g_now = 1000U;
 static uint32_t g_pins = UINT32_MAX;
-/* nyx, 2026-11-06: encoder position for Buddy 3, off unless a test turns
+/* encoder position for Buddy 3, off unless a test turns
  * it on: ticks = g_pos_base + rate x (g_now - g_pos_t0) */
 static bool g_pos_on;
 static uint32_t g_pos_base;
@@ -278,7 +278,7 @@ static void test_task_boundary(void)
         one_task_pass();
     }
     buddy3_get_snapshot(&snapshot);
-    /* nyx, 2026-11-08: still the same junction while IR_R is on the tape
+    /* still the same junction while IR_R is on the tape
        (each sensor's own run counts now); over once both are white. */
     CHECK(snapshot.junction_candidate);
     CHECK(1U == snapshot.junction_sequence);
@@ -365,7 +365,7 @@ static void test_task_boundary(void)
     (void)puts("PASS: micro T-Kernel adapter startup, bounded task pass and stale-context stop");
 }
 
-/* nyx, 2026-11-06: helpers for the held-letter / junction / fault checks. */
+/* helpers for the held-letter / junction / fault checks. */
 static void set_line_black(bool left, bool right)
 {
     g_pins = ((B3_IR_L_BLACK_LEVEL != 0U) == left) ? (g_pins | (1U << B3_IR_L_GPIO))
@@ -464,7 +464,7 @@ static void test_held_symbol_and_faults(void)
     context.right_measured_mm_s = 120;
     run_for(&context, 100000U);
 
-    /* nyx, 2026-11-06: a speed dip in the middle of the tape no longer
+    /* a speed dip in the middle of the tape no longer
        hides the junction (distance driven, not slowest speed x time). */
     junctions = snapshot.junction_sequence;
     context.left_measured_mm_s = 25;
@@ -500,7 +500,7 @@ static void test_held_symbol_and_faults(void)
         CHECK((snapshot.patch_miss_r_mm >= 4U) && (snapshot.patch_miss_r_mm <= 8U));
     }
 
-    /* nyx, 2026-11-08: the tape met at an angle. IR_L is on it 15 mm,
+    /* the tape met at an angle. IR_L is on it 15 mm,
        IR_R enters 12 mm in, so both are black together for only 3 mm
        (the car read 5): each sensor's own run counts, once. */
     {
@@ -600,7 +600,7 @@ static void test_held_symbol_and_faults(void)
     CHECK('\0' == snapshot.held_symbol);
     CHECK(!snapshot.stop_required);
 
-    /* nyx, 2026-11-06: scanning is off during a turn or stop. If IR_B stayed
+    /* scanning is off during a turn or stop. If IR_B stayed
      * white, the white before the next barcode counts from before the
      * pause, so a barcode soon after line following resumes still decodes
      * (100 ms of white since resuming; 10 x 20 ms narrow is needed). */
@@ -639,7 +639,7 @@ static void test_held_symbol_and_faults(void)
         run_for(&context, 10000U);
     }
 
-    /* nyx, 2026-11-06: the VC stops on a barcode start, backs up with
+    /* the VC stops on a barcode start, backs up with
      * scanning off and reads it slowly. The decoder measures white as net
      * encoder distance, so the white before the barcode must start where
      * the reverse ended, not where IR_B left the barcode backwards (that

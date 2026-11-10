@@ -101,7 +101,7 @@ IMPORT void tm_usb_console_put(const UB *buf, INT size);
 #define MLOG_PREFIX_LEN	6
 #define MLOG_PREFIX2	"[VC"
 #define MLOG_PREFIX2_LEN	3
-#define MLOG_PREFIX3	"[BUDDY1] FR3"	/* nyx, 2026-11-07: link loss */
+#define MLOG_PREFIX3	"[BUDDY1] FR3"	/* link loss */
 #define MLOG_PREFIX3_LEN	12
 #define MLOG_LINE_MAX	160		/* longer lines are cut */
 #define MLOG_RING_SIZE	16384U		/* power of two; records = length byte + text (~240 lines) */

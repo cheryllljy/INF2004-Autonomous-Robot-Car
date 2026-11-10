@@ -183,7 +183,7 @@ static bool decode_forward(const uint32_t widths[B3_BARCODE_RUNS],
         decode_symbol(&widths[0], &first, &n_first, &s_first) && ('*' == first);
     last_ok =
         decode_symbol(&widths[20], &last, &n_last, &s_last) && ('*' == last);
-    /* B3_NEED_BOTH_STARS 0 (nyx, 2026-11-04): the car's speed wobble can
+    /* B3_NEED_BOTH_STARS 0: the car's speed wobble can
      * spoil one '*'; the letter is still fully checked and the other '*'
      * must be valid. A spoiled side borrows the letter's narrow/skew. */
     if (!(first_ok && last_ok) &&

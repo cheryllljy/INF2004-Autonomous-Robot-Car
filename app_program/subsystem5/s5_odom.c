@@ -1,7 +1,6 @@
 /*
  *      s5_odom.c
- *      Subsystem 5 -- dead reckoning from the encoder ticks (nyx,
- *      2026-11-07). See s5_odom.h.
+ *      Subsystem 5 -- dead reckoning from the encoder ticks. See s5_odom.h.
  */
 
 #include "s5_odom.h"

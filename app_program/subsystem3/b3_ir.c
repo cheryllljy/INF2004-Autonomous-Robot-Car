@@ -464,7 +464,7 @@ b3_ir_pop_status_t b3_ir_pop(b3_edge_t *p_edge)
 /*
  * Clear barcode edge queue.
  *
- * nyx, 2026-11-06: returns true if anything was thrown away (an edge or a
+ * returns true if anything was thrown away (an edge or a
  * lost-edge mark).
  */
 bool b3_ir_flush(void)

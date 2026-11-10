@@ -33,7 +33,7 @@ void b3_ir_enable_barcode_irq(bool enabled);
  * IO_BANK0 handler instead of calling this directly. */
 void b3_ir_gpio_irq(uint32_t gpio, uint32_t events);
 b3_ir_pop_status_t b3_ir_pop(b3_edge_t *p_edge);
-/* Clear the edge queue. nyx, 2026-11-06: returns true if it held any edge
+/* Clear the edge queue. returns true if it held any edge
  * or a lost-edge mark, so the caller knows IR_B changed meanwhile. */
 bool b3_ir_flush(void);
 b3_ir_sample_t b3_ir_read(void);

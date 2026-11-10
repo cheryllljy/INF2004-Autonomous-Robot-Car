@@ -1,7 +1,7 @@
 /*
  *      s5_math.h
- *      Subsystem 5 -- the few float functions the bypass needs (nyx,
- *      2026-11-07). The firmware is linked without libm, so sin, cos,
+ *      Subsystem 5 -- the few float functions the bypass needs. The firmware is
+ *      linked without libm, so sin, cos,
  *      atan2 and sqrt are done here. Accurate to about 1e-5, plenty for
  *      millimetres over a metre. Pure: the host tests use the same code.
  */
