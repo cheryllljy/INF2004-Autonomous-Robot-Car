@@ -15,4 +15,8 @@
 #define S4_HUMP_ACCEL_TOLERANCE_PCT 5U
 #define S4_HUMP_FILTER_SHIFT        3U
 
+/* ---- Terrain analysis report ---- */
+#define S4_TERRAIN_REPORT_INTERVAL_MS  5000U
+#define S4_TERRAIN_PROFILE_SPACING_MM  50U
+
 #endif

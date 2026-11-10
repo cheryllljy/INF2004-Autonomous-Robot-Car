@@ -27,9 +27,13 @@ typedef struct
     uint8_t level_samples;
     uint8_t hump_sequence;
     uint8_t peak_height_mm;
+    uint16_t hump_sample_count;
+    uint32_t hump_started_ms;
+    int32_t peak_roll_sign;
     bool calibrated;
     bool filter_ready;
     bool hump_active;
+    bool hump_start_time_valid;
 } s4_hump_state_t;
 
 static s4_hump_state_t s4_hump_state;
@@ -92,6 +96,8 @@ static void s4_hump_step(const imu_vector_t *p_raw)
     int64_t cross;
     int32_t sin_q15;
     uint32_t height_mm;
+    SYSTIM now;
+    ER time_er;
 
     if (!s4_hump_state.calibrated)
     {
@@ -180,12 +186,32 @@ static void s4_hump_step(const imu_vector_t *p_raw)
         s4_hump_state.hump_active = true;
         s4_hump_state.peak_height_mm =
             (uint8_t)((height_mm > 255U) ? 255U : height_mm);
+        s4_hump_state.peak_roll_sign = (sin_q15 < 0) ? -1 : 1;
+        s4_hump_state.hump_sample_count = 0U;
         s4_hump_state.level_samples = 0U;
+        time_er = tk_get_tim(&now);
+        s4_hump_state.hump_start_time_valid = (time_er >= E_OK);
+        if (s4_hump_state.hump_start_time_valid)
+        {
+            s4_hump_state.hump_started_ms = now.lo;
+        }
+        else
+        {
+            tm_printf((UB *)"[VC] terrain report: failed to timestamp "
+                            "hump start, error=%d\n",
+                      (INT)time_er);
+        }
     }
     else if (height_mm > s4_hump_state.peak_height_mm)
     {
         s4_hump_state.peak_height_mm =
             (uint8_t)((height_mm > 255U) ? 255U : height_mm);
+        s4_hump_state.peak_roll_sign = (sin_q15 < 0) ? -1 : 1;
+    }
+
+    if (s4_hump_state.hump_sample_count < UINT16_MAX)
+    {
+        s4_hump_state.hump_sample_count++;
     }
 
     if (height_mm <= S4_HUMP_LEVEL_HEIGHT_MM)
@@ -195,12 +221,39 @@ static void s4_hump_step(const imu_vector_t *p_raw)
             if (s4_hump_state.peak_height_mm >= S4_HUMP_MIN_PEAK_HEIGHT_MM)
             {
                 s4_hump_state.hump_sequence++;
-                tm_printf((UB *)"[VC] HUMP_DONE peak side-height=%u mm "
-                                "(seq %u)\n",
-                          (UINT)s4_hump_state.peak_height_mm,
-                          (UINT)s4_hump_state.hump_sequence);
+                time_er = tk_get_tim(&now);
+                if ((time_er >= E_OK) &&
+                    s4_hump_state.hump_start_time_valid)
+                {
+                    tm_printf((UB *)"[VC] TERRAIN_REPORT seq=%u "
+                            "classification=ROLL_HUMP "
+                            "peak_side_height_est=%u mm "
+                            "duration=%u ms imu_samples=%u\n",
+                    (UINT)s4_hump_state.hump_sequence,
+                    (UINT)s4_hump_state.peak_height_mm,
+                    (UINT)(now.lo - s4_hump_state.hump_started_ms),
+                    (UINT)s4_hump_state.hump_sample_count);
+                }
+                else
+                {
+                    if (time_er < E_OK)
+                    {
+                        tm_printf((UB *)"[VC] terrain report: failed to "
+                                        "timestamp hump completion, error=%d\n",
+                                  (INT)time_er);
+                    }
+                    tm_printf((UB *)"[VC] TERRAIN_REPORT seq=%u "
+                                    "classification=ROLL_HUMP "
+                                    "peak_side_height_est=%u mm "
+                                    "duration=unavailable imu_samples=%u\n",
+                              (UINT)s4_hump_state.hump_sequence,
+                              (UINT)s4_hump_state.peak_height_mm,
+                              (UINT)s4_hump_state.hump_sample_count);
+                }
             }
             s4_hump_state.peak_height_mm = 0U;
+            s4_hump_state.hump_sample_count = 0U;
+            s4_hump_state.hump_start_time_valid = false;
             s4_hump_state.level_samples = 0U;
             s4_hump_state.hump_active = false;
         }
