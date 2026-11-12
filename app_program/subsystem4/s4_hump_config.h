@@ -19,4 +19,8 @@
 #define S4_TERRAIN_REPORT_INTERVAL_MS  5000U
 #define S4_TERRAIN_PROFILE_SPACING_MM  50U
 
+/* ---- Hump peak E-stop threshold ----
+ * Any hump whose peak exceeds this height triggers an E-stop. */
+#define S4_HUMP_ESTOP_PEAK_MM        15U
+
 #endif
