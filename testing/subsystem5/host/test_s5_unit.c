@@ -202,9 +202,16 @@ static void h02(void)
                 if (!sweep(&pr, &ms) || !pr.b_found || !pr.b_left_seen ||
                     !pr.b_right_seen)
                 {
-                    /* a wide box near: an edge outside the sweep is right */
-                    if ((atan2(fabs(y) + w / 2.0, faces[j]) + 22.0 * PI / 180.0) <
-                        (60.0 * PI / 180.0))
+                    /* a wide box near: an edge outside the sweep is right
+                     * (the sweep goes less far to the right) */
+                    const double beam = 22.0 * PI / 180.0;
+                    const double l_lim =
+                        (double)S5_SERVO_LIMIT_DDEG * PI / 1800.0;
+                    const double r_lim =
+                        (double)S5_SERVO_LIMIT_R_DDEG * PI / 1800.0;
+
+                    if (((atan2(y + w / 2.0, faces[j]) + beam) < l_lim) &&
+                        ((atan2(w / 2.0 - y, faces[j]) + beam) < r_lim))
                     {
                         bad++;
                         if (g_verbose)

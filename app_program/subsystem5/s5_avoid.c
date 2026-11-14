@@ -442,9 +442,9 @@ static void s5_look(int32_t ddeg)
     {
         a = S5_SERVO_LIMIT_DDEG;
     }
-    if (a < -S5_SERVO_LIMIT_DDEG)
+    if (a < -S5_SERVO_LIMIT_R_DDEG)
     {
-        a = -S5_SERVO_LIMIT_DDEG;
+        a = -S5_SERVO_LIMIT_R_DDEG;
     }
     g.look_ddeg = a;
     s5_sensor_look(a);

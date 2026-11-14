@@ -54,8 +54,13 @@
 /* ---------------------------------------------------------------------
  *  Servo (SG90 on the sensor bracket)
  * --------------------------------------------------------------------- */
-/* How far the bracket can turn each way without touching anything. */
+/* How far the bracket can turn to the left without touching anything. */
 #define S5_SERVO_LIMIT_DDEG (600)
+/* ... and to the right: at 60 deg the sensor's wires hold the bracket
+ * back, it stops short and comes back off by 5-10 deg. */
+#ifndef S5_SERVO_LIMIT_R_DDEG
+#define S5_SERVO_LIMIT_R_DDEG (500)
+#endif
 /* CALIBRATE step 1: 1 if "left" turns the sensor to the right. */
 #ifndef S5_SERVO_INVERT
 #define S5_SERVO_INVERT (0)
@@ -219,10 +224,16 @@
 /* the deepest the far corner may be: one object, or two close together */
 #define S5_DEPTH_MAX_MM (1000)
 
-/* 100 -> 110 and 60 -> 80 (2026-11-09, faster bypass). In the bypass
- * sim 120 already put the car within 1 mm of a box turned 15 deg (C22) */
-#define S5_SPEED_MM_S         (110) /* along the bypass */
-#define S5_SLOW_MM_S          (80)  /* settling onto the line */
+/* About 1 s faster per object than 110 / 80. The cost: in the bypass sim
+ * a box turned 15 deg to the line (C22) is passed only 1-3 mm away, so
+ * the host tests keep 110 / 80 (testing/subsystem5/host/Makefile). Square
+ * boxes keep their clearance. */
+#ifndef S5_SPEED_MM_S
+#define S5_SPEED_MM_S (130) /* along the bypass */
+#endif
+#ifndef S5_SLOW_MM_S
+#define S5_SLOW_MM_S (100) /* settling onto the line */
+#endif
 #define S5_REVERSE_SPEED_MM_S (60)
 #define S5_REVERSE_MAX_MM     (500) /* never back up further, in total */
 /* Buddy 2 gives a wheel no drive at 5 mm/s or less and kicks one under
