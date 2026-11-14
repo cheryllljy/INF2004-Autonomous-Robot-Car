@@ -108,15 +108,20 @@ endif
 # instead of its obstacle logic. The image gets a _s5cal suffix.
 # S5CAL=2 runs its step 4 only (the circle: turn and
 # compass); the image gets a _s5cal4 suffix.
+# S5CAL=3 only holds the servo at 13 angles in turn, to measure where it
+# really points; the image gets a _s5servo suffix.
 S5CAL ?= 0
-ifneq ($(filter $(S5CAL),0 1 2),$(S5CAL))
-$(error Unknown S5CAL '$(S5CAL)'; use 0, 1 or 2)
+ifneq ($(filter $(S5CAL),0 1 2 3),$(S5CAL))
+$(error Unknown S5CAL '$(S5CAL)'; use 0, 1, 2 or 3)
 endif
 ifeq ($(S5CAL),1)
 S5CAL_SUFFIX := _s5cal
 endif
 ifeq ($(S5CAL),2)
 S5CAL_SUFFIX := _s5cal4
+endif
+ifeq ($(S5CAL),3)
+S5CAL_SUFFIX := _s5servo
 endif
 
 # CRASH_REPORT=1 also copies every console line to UART0 on GP0 (TX) /

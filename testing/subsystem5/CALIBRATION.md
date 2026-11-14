@@ -112,6 +112,26 @@ error moves each edge about 5 mm at 250 mm.
   laptops and steel table legs: the numbers are for the car, but a big
   piece of iron nearby bends the field the car sees.
 
+## Servo angle check (`make S5CAL=3`)
+
+Use this if the sweep reads objects on one side wider than on the other,
+or the servo twitches or catches on wires at one end. It does nothing but
+hold the servo at 13 angles in turn, 8 s each: 60, 45, 30, 15 to the left,
+straight ahead, 15, 30, 45, 60 to the right, then back 45, 30, 15 to the
+right and straight ahead. Each stop prints
+`[VC-S5] CAL servo stop N/13: asked A deg to the car's LEFT/RIGHT`.
+
+```sh
+cd build_make
+make clean
+make S5CAL=3 -j8          # or: make WIFI=cyw43 NET=lwip MQTT=1 S5CAL=3 -j8
+```
+
+Flash `..._s5servo.uf2`. At each stop, measure where the sensor really
+points (a protractor or a phone protractor app laid on the car, 0 = along
+the car's middle) and write it down. Then `make clean` and build the
+normal image again.
+
 ## Put the numbers in
 
 1. Edit `app_program/subsystem5/s5_config.h`, the lines marked

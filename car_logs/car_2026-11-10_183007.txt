@@ -1,0 +1,213 @@
+18:30:16.014 [BUDDY1] FR3 probe failed: -3
+18:30:16.020 [VC] MQTT START rejected: communication not ready
+18:30:16.050 [BUDDY1] FR3 probe failed: -3
+18:30:16.063 [VC] MQTT RESET rejected: communication unhealthy
+18:30:16.079 [VC] MQTT STOP received seq=29
+18:30:16.091 [VC] MQTT STOP received seq=30
+18:30:17.596 [VC] MQTT SEARCH rejected: communication not ready
+18:30:17.601 [VC] MQTT RESET rejected: communication unhealthy
+18:30:17.644 [VC] MQTT START rejected: communication not ready
+18:30:17.717 [BUDDY1] FR3 probe failed: -3
+18:30:17.721 [BUDDY1] FR3 communication restored
+18:30:17.739 [BUDDY1] FR3 recovery: latch=1 reason=2
+18:30:17.840 [VC] MQTT RESET requested for FR3 safety latch
+18:30:17.847 [BUDDY1] FR3 controller reset accepted
+18:30:17.862 [VC] Communication reset complete
+18:30:17.919 [VC] state 5 -> 0
+18:30:17.929 [VC] MQTT RESET received seq=42
+18:30:17.935 [VC] MQTT START received seq=43
+18:30:18.021 [VC] state 0 -> 1
+18:30:18.021 [VC] MQTT START received seq=44
+18:30:18.031 [VC] barcode scan started
+18:30:18.113 [VC] line sensors black L 2 / R 2 mm, 2 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:30:18.136 [VC] state 1 -> 3
+18:30:18.143 [VC-S5] object 283 mm ahead: stopping (line from the last 220 mm, within 4 mm; car -2 deg to it)
+18:30:19.720 [VC-S5] compass: no good sample at the stop (field 34 percent of the calibration's): encoders only
+18:30:19.795 [VC-S5] pings 1-13 of 25 (deg:mm): -60:667 -54:422 -52:351 -51:314 -48:301 -42:285 -36:288 -30:291 -24:280 -18:280 -12:288 -6:274 0:283
+18:30:19.804 [VC-S5] pings 14-25 of 25 (deg:mm): 6:283 12:288 18:307 21:351 22:1323 24:1318 30:1327 36:1333 42:807 48:801 54:795 60:795
+18:30:19.818 [VC-S5] sweep: 25 pings, face 274 mm, echoes from -53 to 21 deg, beam 16 deg
+18:30:19.962 [VC-S5] object 187 mm wide: -14 mm left and 201 mm right of the line, right side blocked
+18:30:19.964 [VC-S5] right side blocked by an echo at -54 deg, 422 mm
+18:30:19.987 [VC-S5] going LEFT: axle 96 mm off the line, ramps 290 / 268 mm, back in from 167 mm past the face
+18:30:23.808 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+18:30:24.181 [VC-S5] IRs found the line (edge), 70 mm from where the encoders put it
+18:30:29.713 [VC-S5] bypass failed: lost the line after the bypass: the IRs do not see it where it should be (FR24)
+18:30:29.799 [VC] E-stop, fault bits 0x40
+18:30:29.801 [VC] state 3 -> 5
+18:30:40.654 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:31:33.279 [VC] MQTT RESET received seq=45
+18:31:33.405 [VC] state 5 -> 0
+18:31:35.283 [VC] MQTT START received seq=46
+18:31:35.348 [VC] state 0 -> 1
+18:31:39.563 [VC] state 1 -> 3
+18:31:39.567 [VC-S5] object 288 mm ahead: stopping (line from the last 380 mm, within 4 mm; car -2 deg to it)
+18:31:39.843 [VC-S5] compass: no good sample at the stop (field 64 percent of the calibration's): encoders only
+18:31:43.901 [VC-S5] pings 1-13 of 25 (deg:mm): -60:917 -54:930 -52:926 -51:312 -48:301 -42:291 -36:293 -30:283 -24:283 -18:277 -12:277 -6:285 0:277
+18:31:45.473 [VC-S5] pings 14-25 of 25 (deg:mm): 6:285 12:291 18:283 24:369 25:369 27:615 30:606 36:1239 42:1238 48:1228 54:1231 60:1230
+18:31:45.477 [VC-S5] sweep: 25 pings, face 277 mm, echoes from -51 to 26 deg, beam 16 deg
+18:31:45.507 [VC-S5] object 198 mm wide: 6 mm left and 191 mm right of the line, left maybe blocked
+18:31:45.519 [VC-S5] left side maybe blocked (beam edge) by an echo at 27 deg, 615 mm
+18:31:45.535 [VC-S5] going LEFT anyway, the shorter way (6 / 191 mm): only a far echo (floor?) at its beam edge
+18:31:45.565 [VC-S5] going LEFT: axle 116 mm off the line, ramps 318 / 295 mm, back in from 166 mm past the face
+18:31:46.274 [VC-S5] another object ahead in the pass lane (35 mm away): stopping
+18:31:48.774 [VC-S5] pings 1-13 of 23 (deg:mm): -60:20 -54:20 -48:20 -42:20 -36:20 -30:20 -24:29 -18:20 -12:56 -6:26 -3:44 -1:555 0:689
+18:31:48.868 [VC-S5] pings 14-23 of 23 (deg:mm): 6:687 12:676 18:679 24:673 30:663 36:670 42:666 48:680 54:690 60:699
+18:31:48.881 [VC-S5] sweep: 23 pings, face 20 mm, echoes from -60 to -2 deg, beam 12 deg
+18:31:48.952 [VC-S5] object 0 mm wide: 100 mm left and -100 mm right of the line, right edge past the sweep
+18:31:48.958 [VC-S5] going LEFT: axle 210 mm off the line, ramps 244 / 397 mm, back in from 161 mm past the face
+18:31:48.976 [VC-S5] no room to turn out even on the spot: backing up 156 mm first
+18:31:55.586 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+18:31:57.623 [VC-S5] IRs found the line (edge), 31 mm from where the encoders put it
+18:32:03.226 [VC-S5] bypass failed: lost the line after the bypass: the IRs do not see it where it should be (FR24)
+18:32:03.357 [VC] E-stop, fault bits 0x40
+18:32:03.359 [VC] state 3 -> 5
+18:32:14.984 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:32:42.765 [VC] MQTT RESET received seq=47
+18:32:42.773 [VC] state 5 -> 0
+18:32:44.575 [VC] MQTT START received seq=48
+18:32:44.661 [VC] state 0 -> 1
+18:32:45.231 [VC] barcode scan started
+18:32:45.350 [VC] barcode ahead at 102 mm/s: stopping to back up
+18:32:45.609 [VC] barcode: stopped 14 mm past it, backing up 114 mm
+18:32:47.304 [VC] barcode: backed up, reading it at 25 mm/s
+18:32:48.123 [VC] barcode scan started
+18:32:48.922 [VC] line sensors black L 2 / R 36 mm, 2 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:32:50.345 [VC] state 1 -> 3
+18:32:50.588 [VC-S5] object 285 mm ahead: stopping (line from the last 240 mm, within 8 mm; car -3 deg to it)
+18:32:50.653 [VC-S5] compass: no good sample at the stop (field 64 percent of the calibration's): encoders only
+18:32:53.258 [VC-S5] pings 1-13 of 23 (deg:mm): -60:365 -54:320 -48:304 -42:293 -36:283 -30:285 -24:280 -18:283 -12:283 -6:0 0:274 6:274 12:283
+18:32:53.260 [VC-S5] pings 14-23 of 23 (deg:mm): 18:288 24:285 30:304 33:309 34:322 36:1246 42:288 48:1536 54:283 60:269
+18:32:53.280 [VC-S5] sweep: 23 pings, face 274 mm, echoes from -60 to 35 deg, beam 16 deg
+18:32:53.357 [VC-S5] object 326 mm wide: 36 mm left and 290 mm right of the line, right edge past the sweep, left side blocked
+18:32:53.360 [VC-S5] left side blocked by an echo at 42 deg, 288 mm
+18:32:53.399 [VC-S5] an edge is outside the sweep and no side is open: backing off 150 mm to look again
+18:32:56.041 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:32:58.431 [VC-S5] pings 1-13 of 23 (deg:mm): -60:466 -54:456 -48:436 -42:434 -36:428 -30:422 -24:426 -18:420 -12:420 -6:420 0:420 6:434 12:430
+18:32:58.612 [VC-S5] pings 14-23 of 23 (deg:mm): 18:430 24:436 30:446 36:471 37:475 39:819 42:555 48:555 54:536 60:523
+18:32:58.614 [VC-S5] sweep: 23 pings, face 420 mm, echoes from -60 to 38 deg, beam 18 deg
+18:32:58.740 [VC-S5] object 478 mm wide: 139 mm left and 339 mm right of the line, right edge past the sweep, left maybe blocked
+18:32:58.744 [VC-S5] left side maybe blocked (beam edge) by an echo at 39 deg, 819 mm
+18:32:58.757 [VC-S5] going LEFT anyway, the shorter way (139 / at least 339 mm): the other edge is past the sweep, only a far echo (floor?) at this side's beam edge
+18:32:58.776 [VC-S5] going LEFT: axle 249 mm off the line, ramps 557 / 433 mm, back in from 158 mm past the face
+18:32:58.942 [VC] line sensors black L 3 / R 15 mm, 3 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:33:05.150 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+18:33:12.812 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+18:33:12.820 [VC-S5] no black on the way back: the first line ahead is ours
+18:33:12.915 [VC-S5] IRs found the line (edge), -98 mm from where the encoders put it
+18:33:12.931 [VC-S5] the IRs crossed a line -116 mm from where the encoders put ours, at 81 deg to it: a junction, not our line; driving on
+18:33:13.761 [VC-S5] IRs found the line (edge), -205 mm from where the encoders put it
+18:33:14.910 [VC-S5] both IRs crossed the line (-228 mm from where the encoders put it, -30 deg to it): onto it and facing along it
+18:33:14.968 [VC-S5] by where the two IRs met it, the car is -16 deg to the line (the encoders said -30)
+18:33:16.349 [VC-S5] axle on the line (102 mm on): turning on the spot to face along it
+18:33:17.730 [VC-S5] back on the line (picked up by the IRs): line following again (1898 mm, 27.4 s)
+18:33:17.822 [VC] state 3 -> 1
+18:33:19.468 [VC] state 1 -> 3
+18:33:19.473 [VC-S5] object 291 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)
+18:33:19.774 [VC-S5] compass: no good sample at the stop (field 17 percent of the calibration's): encoders only
+18:33:21.923 [VC-S5] pings 1-13 of 23 (deg:mm): -60:360 -54:320 -48:304 -42:293 -36:283 -30:291 -24:285 -18:280 -12:288 -6:288 0:288 6:288 12:293
+18:33:22.024 [VC-S5] pings 14-23 of 23 (deg:mm): 18:285 24:296 30:314 31:358 33:558 36:552 42:524 48:490 54:485 60:483
+18:33:22.030 [VC-S5] sweep: 23 pings, face 280 mm, echoes from -60 to 32 deg, beam 16 deg
+18:33:22.124 [VC-S5] object 291 mm wide: 50 mm left and 241 mm right of the line, right edge past the sweep, left maybe blocked
+18:33:22.131 [VC-S5] left side maybe blocked (beam edge) by an echo at 33 deg, 558 mm
+18:33:22.142 [VC-S5] going LEFT anyway, the shorter way (50 / at least 241 mm): the other edge is past the sweep, only a far echo (floor?) at this side's beam edge
+18:33:22.231 [VC-S5] going LEFT: axle 160 mm off the line, ramps 372 / 346 mm, back in from 163 mm past the face
+18:33:28.619 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+18:33:29.251 [VC-S5] IRs found the line (edge), -14 mm from where the encoders put it
+18:33:29.331 [VC-S5] the IRs crossed a line -36 mm from where the encoders put ours, at 82 deg to it: a junction, not our line; driving on
+18:33:32.603 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+18:33:32.691 [VC-S5] no black on the way back: the first line ahead is ours
+18:33:34.689 [VC-S5] IRs found the line (edge), -154 mm from where the encoders put it
+18:33:34.838 [VC-S5] both IRs crossed the line (-172 mm from where the encoders put it, -30 deg to it): onto it and facing along it
+18:33:34.847 [VC-S5] by where the two IRs met it, the car is -18 deg to the line (the encoders said -30)
+18:33:35.708 [VC-S5] axle on the line (102 mm on): turning on the spot to face along it
+18:33:37.154 [VC-S5] back on the line (picked up by the IRs): line following again (1341 mm, 17.7 s)
+18:33:37.242 [VC] state 3 -> 1
+18:33:37.951 [VC] barcode scan started
+18:33:38.119 [VC] line sensors black L 3 / R 1 mm, 1 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:33:38.199 [VC] barcode ahead at 103 mm/s: stopping to back up
+18:33:38.545 [VC] barcode: stopped 13 mm past it, backing up 113 mm
+18:33:39.264 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:33:40.040 [VC] barcode: backed up, reading it at 25 mm/s
+18:33:40.988 [VC] barcode scan started
+18:33:44.502 [VC] barcode rejected (total 7): 5/29 elements, last element 2008129 us, reason 3: element too long
+18:33:44.593 [VC] barcode not read at 25 mm/s (rejected), back to 100 mm/s
+18:33:46.925 [VC] state 1 -> 3
+18:33:47.034 [VC-S5] object 158 mm ahead: stopping (line from the last 540 mm, within 8 mm; car -3 deg to it)
+18:33:47.220 [VC-S5] compass: heading taken at the stop (18 samples, field 79 percent of the calibration's); logged only (S5_MAG_USE 0)
+18:33:49.876 [VC-S5] pings 1-13 of 25 (deg:mm): -60:0 -54:0 -48:0 -42:0 -36:0 -30:0 -24:0 -18:152 -12:556 -10:360 -9:145 -6:145 0:158
+18:33:49.950 [VC-S5] pings 14-25 of 25 (deg:mm): 6:127 12:136 18:149 24:136 30:149 31:475 33:488 36:502 42:499 48:596 54:590 60:586
+18:33:49.960 [VC-S5] sweep: 25 pings, face 127 mm, echoes from -9 to 30 deg, beam 12 deg
+18:33:50.221 [VC-S5] object 0 mm wide: 10 mm left and -10 mm right of the line, left maybe blocked, right side blocked
+18:33:50.256 [VC-S5] left side maybe blocked (beam edge) by an echo at 31 deg, 475 mm
+18:33:50.259 [VC-S5] right side blocked by an echo at -10 deg, 360 mm
+18:33:50.282 [VC-S5] no side clear: going LEFT, where an echo is in the pass lane only at the edge of its beam; watching the lane
+18:33:50.282 [VC-S5] going LEFT: axle 120 mm off the line; too close for a ramp: turn 45 deg on the spot, out 173 mm, turn back; back in from 166 mm past the face
+18:33:57.518 [VC] MQTT STOP received seq=49
+18:33:57.618 [VC-S5] bypass stopped by the VehicleController
+18:33:57.621 [VC] state 3 -> 4
+18:33:57.802 [VC] MQTT STOP received seq=50
+18:34:33.359 [VC] HUMP_DONE peak side-height=64 mm (seq 3)
+18:34:37.214 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:34:39.670 [VC] MQTT RESET received seq=51
+18:34:39.675 [VC] state 4 -> 0
+18:34:41.074 [VC] MQTT START received seq=52
+18:34:41.083 [VC] state 0 -> 1
+18:34:41.648 [VC] barcode scan started
+18:34:43.664 [VC] barcode rejected (total 8): 0/29 elements, last element 2006198 us, reason 3: element too long
+18:34:44.873 [VC] state 1 -> 3
+18:34:44.877 [VC-S5] object 296 mm ahead: stopping (line from the last 240 mm, within 3 mm; car 0 deg to it)
+18:34:44.961 [VC-S5] compass: no good sample at the stop (field 9 percent of the calibration's): encoders only
+18:35:03.621 [VC-S5] pings 1-13 of 25 (deg:mm): -60:0 -58:0 -57:328 -54:349 -48:293 -42:283 -36:280 -30:288 -24:283 -18:277 -12:277 -6:285 0:285
+18:35:03.624 [VC-S5] pings 14-25 of 25 (deg:mm): 6:285 12:296 18:349 19:353 21:857 24:857 30:857 36:861 42:870 48:884 54:903 60:964
+18:35:03.651 [VC-S5] sweep: 25 pings, face 277 mm, echoes from -57 to 20 deg, beam 16 deg
+18:35:03.665 [VC-S5] object 210 mm wide: -9 mm left and 219 mm right of the line
+18:35:03.681 [VC-S5] going LEFT: axle 101 mm off the line, ramps 296 / 275 mm, back in from 167 mm past the face
+18:35:03.704 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+18:35:03.720 [VC-S5] IRs found the line (edge), -36 mm from where the encoders put it
+18:35:03.724 [VC-S5] both IRs crossed the line (-40 mm from where the encoders put it, -40 deg to it): onto it and facing along it
+18:35:03.738 [VC-S5] by where the two IRs met it, the car is -32 deg to the line (the encoders said -40)
+18:35:03.834 [VC-S5] axle on the line (102 mm on): turning on the spot to face along it
+18:35:03.837 [BUDDY1] FR3 communication unhealthy; monitoring
+18:35:03.867 [BUDDY1] FR3 LINK_LOST latched, reason=2, rssi -68 dBm, last broker answer 10038 ms ago
+18:35:03.917 [BUDDY1] FR3 VehicleController STOP REQUIRED
+18:35:03.924 [VC] link lost while driving: MQTT broker not answering (10 s); once it is back, robot.ps1 go
+18:35:03.937 [VC] E-stop, fault bits 0x10
+18:35:08.320 [VC-S5] bypass stopped by the VehicleController
+18:35:08.322 [VC] state 3 -> 5
+18:35:08.346 [VC] MQTT STOP received seq=53
+18:35:08.396 [BUDDY1] FR3 communication restored
+18:35:08.401 [BUDDY1] FR3 recovery: latch=1 reason=2
+18:35:36.907 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:35:36.947 [BUDDY1] FR3 communication unhealthy; monitoring
+18:35:36.952 [VC] MQTT RESET rejected: communication unhealthy
+18:35:36.980 [BUDDY1] FR3 communication restored
+18:35:36.980 [BUDDY1] FR3 recovery: latch=1 reason=2
+18:35:37.778 [VC] MQTT START rejected: communication not ready
+18:35:46.798 [VC] MQTT RESET requested for FR3 safety latch
+18:35:46.802 [BUDDY1] FR3 controller reset accepted
+18:35:46.817 [VC] Communication reset complete
+18:35:46.847 [VC] state 5 -> 0
+18:35:46.852 [VC] MQTT START received seq=57
+18:35:46.863 [VC] state 0 -> 1
+18:35:49.182 [VC] state 1 -> 3
+18:35:49.182 [VC-S5] object 283 mm ahead: stopping (line from the last 240 mm, within 2 mm; car -3 deg to it)
+18:35:49.495 [VC-S5] compass: no good sample at the stop (field 50 percent of the calibration's): encoders only
+18:35:53.573 [VC-S5] pings 1-13 of 25 (deg:mm): -60:490 -54:492 -48:1495 -42:1504 -36:581 -34:581 -33:351 -30:296 -24:291 -18:285 -12:285 -6:280 0:285
+18:35:53.573 [VC-S5] pings 14-25 of 25 (deg:mm): 6:285 12:291 18:296 24:307 27:307 28:0 30:0 36:1722 42:1751 48:1201 54:1043 60:1050
+18:35:53.605 [VC-S5] sweep: 25 pings, face 280 mm, echoes from -33 to 27 deg, beam 16 deg
+18:35:55.079 [VC-S5] object 91 mm wide: 6 mm left and 84 mm right of the line, right maybe blocked
+18:35:55.082 [VC-S5] right side maybe blocked (beam edge) by an echo at -34 deg, 581 mm
+18:35:55.102 [VC-S5] going LEFT: axle 116 mm off the line, ramps 318 / 295 mm, back in from 166 mm past the face
+18:35:58.120 [VC-S5] far corner not fixed: back in after 200 mm of object (S5_DEPTH_DEFAULT_MM 200)
+18:36:00.740 [VC-S5] IRs found the line (edge), -30 mm from where the encoders put it
+18:36:00.860 [VC-S5] the IRs crossed a line -43 mm from where the encoders put ours, at 86 deg to it: a junction, not our line; driving on
+18:36:00.866 [VC] line sensors black L 2 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:36:01.255 [VC-S5] the line is not where the encoders put it: looking on at 30 deg
+18:36:09.096 [VC-S5] no black on the way back: the first line ahead is ours
+18:36:09.213 [VC-S5] bypass failed: the line was not found (FR24)
+18:36:09.213 [VC] E-stop, fault bits 0x40
+18:36:09.234 [VC] state 3 -> 5
+18:36:25.602 [VC] HUMP_DONE peak side-height=51 mm (seq 4)
+18:36:28.654 [VC] HUMP_DONE peak side-height=58 mm (seq 5)
+18:36:29.889 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
+18:36:53.072 [VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)
