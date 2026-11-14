@@ -26,6 +26,15 @@
 
 #define S5_CAL_MAG_N    (300U)  /* step 4: compass samples kept */
 
+/* make S5CAL=3: the angles the servo is asked for, in this order, each held
+ * long enough to read it off a protractor (0.1 deg; + = left). Left to
+ * right as the sweep goes, then back from the right. */
+static const int16_t g_cal_ang[] = { 600,  450,  300,  150,  0,
+                                     -150, -300, -450, -600, -450,
+                                     -300, -150, 0 };
+#define S5_CAL_ANG_N    (sizeof(g_cal_ang) / sizeof(g_cal_ang[0]))
+#define S5_CAL_ANG_MS   (8000U) /* each angle held this long */
+
 static s5_sweep_t g_sw;
 static s5_profile_t g_pr;
 static int32_t g_off; /* step 2's range correction, used in step 3 */
@@ -393,8 +402,57 @@ static void s5_cal_turn(void)
     s5_cal_mag(n_mag, turned);
 }
 
+/* make S5CAL=3: holds the servo at each angle of g_cal_ang so the real
+ * angle can be measured; nothing is worked out on the car. */
+static void s5_cal_angles(void)
+{
+    uint32_t i;
+
+    S5_LOG("[VC-S5] CAL servo angles only (make S5CAL=3): %d stops, %d s "
+           "each. At each one, write down where the sensor really points\n",
+           (int)S5_CAL_ANG_N, (int)(S5_CAL_ANG_MS / 1000U));
+    s5_sensor_guard();
+    s5_cal_wait_ms(5000U);
+    for (i = 0U; i < S5_CAL_ANG_N; i++)
+    {
+        const int32_t a = (int32_t)g_cal_ang[i];
+        const int32_t a_abs = (a < 0) ? -a : a;
+        const char *p_dir = "(straight ahead)";
+
+        if (a > 0)
+        {
+            p_dir = "to the car's LEFT";
+        }
+        else if (a < 0)
+        {
+            p_dir = "to the car's RIGHT";
+        }
+        else
+        {
+            /* straight ahead */
+        }
+        S5_LOG("[VC-S5] CAL servo stop %d/%d: asked %d deg %s\n",
+               (int)(i + 1U), (int)S5_CAL_ANG_N, (int)(a_abs / 10), p_dir);
+        s5_sensor_look(a);
+        s5_cal_wait_ms(S5_CAL_ANG_MS);
+    }
+    s5_sensor_guard();
+    S5_LOG("[VC-S5] CAL servo angles done: send the %d angles you wrote "
+           "down\n",
+           (int)S5_CAL_ANG_N);
+}
+
 void s5_cal_run(void)
 {
+    if (3 == S5_CAL_BUILD)
+    {
+        s5_cal_angles();
+        for (;;)
+        {
+            s5_sensor_poll();
+            s5_poll_wait();
+        }
+    }
     S5_LOG("[VC-S5] CAL calibration build: 4 steps, about 2 minutes "
            "(testing/subsystem5/CALIBRATION.md)\n");
     if (2 != S5_CAL_BUILD)
