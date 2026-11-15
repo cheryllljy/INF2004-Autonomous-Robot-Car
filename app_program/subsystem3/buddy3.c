@@ -677,6 +677,8 @@ static void service_once(void)
      */
     output.line = b3_line_step(&g_line, sample.left_black, sample.right_black,
                                now, base_speed);
+    output.line_seen_us = g_line.last_seen_us;
+    output.ir_b_black = sample.barcode.black;
     if (context.steer_hold || !fresh || !context.follow_enabled ||
         context.stop_requested)
     {

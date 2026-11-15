@@ -1,0 +1,18 @@
+NFR9 / NFR11: obstacle profile time from detection, host car simulation
+(testing/subsystem5/host, make all, then build/test_s5_car v; time from
+"[VC-S5] object N mm ahead: stopping" to the first "[VC-S5] sweep:" of each
+episode). The sweep now starts at detection, while the car brakes.
+
+S5_SCAN_STEP_DDEG / S5_SERVO_SETTLE_MS, sweep start  -> median / p90 / within 1.8 s
+60 / 30, after standing still (before)            -> 2800 / 2900 ms / 4 %
+60 / 30, at detection                            -> 2560 / 2660 ms / 4 %
+100 / 30, at detection                           -> 2060 / 2140 ms / 26 %
+100 / 25, at detection                           -> 1920 / 1980 ms / 29 %
+100 / 20, at detection                           -> 1880 / 1940 ms / 35 %
+100 / 15, at detection (shipped)                 -> 1740 / 1800 ms / 92 %
+
+Shipped defaults (229 sweeps): min 860 ms, median 1740 ms, p90 1800 ms,
+max 3940 ms (episodes that back up or turn before sweeping).
+Host tests with the shipped defaults: S5-H12 width within 19.9 mm, edges
+within 10.0 mm, slowest sweep 1850 ms from the servo at 0 deg; S5-H13 PASS;
+S5-H21 222 runs, 0 failed; line search 245 passed; junction turns passed.

@@ -30,6 +30,13 @@ int32_t b1_mqtt_set_robot_status(uint8_t controller_state, uint8_t fault_flags,
  */
 int32_t b1_mqtt_get_robot_status(B1_Telemetry *output);
 
+/*
+ * Controller gives the latest run telemetry (any time, any rate); the
+ * network task sends the newest one every 200 ms on inf2004/robot/run.
+ * seq, wifi_connected and mqtt_connected are filled in when it is sent.
+ */
+void b1_mqtt_set_run(const B1_RunTelemetry *input);
+
 typedef struct
 {
     uint8_t wifi_up;

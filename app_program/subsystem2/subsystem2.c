@@ -49,10 +49,14 @@ ER subsystem2_init(void)
 
 ER subsystem2_start(void)
 {
-    /* Pinned to core 1 (TP_PRC2): samples cross to subsystem 3 on core 0 */
-    // cyc_check_start();
-    ID tid = app_start_task(producer_task, S2_PRI_PRODUCER, TP_PRC2,
-                            "producer_task");
+    ID tid = E_OK;
+
+#if APP_TEST
+    /* template example, kept for its tests (S2-U01) only.
+       Pinned to core 1 (TP_PRC2): samples cross to subsystem 3 on core 0 */
+    tid = app_start_task(producer_task, S2_PRI_PRODUCER, TP_PRC2,
+                         "producer_task");
+#endif
 #if MOTION_CALIBRATION_BUILD
     motion_cal_start();
 #else

@@ -22,15 +22,16 @@ real Buddy 3 line follower (`b3_line.c`).
 
 | ID | What is tested | Requirement / interface | Method | Steps / how | Expected result |
 |---|---|---|---|---|---|
-| S5-H11 | sin, cos, tan, atan2, sqrt, round, wrap without libm | NFR (no libm on target) | auto | `make unit` | `[PASS] S5-H11` |
-| S5-H12 | the real sweep (S5 task code) on the simulated sensor: boxes 8..32 cm wide, faces 20..38 cm away, 3 offsets | FR22 | auto | `make unit` | width within 20 mm, each edge within 15 mm, sweep under 4 s |
-| S5-H13 | 15 % of echoes missed, 30 seeds: the 21 cm box | FR22 | auto | `make unit` | width within 25 mm |
-| S5-H14 | room beside the object: another box or a wall where the car would pass rules that side out (only that side); one well out of the way does not | FR23 | auto | `make unit` | `[PASS] S5-H14` |
-| S5-H15 | bypass ramps of 1..400 mm: no steeper than 40 deg, no tighter than R150, smooth, end where asked | FR23, smooth swerve | auto | `make unit` | `[PASS] S5-H15` |
-| S5-H16 | car-outline-to-box check against a dense distance computation (30 mm margin) | FR23 | auto | `make unit` | within -3 / +6 mm |
-| S5-H17 | steering law: starts 12 mm / 5 deg off, follows a 215 mm bypass | FR24 | auto | `make unit` | within 6 mm, ends on the line |
-| S5-H18 | dead reckoning: quarter circle R300 | FR24 | auto | `make unit` | ends at (300, 300), 90 deg |
-| S5-H19 | ping timing: 14+ pings/s, a box at 250 mm reads 250 +- 8 mm and counts as close, a 150 ms no-echo pulse is not a dead sensor, LOOK keeps pinging while its angle creeps at 10 and 60 deg/s | FR21, NFR12 | auto | `make unit` (also `build/test_s5_unit -p 20`) | `[PASS] S5-H19` at 10 and 20 ms polls |
+| S5-H11 | sin, cos, tan, atan2, sqrt, round, wrap without libm | (no Week 6 req) | auto | `make unit` | `[PASS] S5-H11` |
+| S5-H12 | the real sweep (S5 task code) on the simulated sensor: boxes 8..32 cm wide, faces 20..38 cm away, 3 offsets | FR21, NFR14 | auto | `make unit` | width within 20 mm, each edge within 15 mm, sweep under 2 s |
+| S5-H23 | NFR9/NFR11: time from detection to the finished profile on the simulated car (sweep starts while braking) | NFR9, NFR11 | auto | `make car`, then `build/test_s5_car v` timed as in `logs/2026-11-14_profile_time.txt` | median within 1.8 s |
+| S5-H13 | 15 % of echoes missed, 30 seeds: the 21 cm box | FR21, NFR14 | auto | `make unit` | width within 25 mm |
+| S5-H14 | room beside the object: another box or a wall where the car would pass rules that side out (only that side); one well out of the way does not | FR22 | auto | `make unit` | `[PASS] S5-H14` |
+| S5-H15 | bypass ramps of 1..400 mm: no steeper than 40 deg, no tighter than R150, smooth, end where asked | FR22, smooth swerve | auto | `make unit` | `[PASS] S5-H15` |
+| S5-H16 | car-outline-to-box check against a dense distance computation (30 mm margin) | FR22 | auto | `make unit` | within -3 / +6 mm |
+| S5-H17 | steering law: starts 12 mm / 5 deg off, follows a 215 mm bypass | FR23 | auto | `make unit` | within 6 mm, ends on the line |
+| S5-H18 | dead reckoning: quarter circle R300 | FR23 | auto | `make unit` | ends at (300, 300), 90 deg |
+| S5-H19 | ping timing: 14+ pings/s, a box at 250 mm reads 250 +- 8 mm and counts as close, a 150 ms no-echo pulse is not a dead sensor, LOOK keeps pinging while its angle creeps at 10 and 60 deg/s | FR21, NFR10, NFR15 | auto | `make unit` (also `build/test_s5_unit -p 20`) | `[PASS] S5-H19` at 10 and 20 ms polls |
 | S5-H20 | no ECHO pulse at all: dead within 1 s; a working sensor is not | FR25 | auto | `make unit` | `[PASS] S5-H20` |
 | S5-H21 | whole episodes on a simulated car (S5 task, bypass in the VC's task, Buddy 3, Buddy 2 with 60 ms lag), scenarios C1..C70 below (C61..C67 added 2026-11-09: the line bends behind the box; C68..C70 added 2026-11-09: box put down close, no backing up), 3 seeds each (10 for a full run) | FR21-FR25 | auto | `make car`; full: `build/test_s5_car -s 10` and `-s 10 -p 20` | no contact, 10 mm clearance or more, handed back within 12 mm of OUR line, stays on it (24 mm) for 300 mm after; L1..L4 shown only |
 
@@ -146,26 +147,26 @@ F31..F36; F23..F30 are bends tighter than R130, shown only, LIMIT when lost).
 
 | ID | What is tested | Requirement / interface | Method | Steps / how | Expected result |
 |---|---|---|---|---|---|
-| S5-T01 | the S5 task pings | NFR12 | auto | `subsystem5_test.c` | 12 or more pings in 1 s |
+| S5-T01 | the S5 task pings | NFR10 | auto | `subsystem5_test.c` | 12 or more pings in 1 s |
 | S5-T02 | the HC-SR04P answers on TRIG GP16 / ECHO GP17 | FR25 | auto | needs the sensor wired and powered | `[TEST] S5-T02 PASS`, range printed |
-| S5-T03 | the maths on the RP2040 (soft float, no libm) | NFR | auto | `subsystem5_test.c` | within 1e-4 |
-| S5-T04 | width of a 210 mm box at 250 mm from a synthetic sweep done the way the S5 task does it (coarse, then fine at each edge), with the calibrated beam | FR22 | auto | `subsystem5_test.c` | 210 +- 15 mm (passes for any beam 12..30 deg) |
-| S5-T05 | a box 80 mm right of the line: left is the shorter side | FR23 | auto | `subsystem5_test.c` | PASS |
-| S5-T06 | something beside the box blocks that side only | FR23 | auto | `subsystem5_test.c` | PASS |
-| S5-T07 | bypass ramp within 40 deg and R150 | FR23 | auto | `subsystem5_test.c` | PASS |
-| S5-T08 | car outline check: too late a ramp hits the box | FR23 | auto | `subsystem5_test.c` | PASS |
-| S5-T09 | encoder ticks to distance | FR24 | auto | `subsystem5_test.c` | PASS |
+| S5-T03 | the maths on the RP2040 (soft float, no libm) | (no Week 6 req) | auto | `subsystem5_test.c` | within 1e-4 |
+| S5-T04 | width of a 210 mm box at 250 mm from a synthetic sweep done the way the S5 task does it (coarse, then fine at each edge), with the calibrated beam | FR21, NFR14 | auto | `subsystem5_test.c` | 210 +- 15 mm (passes for any beam 12..30 deg) |
+| S5-T05 | a box 80 mm right of the line: left is the shorter side | FR22 | auto | `subsystem5_test.c` | PASS |
+| S5-T06 | something beside the box blocks that side only | FR22 | auto | `subsystem5_test.c` | PASS |
+| S5-T07 | bypass ramp within 40 deg and R150 | FR22 | auto | `subsystem5_test.c` | PASS |
+| S5-T08 | car outline check: too late a ramp hits the box | FR22 | auto | `subsystem5_test.c` | PASS |
+| S5-T09 | encoder ticks to distance | FR23 | auto | `subsystem5_test.c` | PASS |
 
 ### On the car (manual)
 
 | ID | What is tested | Requirement / interface | Method | Steps / how | Expected result |
 |---|---|---|---|---|---|
-| S5-M09 | calibration | FR22 | manual | `CALIBRATION.md`, `make S5CAL=1`; copy the 5 values into `s5_config.h`; record them in Notes | afterwards the track box reads 210 +- 10 mm |
-| S5-M10 | the track box on the line, car line following | FR21-FR24 | manual | box 1 m ahead on a straight; serial or MQTT log; 3 runs | stops at 30 cm or more; sweeps; goes round the shorter side (random when centred); no contact; `back on the line`; follows the SAME line on |
-| S5-M11 | box off centre (6 cm right of the line) | FR23 | manual | as M10 | goes LEFT every time |
-| S5-M12 | box put down 10 cm in front of the stopped car | FR23 | manual | car stopped on the line, box placed, `robot.ps1 go` | `only N mm away: backing off`, sweeps, goes round; no contact |
-| S5-M13 | no way round: box with another box or a wall close on each side | FR23, fault bit | manual | as M10 | stops, `no way round ... fault bit 0x40 set, no E-stop`; carries on by itself once one side is cleared |
-| S5-M14 | width of other objects | FR22 | manual | a 10 cm and a 30 cm object, tape measure | printed width within 15 mm |
+| S5-M09 | calibration | FR21, NFR14, NFR15 | manual | `CALIBRATION.md`, `make S5CAL=1`; copy the 5 values into `s5_config.h`; record them in Notes | afterwards the track box reads 210 +- 10 mm |
+| S5-M10 | the track box on the line, car line following | FR21-FR23 | manual | box 1 m ahead on a straight; serial or MQTT log; 3 runs | stops at 30 cm or more; sweeps; goes round the shorter side (random when centred); no contact; `back on the line`; follows the SAME line on |
+| S5-M11 | box off centre (6 cm right of the line) | FR22 | manual | as M10 | goes LEFT every time |
+| S5-M12 | box put down 10 cm in front of the stopped car | FR22 | manual | car stopped on the line, box placed, `robot.ps1 go` | sweeps from where it stands (the sweep starts at detection), goes round; no contact |
+| S5-M13 | no way round: box with another box or a wall close on each side | FR22, fault bit | manual | as M10 | stops, `no way round ... fault bit 0x40 set, no E-stop`; carries on by itself once one side is cleared |
+| S5-M14 | width of other objects | FR21, NFR14 | manual | a 10 cm and a 30 cm object, tape measure | NFR14 limit (team, 2026-11-14): never more than 20 % narrower than the object, up to 170 mm wider accepted (the sonar beam reads small faces wide, which only widens the bypass). The 2026-11-14 runs read a 20 cm box 195 and 247 mm and a 9 cm face 257 mm |
 | S5-M15 | sensor unplugged while line following | FR25 | manual | pull the ECHO lead | `sensor fault (FR25)`, E-stop with fault bit 0x08 |
 
 *Method:* **auto** = `TEST_CHECK` in code, result printed on the console;
@@ -194,3 +195,4 @@ Add a new row for every run. Never edit or delete old rows.
 | 2026-11-09 | S5-H11..H22 | not committed (branch 37) | Buddy 3 | 1909 PASS, 1 FAIL | `logs/2026-11-09_host_tests_8.txt` | after a bypass the car found the line but did not line up along it well and sometimes went off it; use the search's IR rule. The bypass's turn onto the line now stops on the IRs too (the IR on the side turned towards black, then the other, or the tape centred), counted from 25 deg before the crossing's direction (S5_CAP_BEND_DEG); black under both IRs at once, or under the far one first, is a junction, and the turn goes by the angle as before; an IR already on the line at the start of the turn turns towards it. The car stands still before Buddy 3 takes over (it was handed over still turning). S5_CAP_LINE_DEG 20 -> 30 (a R200 bend runs 24 deg off 80 mm in). motion_mock: STOPPING ends as Buddy 2's does (setpoints under 5 mm/s for 60 ms, was wheels exactly 0, 1.2 s with lag). New C61..C67 (the line bends behind the box) and L4: the old turn failed 46 of their 70 runs (10 seeds). H21: 710 runs at 10 ms, 1 failed (C36 seed 4, as before); 710 at 20 ms, 0 failed; shown only: L1 1/10, L2 10/10, L3 9/10, L4 9/10 got round. H22: 490 runs, 0 failed |
 | 2026-11-09 | S5-H11..H22 | not committed (branch 37) | Buddy 3 | 1977 PASS, 8 FAIL (all 8 in the shown-only B3-H10 smoothness run) | `logs/2026-11-09_host_tests_9.txt` | the car reversed when it stopped close to the box; reverse only when no way round is open. Too close for a ramp, the car now turns out on the spot (45, 60, 75 or 90 deg, the first that clears the box), drives straight out to the pass offset and turns back, instead of backing up for room. No backing off before the sweep when close, and none to see the other edge while one side is open. It backs up only with both sides blocked (then sweeps again, then waits with fault bit 0x40 as before), an edge outside the sweep and no side open, or no room even to turn on the spot. New C68..C70 (box put down 150-200 mm in front, 1 mm of reversing allowed). C8 (100 mm in front) no longer backs up; C9 (50 mm) still backs off 160 mm because the box's edges are outside the sweep. H21: 740 runs at 10 ms, 0 failed (C36 seed 4 now passes); 740 at 20 ms, 0 failed; shown only: L1 2/10, L2 10/10, L3 10/10, L4 6/10 got round (C68..C70 shift the L cases' random numbers; at 30 seeds L4 is 24/30 and L1 2/30 with both the old and the new code). H22: 490 runs, 0 failed. VC-H01: 222 runs, 0 failed |
 | 2026-11-09 | S5-H11..H22, B3-H10..H12 | not committed (branch 37) | Buddy 3 | 2025 PASS, 16 FAIL (15 in the shown-only B3-H10 smoothness run, 1 in the shown-only 1/1.6 turning run) | `logs/2026-11-09_host_tests_10.txt` | line following on curves still really bad, also when starting on the curve. The car's `[VC] curve:` log: at each bend entry the inner wheel ran 9-20 % faster than asked for about 100 mm, and the worst windows had both IRs black, which Buddy 3 treated as a crossing (curve forgotten, car straightened). Now both IRs black while a curve of R670 or tighter is learnt keep the curve and after 30 mm nudge inward (`b3_line.c`, B3_STEER_BB_*); Buddy 2's MOTION_SPEED_KP 0.5 -> 1.6 (`motion_config.h`, for Buddy 2's owner to confirm; `motion_mock.c` MM_KP); bends at 35 mm/s with an inner wheel floor of 19 (was 30 / 15; with KP 0.5 go back to those). New F31..F36 (standing starts on a bend), B3-H11 (Buddy 2's PI loop on a motor fitted to the car's curve log): 0 lost; B3-H12 (both black for 60 mm in a bend, shown): 0 lost with ideal wheels, 7 with the PI loop. Wheel-model bench (not in make): lines lost 30 -> 2 over 10 wheel models and 43 -> 2 over 8 car-fitted ones, about 9 % faster. H21: 740 runs at 10 ms, 0 failed; 740 at 20 ms, 0 failed; shown only L1 2/10, L2 10/10, L3 10/10, L4 6/10 (as before). H22: 490 runs, 0 failed. VC-H01: all passed. Smoothness (shown only): 15 FAIL, 6 of them the new standing starts; the old code gives 14 on the same scenarios. Buddy 3 host tests (`testing/subsystem3/logs/2026-11-09_buddy3_host_tests.txt`): 5413 + 4137 checks passed, new checks for both black in a bend and for the barcode change: a 29/29 decode with both '*' read needs no trailing white (the car rejected such decodes with reason 8 when IR_B met black 4 mm after the last bar); with one '*' spoiled 4 narrow of white is still needed. Firmware MQTT and MQTT TEST builds: 0 warnings |
+| 2026-11-14 | S5-H11..H23, B3-H10..H12 | not committed (branch 39) | Buddy 3 | S5-H12/H13 PASS, H21 222 runs 0 failed, line search 245 passed, junction turns passed (the shown-only B3-H10 smoothness rows unchanged) | `logs/2026-11-14_profile_time.txt` | the obstacle sweep starts at detection while the car brakes, 10 deg coarse steps, servo ring-down 15 ms: detection to profile median 1.74 s (was 2.8 s). Firmware MQTT, MQTT TEST and non-MQTT builds: 0 warnings |

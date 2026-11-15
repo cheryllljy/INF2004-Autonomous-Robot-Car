@@ -194,6 +194,8 @@ void motion_estop_request(uint32_t source_bits);
 
 /* Reset by VehicleController: clear bits then motion_reset() */
 void motion_estop_clear(uint32_t source_bits);
+/* the E-stop flag's bits set now (MOTION_ESTOP_*), 0 = none */
+uint32_t motion_estop_sources(void);
 
 /* PROPOSED: let MotionControl raise its MOTION_EVT_* bits on VehicleController's
  * vehicle_evt flag. flgid = that flag's ID, bit_shift = first bit of Motion's

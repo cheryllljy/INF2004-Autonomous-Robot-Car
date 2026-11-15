@@ -47,6 +47,8 @@ extern ER subsystem4_get_imu_snapshot(s4_imu_snapshot_t *p_snapshot);
  * S4_HUMP_START_HEIGHT_MM up until the car is level again (HUMP_DONE);
  * the VehicleController keeps the car at VC_HUMP_MIN_MM_S or more */
 extern bool subsystem4_on_hump(void);
+/* side lift now, in mm, the same measure as the hump height */
+extern uint8_t subsystem4_side_lift_mm(void);
 
 /* Private to subsystem 4 */
 extern ID alm_monitor;

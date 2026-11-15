@@ -30,9 +30,11 @@ typedef struct
     bool filter_ready;
     bool hump_active;
     bool hump_start_time_valid;
+    uint8_t tilt_samples; /* in a row over S4_TILT_ESTOP_MM */
 } s4_hump_state_t;
 
 static s4_hump_state_t s4_hump_state;
+static volatile uint8_t s4_lift_now_mm;
 
 static uint32_t s4_isqrt(uint64_t value)
 {
@@ -134,6 +136,24 @@ static void s4_hump_step(const imu_vector_t *p_raw)
 
     /* ---- Terrain profiling ---- */
     height_mm = (S4_HUMP_TRACK_WIDTH_MM * s4_abs_i32(s4_hump_state.filtered_sin_q15) + 16384U) / 32768U;
+    s4_lift_now_mm = (uint8_t)((height_mm > 255U) ? 255U : height_mm);
+
+    /* ---- E-stop while tilted to the side past the threshold ---- */
+    if (height_mm > S4_TILT_ESTOP_MM) {
+        if (s4_hump_state.tilt_samples < S4_TILT_ESTOP_SAMPLES) {
+            if (++s4_hump_state.tilt_samples == S4_TILT_ESTOP_SAMPLES) {
+                tm_printf((UB*)"[VC] car tilted: side lift %u mm > %u mm, "
+                              "E-STOP\n",
+                          (UINT)height_mm, (UINT)S4_TILT_ESTOP_MM);
+            }
+        }
+        /* again each sample, so a RESET while still tilted does not free it */
+        if (S4_TILT_ESTOP_SAMPLES == s4_hump_state.tilt_samples) {
+            motion_estop_request(MOTION_ESTOP_IMU);
+        }
+    } else {
+        s4_hump_state.tilt_samples = 0U;
+    }
 
     if (!s4_hump_state.hump_active) {
         if (height_mm < S4_HUMP_START_HEIGHT_MM) return;
@@ -173,13 +193,6 @@ static void s4_hump_step(const imu_vector_t *p_raw)
                               (UINT)s4_hump_state.hump_sample_count);
                 }
 
-                /* ---- E-STOP if peak height exceeds 15 mm ---- */
-                if (s4_hump_state.peak_height_mm > S4_HUMP_ESTOP_PEAK_MM) {
-                    tm_printf((UB*)"[VC] HUMP TOO HIGH (%u mm > %u mm) — E-STOP\n",
-                              (UINT)s4_hump_state.peak_height_mm,
-                              (UINT)S4_HUMP_ESTOP_PEAK_MM);
-                    motion_estop_request(MOTION_ESTOP_IMU);
-                }
             }
             s4_hump_state.peak_height_mm         = 0U;
             s4_hump_state.hump_sample_count      = 0U;
@@ -195,6 +208,11 @@ static void s4_hump_step(const imu_vector_t *p_raw)
 bool subsystem4_on_hump(void)
 {
     return s4_hump_state.hump_active;
+}
+
+uint8_t subsystem4_side_lift_mm(void)
+{
+    return s4_lift_now_mm;
 }
 
 void monitor_alarm_handler(void *exinf)

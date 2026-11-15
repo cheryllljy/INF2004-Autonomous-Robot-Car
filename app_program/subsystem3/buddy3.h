@@ -120,6 +120,10 @@ typedef struct
     uint8_t patch_miss_why; /* b3_patch_why_t */
     bool control_active;
     bool stop_required;
+    /* last time IR_L or IR_R was black (the VC's line-loss check) */
+    uint32_t line_seen_us;
+    /* IR_B reads black now (the VC's lift check) */
+    bool ir_b_black;
 } b3_snapshot_t;
 
 /* Existing micro T-Kernel must already be running. In standalone mode the
