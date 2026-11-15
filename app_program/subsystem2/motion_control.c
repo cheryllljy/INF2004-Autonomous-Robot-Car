@@ -1055,6 +1055,11 @@ void motion_estop_request(uint32_t source_bits)
     }
 }
 
+uint32_t motion_estop_sources(void)
+{
+    return mc_read_estop();
+}
+
 void motion_estop_clear(uint32_t source_bits)
 {
     if (s_estop_flg > 0)

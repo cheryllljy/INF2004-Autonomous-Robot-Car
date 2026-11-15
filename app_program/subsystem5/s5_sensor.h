@@ -6,7 +6,7 @@
  *      The S5 task calls s5_sensor_poll() every few milliseconds. It never
  *      blocks: a ping is fired, read S5_ECHO_READ_MS later, and the next
  *      one goes out S5_PING_PERIOD_MS after the last (one ping every 60 ms,
- *      NFR12). The servo only moves between pings, and a ping is only fired
+ *      NFR10). The servo only moves between pings, and a ping is only fired
  *      once the servo has had time to get where it was sent.
  *
  *      What it does is chosen by the VehicleController's task (through

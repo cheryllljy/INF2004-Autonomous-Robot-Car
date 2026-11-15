@@ -52,6 +52,15 @@
 #define B3_LINE_DEBOUNCE_US 2000U
 /* unused since the straddle layout */
 #define B3_LINE_LOST_GRACE_US 50000U
+/* line lost: neither IR_L nor IR_R black for this far of line
+ * following (wheel travel). The VehicleController stops the car with
+ * fault 0x20 and prints "[VC] line lost". Both white is also the normal
+ * on-track reading, and the line-following sim runs up to 1657 mm on a
+ * straight without a touch, so it is set above that. The longest drive
+ * with no touch is printed at the end of every run: tune it from that. */
+#ifndef B3_LINE_LOST_MM
+#define B3_LINE_LOST_MM 2000
+#endif
 /* 100 mm/s; the VC backs up and reads each barcode at
  * B3_SCAN_SPEED_MM_S (vehicle_controller/vc_barcode.c) */
 #ifndef B3_BASE_SPEED_MM_S /* host tests build other speeds */
@@ -215,7 +224,7 @@
  * is also rescaled by the measured wheel speed (B3_SCAN_SPEED_COMPENSATE).
  * Safety: the slow speed lasts at most B3_SCAN_SLOW_MAX_US, and a crossing
  * (both line sensors black) ends it so a junction is measured at base speed. */
-#define B3_SCAN_SPEED_MM_S    25      /* was 50 */
+#define B3_SCAN_SPEED_MM_S    30      /* was 50 */
 #define B3_SCAN_SLOW_WHITE_US 800000U /* 30 mm of white at 50 mm/s */
 #define B3_SCAN_SLOW_MAX_US   6000000U
 /* Retry a failed decode with the first/last bar trimmed to the other narrow

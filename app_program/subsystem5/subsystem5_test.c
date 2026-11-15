@@ -85,8 +85,8 @@ static uint32_t s5_t_add(uint32_t n, int32_t ddeg, const s5_t_scene_t *p_sc,
     return n + 1U;
 }
 
-/* The sweep as s5_sensor.c does it: 6 deg steps, then S5_SCAN_FINE
- * halvings at each edge. */
+/* The sweep as s5_sensor.c does it: S5_SCAN_STEP_DDEG steps, then
+ * S5_SCAN_FINE halvings at each edge. */
 static uint32_t s5_t_sweep(const s5_t_scene_t *p_sc)
 {
     const float beam =
@@ -155,7 +155,7 @@ void subsystem5_test(void)
     tk_dly_tsk(1000);
     (void)s5_sensor_ping(&p1);
     TEST_CHECK("S5-T01", (p1.seq - p0.seq) >= 12U,
-               "S5 task pings about every 60 ms (NFR12)");
+               "S5 task pings about every 60 ms (NFR10)");
     TEST_CHECK("S5-T02", !s5_sensor_dead() && p1.b_valid,
                "HC-SR04P answers on TRIG GP16 / ECHO GP17 (FR25)");
     tm_printf((UB *)"[TEST] S5 range straight ahead: %d mm (0 = nothing "

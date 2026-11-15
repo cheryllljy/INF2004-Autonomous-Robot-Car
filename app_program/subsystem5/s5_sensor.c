@@ -25,9 +25,13 @@
 #define S5_REQ_SEQ_MASK   (0x3FFFFU)
 
 #define S5_US_PER_MS (1000U)
-/* coarse sweep: +LIMIT .. -LIMIT in STEP */
-#define S5_COARSE_N \
-    ((uint32_t)((2 * S5_SERVO_LIMIT_DDEG) / S5_SCAN_STEP_DDEG) + 1U)
+/* coarse sweep: +LIMIT .. -LIMIT_R in STEP (the last step shorter if the
+ * span is not a whole number of steps) */
+#define S5_COARSE_N                                                    \
+    ((uint32_t)((S5_SERVO_LIMIT_DDEG + S5_SERVO_LIMIT_R_DDEG +         \
+                 S5_SCAN_STEP_DDEG - 1) /                              \
+                S5_SCAN_STEP_DDEG) +                                   \
+     1U)
 /* ECHO high at every try to fire for this long: stuck, not answering */
 #define S5_STUCK_US (500U * S5_US_PER_MS)
 /* the servo's first move after power-up can be the whole way */
@@ -268,7 +272,10 @@ static void s5_move(int32_t ddeg, uint32_t now)
 
 static int32_t s5_coarse_angle(uint32_t idx)
 {
-    return S5_SERVO_LIMIT_DDEG - ((int32_t)idx * S5_SCAN_STEP_DDEG);
+    const int32_t a =
+        S5_SERVO_LIMIT_DDEG - ((int32_t)idx * S5_SCAN_STEP_DDEG);
+
+    return (a < -S5_SERVO_LIMIT_R_DDEG) ? -S5_SERVO_LIMIT_R_DDEG : a;
 }
 
 static void s5_sweep_start(uint32_t seq)
@@ -429,7 +436,8 @@ static void s5_sweep_sample(int16_t ddeg, uint16_t mm_now)
                      : -S5_SCAN_STEP_DDEG);
 
             g_w.obj[g_w.br] = g_w.clr[g_w.br];
-            if ((out > S5_SERVO_LIMIT_DDEG) || (out < -S5_SERVO_LIMIT_DDEG))
+            if ((out > S5_SERVO_LIMIT_DDEG) ||
+                (out < -S5_SERVO_LIMIT_R_DDEG))
             {
                 s5_next_bracket(); /* past the sweep: nothing to refine */
                 return;
@@ -621,9 +629,9 @@ void s5_sensor_poll(void)
     {
         target = S5_SERVO_LIMIT_DDEG;
     }
-    if (target < -S5_SERVO_LIMIT_DDEG)
+    if (target < -S5_SERVO_LIMIT_R_DDEG)
     {
-        target = -S5_SERVO_LIMIT_DDEG;
+        target = -S5_SERVO_LIMIT_R_DDEG;
     }
 
     /* the servo moves only once the echo is in (the counter holds it) */

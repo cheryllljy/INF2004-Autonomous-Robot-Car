@@ -99,7 +99,10 @@ ER subsystem4_start(void)
     {
         return tid;
     }
-    /* No affinity: the scheduler may run it on either core. */
+#if APP_TEST
+    /* template example, kept for its tests only.
+       No affinity: the scheduler may run it on either core. */
     tid = app_start_task(monitor_task, S4_PRI_MONITOR, 0, "monitor_task");
+#endif
     return (tid < E_OK) ? tid : E_OK;
 }

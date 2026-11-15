@@ -21,9 +21,11 @@
  * --------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------
- *  Task priorities: 1 is the highest; the kernel's USB console (3) and
- *  WiFi (4) tasks sit above every application task.  Each subsystem
- *  has its own band (TEAM.md section 4), defined in its own header.
+ *  Task priorities: 1 is the highest. Order: motion (1) > obstacle
+ *  (16) > line (17) > IMU (18) > VehicleController (22) > Wi-Fi and
+ *  MQTT telemetry (24). The kernel's USB console (3) stays on top.
+ *  Each number is defined in its subsystem's header (TEAM.md
+ *  section 4).
  * --------------------------------------------------------------------- */
 #define TASK_STACK_SIZE 2048 /* bytes; tm_printf needs ~1 KB */
 

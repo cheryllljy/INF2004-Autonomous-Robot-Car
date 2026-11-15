@@ -29,8 +29,8 @@
 /* make S5CAL=3: the angles the servo is asked for, in this order, each held
  * long enough to read it off a protractor (0.1 deg; + = left). Left to
  * right as the sweep goes, then back from the right. */
-static const int16_t g_cal_ang[] = { 600,  450,  300,  150,  0,
-                                     -150, -300, -450, -600, -450,
+static const int16_t g_cal_ang[] = { 600,  450,  300,  150, 0, -150,
+                                     -300, -S5_SERVO_LIMIT_R_DDEG,
                                      -300, -150, 0 };
 #define S5_CAL_ANG_N    (sizeof(g_cal_ang) / sizeof(g_cal_ang[0]))
 #define S5_CAL_ANG_MS   (8000U) /* each angle held this long */

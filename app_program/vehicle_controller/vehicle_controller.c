@@ -19,11 +19,13 @@
 #include "../subsystem2/motion_control.h"
 #include "../subsystem3/b3_port.h"
 #include "../subsystem5/subsystem5.h" /* s5_avoid_*() */
+#include "../subsystem5/s5_sensor.h"  /* s5_sensor_ping() */
 #include "../subsystem4/subsystem4.h"
 #include "../subsystem1/buddy1_fr2.h"
 #include "../subsystem1/buddy1_mapping.h"
 #if defined(APP_MQTT) && APP_MQTT
 #include "../../lib/liblwip/sysdepend/pico_rp2040/mqtt_utk.h"
+static void send_telemetry(uint32_t faults);
 #endif
 
 ID flg_vc = 0;
@@ -36,7 +38,10 @@ static volatile uint32_t g_status_word; /* written only by vc_task */
 
 /* the arc takes about 4 s at 50 mm/s (8 s at 25) and the
  * U-turn about 5 s (vc_turn.c), so 5 s was too short. */
-#define VC_TURN_TIMEOUT_MS 15000
+/* real time since state_ms counts measured pass time; before that a pass
+ * counted 10 ms of about 20, so 15000 was about 30 s, and a slow U-turn
+ * needs up to about 12 s */
+#define VC_TURN_TIMEOUT_MS 30000
 
 typedef struct
 {
@@ -76,6 +81,15 @@ typedef struct
     int32_t cv_got_r;
     int32_t cv_curv;   /* Buddy 3's curve, 1e6 / radius mm */
     bool b_hump;       /* subsystem4_on_hump() last pass */
+    /* line-loss and lift checks: Buddy 3's last-black time and the
+     * distance where the current white (or all-black) run began */
+    bool b_ground_ref;
+    uint32_t line_seen_us;
+    int32_t white_from_mm;
+    bool b_all_black;
+    int32_t black_from_mm;
+    int32_t white_max_mm; /* longest white run this run, for tuning */
+    uint8_t hump_max_mm;  /* highest hump this run (Buddy 4 side lift) */
 } vc_t;
 
 static vc_t vc;
@@ -127,10 +141,42 @@ void vc_fill_telemetry(B1_Telemetry *p_out)
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
+static void report_white_run(void);
+
+/* FR19: the highest hump of the run (Buddy 4's side lift while it sees
+ * one), printed when the run ends and sent with the telemetry */
+static void track_hump(void)
+{
+    const uint8_t lift = subsystem4_side_lift_mm();
+
+    /* line following only: pivots, turns and the tilt E-stop's lift are
+     * not humps */
+    if ((VC_STATE_LINE_FOLLOW == vc.state) && subsystem4_on_hump() &&
+        (lift > vc.hump_max_mm))
+    {
+        vc.hump_max_mm = lift;
+    }
+}
+
 static void enter(vc_state_t next)
 {
     if (next != vc.state)
     {
+        if ((VC_STATE_IDLE == next) || (VC_STATE_STOPPED == next) ||
+            (VC_STATE_ESTOP == next))
+        {
+            report_white_run();
+            if (vc.hump_max_mm > 0U)
+            {
+                tm_printf((UB *)"[VC] highest hump this run: %d mm\n",
+                          (int)vc.hump_max_mm);
+            }
+        }
+        if (((VC_STATE_LINE_FOLLOW == next) || (VC_STATE_OBSTACLE == next)) &&
+            ((VC_STATE_IDLE == vc.state) || (VC_STATE_STOPPED == vc.state)))
+        {
+            vc.hump_max_mm = 0U; /* a new run */
+        }
         /* Buddy 5: leaving OBSTACLE any way but
                    "back on the line" (STOP, E-stop, RESET) ends the bypass
                    and puts the sensor back on guard. */
@@ -200,8 +246,7 @@ static void poll_buddy1(void)
         if (VC_STATE_LINE_FOLLOW == vc.state || VC_STATE_TURNING == vc.state ||
             vc.state == VC_STATE_OBSTACLE)
         {
-            /* Diagnostic (Buddy 3, 2026-11-04): say which link failed */
-            /* say how to drive again */
+            /* say which link failed and how to drive again */
             tm_printf((UB *)"[VC] link lost while driving: %s%d s); once "
                             "it is back, robot.ps1 go\n",
                       !status_valid ? "no status ("
@@ -339,9 +384,8 @@ static void poll_buddy1(void)
 
             break;
     }
-#endif /* APP_MQTT: without MQTT=1 there is no Buddy 1 link to poll
-          (edit by Buddy 3, 2026-11-04, so motion + IR tests build
-          without Wi-Fi/MQTT) */
+#endif /* APP_MQTT: without MQTT=1 there is no Buddy 1 link to poll,
+          so motion + IR tests build without Wi-Fi/MQTT */
 }
 
 /* Send Buddy 3's wheel speeds on change, and refresh them periodically */
@@ -394,7 +438,10 @@ static void handle_flags(void)
                    that is still faulty sets its bit again next pass. */
         (void)tk_clr_flg(flg_vc, ~(UINT)VC_FAULT_MASK);
         vc.faults = 0U;
-        motion_estop_clear(MOTION_ESTOP_VEHICLE);
+        /* every cause, also the IMU's tilt E-stop, else Buddy 2 refuses
+         * the reset below and only a reboot frees the car */
+        motion_estop_clear(MOTION_ESTOP_VEHICLE | MOTION_ESTOP_IMU |
+                           MOTION_ESTOP_OBSTACLE);
         (void)motion_reset();
         /* Buddy 2's RESET does not stop velocity mode, so
          * a RESET while turning (or line following) left the wheels running
@@ -466,9 +513,33 @@ static void handle_flags(void)
 /* OWNER: Buddy 2 -- motion status and motion faults */
 static void read_motion(void)
 {
+    static uint32_t estop_seen;
+    uint32_t estop;
+
     motion_get_status(&vc.motion);
 
-    /* Diagnostic (Buddy 3, 2026-11-04): say which Buddy 2 fault, once */
+    /* an E-stop another task set on Buddy 2 (the IMU's tilt check) is
+     * this controller's E-stop too, with its fault bit, so the state,
+     * the telemetry and RESET all see it */
+    estop = motion_estop_sources() & ~MOTION_ESTOP_VEHICLE;
+    if ((0U != estop) && (estop != estop_seen))
+    {
+        tm_printf((UB *)"[VC] E-stop set by %s\n",
+                  (0U != (estop & MOTION_ESTOP_IMU))
+                      ? "the IMU: car tilted to the side"
+                      : "the obstacle sensor");
+    }
+    estop_seen = estop;
+    if (0U != (estop & MOTION_ESTOP_IMU))
+    {
+        vc_raise_fault(VC_FAULT_IMU);
+    }
+    if (0U != (estop & MOTION_ESTOP_OBSTACLE))
+    {
+        vc_raise_fault(VC_FAULT_OBSTACLE);
+    }
+
+    /* say which Buddy 2 fault, once */
     static motion_fault_t reported = MOTION_FAULT_NONE;
     if (MOTION_STATE_FAULT != vc.motion.state)
     {
@@ -502,8 +573,8 @@ static void read_motion(void)
 
 /* Use Subsystem 4's cached sample; the controller never accesses I2C.
  *
- * Buddy 3 change (2026-11-05): the IMU fault is no longer raised on the
- * first bad pass. Subsystem 4 publishes nothing while it calibrates
+ * The IMU fault is not raised on the first bad pass. Subsystem 4
+ * publishes nothing while it calibrates
  * (about 0.4 s after boot and after every imu_reset), and it publishes
  * a failed status if the first imu_init try fails, so the old check
  * latched an E-stop 0x04 at every start. Now the sample has to be bad
@@ -556,7 +627,7 @@ static void read_imu(b3_context_t *p_ctx)
 
     if (0 != reason)
     {
-        bad_ms += VC_PERIOD_MS;
+        bad_ms += (UINT)vc.dt_ms;
         if (bad_ms >= VC_IMU_FAULT_MS)
         {
             if (!reported)
@@ -733,6 +804,94 @@ static void take_junction(void)
     }
 }
 
+/* Two stops from the line sensors, both with fault bit 0x20 and a line
+ * saying which:
+ *  - car lifted: IR_L, IR_R and IR_B all read black (no floor under them)
+ *    for VC_LIFT_MM of wheel travel while the car drives;
+ *  - line lost: neither IR_L nor IR_R black for B3_LINE_LOST_MM of line
+ *    following. On track the line touches a sensor whenever the car
+ *    drifts 3.5 mm, so a long white run means it is not under the car.
+ * Distances are the wheels' mean travel, so standing still adds none. */
+static void check_ground(void)
+{
+    const bool b_driving = (VC_STATE_LINE_FOLLOW == vc.state) ||
+                           (VC_STATE_TURNING == vc.state) ||
+                           (VC_STATE_OBSTACLE == vc.state);
+    const bool b_follow = (VC_STATE_LINE_FOLLOW == vc.state) &&
+                          vc.line.control_active && !vc_bar_busy();
+    const bool b_all_black = vc.line.line.left_black &&
+                             vc.line.line.right_black && vc.line.ir_b_black;
+    const int32_t at = vc.motion.distance_total_mm;
+    int32_t run;
+
+    if (!b_driving || !b_all_black)
+    {
+        vc.b_all_black = false;
+    }
+    else if (!vc.b_all_black)
+    {
+        vc.b_all_black = true;
+        vc.black_from_mm = at;
+    }
+    else
+    {
+        run = at - vc.black_from_mm;
+        run = (run < 0) ? -run : run;
+        if (run >= VC_LIFT_MM)
+        {
+            tm_printf((UB *)"[VC] car lifted: all three IR sensors saw no "
+                            "floor for %d mm\n",
+                      (int)run);
+            vc.b_all_black = false;
+            stop_motors();
+            vc_raise_fault(VC_FAULT_LINE);
+            return;
+        }
+    }
+
+    if (!b_follow)
+    {
+        vc.b_ground_ref = false;
+    }
+    else if ((!vc.b_ground_ref) ||
+             (vc.line.line_seen_us != vc.line_seen_us))
+    {
+        vc.b_ground_ref = true;
+        vc.line_seen_us = vc.line.line_seen_us;
+        vc.white_from_mm = at;
+    }
+    else if ((at - vc.white_from_mm) >= B3_LINE_LOST_MM)
+    {
+        vc.white_max_mm = at - vc.white_from_mm;
+        tm_printf((UB *)"[VC] line lost: neither line sensor saw black "
+                        "for %d mm\n",
+                  (int)(at - vc.white_from_mm));
+        vc.b_ground_ref = false;
+        stop_motors();
+        vc_raise_fault(VC_FAULT_LINE);
+    }
+    else if ((at - vc.white_from_mm) > vc.white_max_mm)
+    {
+        vc.white_max_mm = at - vc.white_from_mm;
+    }
+    else
+    {
+        /* still on the line */
+    }
+}
+
+/* at the end of a run: how close the car came to the line-loss stop */
+static void report_white_run(void)
+{
+    if (vc.white_max_mm > 0)
+    {
+        tm_printf((UB *)"[VC] longest drive with no line under a sensor "
+                        "this run: %d mm (line-loss stop at %d mm)\n",
+                  (int)vc.white_max_mm, (int)B3_LINE_LOST_MM);
+        vc.white_max_mm = 0;
+    }
+}
+
 static void exchange_line(void)
 {
     b3_context_t ctx = { 0 };
@@ -765,6 +924,7 @@ static void exchange_line(void)
     read_imu(&ctx);
     buddy3_set_context(&ctx);
     buddy3_get_snapshot(&vc.line);
+    check_ground();
 
     /* Serious Buddy 3 faults latch the E-stop. A plain stop_required
            (stale context, follow off) just means "do not drive". */
@@ -801,7 +961,7 @@ static void exchange_line(void)
         on_barcode(ev.barcode.symbol, ev.sequence);
     }
 
-    /* Diagnostic (Buddy 3, 2026-11-04): IR_B started reading a barcode */
+    /* IR_B started reading a barcode */
     if (vc.line.scan_active != vc.scanning)
     {
         vc.scanning = vc.line.scan_active;
@@ -1234,6 +1394,7 @@ static void vc_task(INT stacd, void *exinf)
         exchange_line();
         pass_time();
         act();
+        track_hump();
 
         /* 6. one aligned store: readers see all or nothing. no way round an
          * obstacle shows as its fault bit
@@ -1242,12 +1403,52 @@ static void vc_task(INT stacd, void *exinf)
             vc.state,
             vc.faults | (s5_avoid_blocked() ? VC_FAULT_OBSTACLE : 0U),
             vc.pending_turn, vc.last_symbol, vc.last_seq, vc.junctions);
+#if defined(APP_MQTT) && APP_MQTT
+        send_telemetry(VC_SW_FAULTS(g_status_word));
+#endif
 
-        vc.state_ms += VC_PERIOD_MS;
-        vc.since_send_ms += VC_PERIOD_MS;
+        /* real time: a pass takes about 20 ms, not VC_PERIOD_MS */
+        vc.state_ms += vc.dt_ms;
+        vc.since_send_ms += vc.dt_ms;
         tk_dly_tsk(VC_PERIOD_MS);
     }
 }
+
+#if defined(APP_MQTT) && APP_MQTT
+/* Buddy 1 sends the newest values: the CR1 status with the 5 s
+ * heartbeat, the run telemetry every 200 ms (inf2004/robot/run) */
+static void send_telemetry(uint32_t faults)
+{
+    B1_RunTelemetry run = { 0 };
+    s5_ping_t ping;
+    SYSTIM now;
+
+    run.controller_state = (uint8_t)vc.state;
+    run.ir_l = vc.line.line.left_black ? 1U : 0U;
+    run.ir_r = vc.line.line.right_black ? 1U : 0U;
+    run.ir_b = vc.line.ir_b_black ? 1U : 0U;
+    run.fault_flags = (uint8_t)faults;
+    run.speed_l_mm_s = vc.motion.speed_l_mmps;
+    run.speed_r_mm_s = vc.motion.speed_r_mmps;
+    run.distance_mm = (uint32_t)vc.motion.distance_total_mm;
+    /* straight ahead only (not the sweep's side bearings) */
+    if (s5_sensor_ping(&ping) && ping.b_valid && (ping.ddeg >= -20) &&
+        (ping.ddeg <= 20))
+    {
+        run.range_mm = ping.mm;
+    }
+    run.letter = vc.last_symbol;
+    run.junctions = (uint8_t)vc.junctions;
+    run.lift_mm = subsystem4_side_lift_mm();
+    run.hump_mm = vc.hump_max_mm;
+    if (tk_get_otm(&now) >= E_OK)
+    {
+        run.uptime_s = now.lo / 1000U;
+    }
+    b1_mqtt_set_run(&run);
+    (void)b1_mqtt_set_robot_status((uint8_t)vc.state, (uint8_t)faults, 0U);
+}
+#endif
 
 ER vc_init(void)
 {

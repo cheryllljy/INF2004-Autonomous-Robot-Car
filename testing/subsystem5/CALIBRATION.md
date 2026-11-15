@@ -116,10 +116,10 @@ error moves each edge about 5 mm at 250 mm.
 
 Use this if the sweep reads objects on one side wider than on the other,
 or the servo twitches or catches on wires at one end. It does nothing but
-hold the servo at 13 angles in turn, 8 s each: 60, 45, 30, 15 to the left,
-straight ahead, 15, 30, 45, 60 to the right, then back 45, 30, 15 to the
-right and straight ahead. Each stop prints
-`[VC-S5] CAL servo stop N/13: asked A deg to the car's LEFT/RIGHT`.
+hold the servo at 11 angles in turn, 8 s each: 60, 45, 30, 15 to the left,
+straight ahead, 15, 30, 50 to the right (`S5_SERVO_LIMIT_R_DDEG`), then
+back 30, 15 to the right and straight ahead. Each stop prints
+`[VC-S5] CAL servo stop N/11: asked A deg to the car's LEFT/RIGHT`.
 
 ```sh
 cd build_make

@@ -19,8 +19,15 @@
 #define S4_TERRAIN_REPORT_INTERVAL_MS  5000U
 #define S4_TERRAIN_PROFILE_SPACING_MM  50U
 
-/* ---- Hump peak E-stop threshold ----
- * Any hump whose peak exceeds this height triggers an E-stop. */
-#define S4_HUMP_ESTOP_PEAK_MM        15U
+/* ---- Tilt E-stop ----
+ * E-stop while one side of the car is lifted more than this (side lift,
+ * the same measure as the hump height) for S4_TILT_ESTOP_SAMPLES samples
+ * in a row. The course hump is about 10 mm high under one wheel and must
+ * not stop the car; while driving, bumps and steering read short peaks
+ * of 20-50 mm, which the 200 ms hold filters out. */
+#ifndef S4_TILT_ESTOP_MM
+#define S4_TILT_ESTOP_MM             30U
+#endif
+#define S4_TILT_ESTOP_SAMPLES        20U /* 200 ms at 10 ms */
 
 #endif

@@ -37,14 +37,16 @@ S5_SRC  := $(S5)/s5_sensor.c $(S5)/s5_scan.c $(S5)/s5_path.c \
 SIM     := s5_sim.c motion_mock.c
 # the simulated sensor and car have their own errors
 # (beam 22 deg, no servo or range error unless a test sets one), so the
-# real car's calibration in s5_config.h stays out of the host tests.
+# real car's calibration in s5_config.h stays out of the host tests. The
+# bypass speeds stay at 110 / 80: the car's 130 / 100 passes a box turned
+# 15 deg (C22) only 1-3 mm away.
 # The compass is the simulation's (s5_sim.c: field 2500 counts, centred,
 # turning the other way to the car), and it steers (S5_MAG_USE 1) whatever
 # the car's s5_config.h says.
 S5FLAGS := $(CFLAGS) -DS5_HOST -Wno-missing-field-initializers \
            -DS5_SERVO_TRIM_DDEG=0 -DS5_RANGE_OFFSET_MM=0 \
            -DS5_BEAM_NEAR_DDEG=220 -DS5_BEAM_FAR_DDEG=220 -DS5_TURN_PCT=100 \
-           -DS5_WIDTH_TRIM_MM=0 \
+           -DS5_WIDTH_TRIM_MM=0 -DS5_SPEED_MM_S=110 -DS5_SLOW_MM_S=80 \
            -DS5_MAG_SIGN=-1 -DS5_MAG_X0=0 -DS5_MAG_Y0=0 -DS5_MAG_R=2500 \
            -DS5_MAG_USE=1
 

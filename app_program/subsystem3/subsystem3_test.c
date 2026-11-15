@@ -490,7 +490,7 @@ static void buddy3_task_tests(INT *p_pass, INT *p_fail)
                    b.line.right_mm_s == 0,
                "stale controller context: stop requested, zero speeds");
 
-    /* B3-I06: sensors are sampled at least every 10 ms (NFR7).  The
+    /* B3-I06: sensors are sampled at least every 10 ms (NFR17).  The
            longest gap over a 1 s window must stay within one extra tick.
            The window starts here so the CPU-heavy unit tests above (which run
            at priority 1 on the same core) are not counted. */

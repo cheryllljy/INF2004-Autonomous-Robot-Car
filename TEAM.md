@@ -104,7 +104,7 @@ drive the same I2C or UART block at once, their transfers get mixed up, and
 the drivers have no locking to stop it.
 
 | Peripheral | Owner subsystem | Owning task | Pins |
-|---|---|---|---|
+|---|---|---|
 | UART1 | | | |
 | I2C0 | | | |
 | I2C1 | | | |
@@ -142,16 +142,23 @@ What students *can* do:
 
 ## 4. Task priorities
 
-1 is the highest. 1–4 are used by the kernel (USB console 3, WiFi 4). Each subsystem gets its own band by default;
-change it only by team agreement. Write down every task you create.
+1 is the highest. The team order is MotionControl > ObstacleScan > LineSense >
+IMUTerrain > VehicleController > Telemetry (Wi-Fi/MQTT, lowest). The USB
+console (3) stays above them so the log never blocks. Change it only by team
+agreement. Write down every task you create.
 
-| Subsystem | Priority band | Tasks (name – priority – core) |
+| Task | Priority | Defined in |
 |---|---|---|
-| 1 | 12–13 | *example:* led_task – 12 – any |
-| 2 | 14–15 | *example:* producer_task – 14 – core 1 |
-| 3 | 16–17 | *example:* consumer_task – 16 – core 0 |
-| 4 | 18–19 | *example:* monitor_task – 18 – any |
-| 5 | 20–21 | s5_task – 20 – any (woken every 10 ms by a cyclic handler) |
+| motion (Buddy 2) | 1 | `motion_config.h` |
+| USB console (kernel) | 3 | `usb_console.c` |
+| s5_task (Buddy 5, every 10 ms) | 16 | `s5_config.h` S5_TASK_PRI |
+| buddy3 line/barcode (Buddy 3) | 17 | `b3_config.h` |
+| imu_task (Buddy 4) | 18 | `subsystem4.h` |
+| vc_task (VehicleController) | 22 | `vehicle_controller.h` VC_PRI |
+| cyw43 Wi-Fi/lwIP/MQTT (Buddy 1 telemetry) | 24 | `cyw43_utk_kernel.c` CYW43_TASK_PRIORITY |
+
+The template example tasks (producer 14, consumer 16, monitor 18) start only
+in the TEST=1 build.
 
 Core: `TP_PRC1` = core 0, `TP_PRC2` = core 1, or "any".
 

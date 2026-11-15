@@ -20,16 +20,14 @@
 #include "../app.h"
 
 /*
- * optional built-in mapping, for running without the
- * MQTT broker. 0 = none (the original design: the car only knows a
- * mapping once one arrives over MQTT, and until then every letter means
- * "go straight"). 1 = start with the table below. A mapping that arrives
- * over MQTT still replaces it.
+ * built-in backup mapping, used until one arrives over MQTT (robot.ps1
+ * map on test day), which replaces it. 0 = none: until then every letter
+ * means "go straight". 1 = start with the table below.
  *
  * Same rules as the MQTT message: 4 different letters A-Z, and each of
  * the 4 movements used once. Change the letters / movements here.
  */
-#define B1_DEFAULT_MAPPING_ENABLE 0
+#define B1_DEFAULT_MAPPING_ENABLE 1
 
 #if (B1_DEFAULT_MAPPING_ENABLE != 0)
 static const B1_Mapping default_mapping = { {

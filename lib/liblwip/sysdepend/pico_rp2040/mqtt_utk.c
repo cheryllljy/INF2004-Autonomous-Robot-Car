@@ -43,6 +43,8 @@
 #define CONNECTION_TOPIC "inf2004/robot/connection"
 #define HEARTBEAT_TOPIC "inf2004/robot/heartbeat"
 #define HEARTBEAT_PAYLOAD "alive"
+#define RUN_TOPIC "inf2004/robot/run"
+#define RUN_PERIOD_MS 200u
 #define CONNECTION_ONLINE "online"
 #define CONNECTION_OFFLINE "offline"
 #define MAPPING_TEXT_MAX 128
@@ -152,6 +154,7 @@ static uint8_t fr3_reported_reason = B1_FR3_REASON_NONE;
 
 static void test_log_timeout(void *arg);
 static void heartbeat_timeout(void *arg);
+static void run_timeout(void *arg);
 static void retry_timeout(void *arg);
 static void fr3_monitor_timeout(void *arg);
 
@@ -1017,6 +1020,81 @@ static void heartbeat_timeout(void *arg)
 }
 
 /* --------------------------------------------------------
+ * Run telemetry, every RUN_PERIOD_MS
+ *
+ * The controller's task writes run_data under run_lock (odd while
+ * writing); this task copies it and tries again if the count moved.
+ * -------------------------------------------------------- */
+
+static volatile uint32_t run_lock = 0u;
+static volatile uint8_t run_valid = 0u;
+static B1_RunTelemetry run_data;
+
+void b1_mqtt_set_run(const B1_RunTelemetry *input)
+{
+    if (0 == input)
+    {
+        return;
+    }
+    run_lock = run_lock + 1u;
+    __sync_synchronize();
+    run_data = *input;
+    __sync_synchronize();
+    run_lock = run_lock + 1u;
+    run_valid = 1u;
+}
+
+static int32_t run_get(B1_RunTelemetry *output)
+{
+    uint32_t tries;
+    uint32_t before;
+
+    for (tries = 0u; tries < 4u; tries++)
+    {
+        before = run_lock;
+        if (0u != (before & 1u))
+        {
+            continue;
+        }
+        __sync_synchronize();
+        *output = run_data;
+        __sync_synchronize();
+        if (before == run_lock)
+        {
+            return 0;
+        }
+    }
+    return -1;
+}
+
+static void run_timeout(void *arg)
+{
+    static uint8_t seq = 0u;
+    B1_RunTelemetry run;
+    uint8_t payload[B1_RUN_BYTES];
+    err_t result;
+
+    (void)arg;
+
+    if ((NULL != client) && mqtt_client_is_connected(client) &&
+        (0u != run_valid) && (0 == run_get(&run)))
+    {
+        run.seq = seq;
+        run.wifi_connected = wifi_is_up();
+        run.mqtt_connected = 1u;
+        seq++; /* a gap in the count shows a packet not sent */
+        if (0 == b1_run_pack(&run, payload))
+        {
+            result = mqtt_publish(client, RUN_TOPIC, payload, B1_RUN_BYTES,
+                                  0u, 0u, NULL, NULL);
+            (void)result; /* the next one goes 200 ms later anyway */
+        }
+    }
+
+    sys_timeout(RUN_PERIOD_MS, run_timeout, NULL);
+}
+
+/* --------------------------------------------------------
  * MQTT incoming messages
  * -------------------------------------------------------- */
 
@@ -1375,6 +1453,7 @@ void mqtt_utk_start(void)
         {
             heartbeat_started = 1u;
             sys_timeout(MQTT_HEARTBEAT_MS, heartbeat_timeout, NULL);
+            sys_timeout(RUN_PERIOD_MS, run_timeout, NULL);
         }
     }
 

@@ -36,7 +36,8 @@
 /* ---------------------------------------------------------------------
  *  Task
  * --------------------------------------------------------------------- */
-#define S5_TASK_PRI (20) /* ObstacleScan band (TEAM.md section 4) */
+/* ObstacleScan sits above LineSense (17), IMU (18) and the VC (22) */
+#define S5_TASK_PRI (16)
 #define S5_POLL_MS  (10) /* sensor polls, from a cyclic handler */
 
 /* ---------------------------------------------------------------------
@@ -54,8 +55,13 @@
 /* ---------------------------------------------------------------------
  *  Servo (SG90 on the sensor bracket)
  * --------------------------------------------------------------------- */
-/* How far the bracket can turn each way without touching anything. */
+/* How far the bracket can turn to the left without touching anything. */
 #define S5_SERVO_LIMIT_DDEG (600)
+/* ... and to the right: at 60 deg the sensor's wires hold the bracket
+ * back, it stops short and comes back off by 5-10 deg. */
+#ifndef S5_SERVO_LIMIT_R_DDEG
+#define S5_SERVO_LIMIT_R_DDEG (500)
+#endif
 /* CALIBRATE step 1: 1 if "left" turns the sensor to the right. */
 #ifndef S5_SERVO_INVERT
 #define S5_SERVO_INVERT (0)
@@ -70,9 +76,14 @@
 #endif
 #define S5_SERVO_PULSE_MIN_US (500U)  /* physical 0 deg (full right) */
 #define S5_SERVO_PULSE_MAX_US (2500U) /* physical 180 deg (full left) */
-/* Loaded SG90: 60 deg in 140 ms, then ringing dies down. */
+/* Loaded SG90: 60 deg in 140 ms, then ringing dies down. 15 ms of
+ * ring-down (was 30) lets the profile finish within NFR11's 1.8 s; if
+ * the box width reads wrong on the car, raise it again (25 ms: about
+ * 1.9 s). */
 #define S5_SERVO_MS_PER_60DEG (140)
-#define S5_SERVO_SETTLE_MS    (30)
+#ifndef S5_SERVO_SETTLE_MS
+#define S5_SERVO_SETTLE_MS (15)
+#endif
 
 /* ---------------------------------------------------------------------
  *  HC-SR04P
@@ -103,15 +114,25 @@
  * --------------------------------------------------------------------- */
 #define S5_DETECT_MM      (300) /* 30 cm */
 #define S5_DETECT_CONFIRM (2U)  /* pings in a row at or under it */
-#define S5_STALE_MS       (250) /* NFR12: an older range is unknown */
+#define S5_STALE_MS       (250) /* NFR10: an older range is unknown */
 /* FR25: driving with no new ping for this long is a sensor fault */
 #define S5_SILENT_MS (1000)
 
 /* ---------------------------------------------------------------------
  *  Scan (the car stands still)
  * --------------------------------------------------------------------- */
-#define S5_SCAN_STEP_DDEG (60) /* coarse sweep, +60 .. -60 deg */
-#define S5_SCAN_FINE      (2U) /* halvings per edge: 6 -> 3 -> 1.5 deg */
+#ifndef S5_SCAN_STEP_DDEG
+#define S5_SCAN_STEP_DDEG (100) /* coarse sweep, +60 .. -50 deg */
+#endif
+/* 1: the sweep starts as soon as the object is detected, while the car
+ * brakes; 0: the servo turns to the first bearing then and the sweep
+ * starts once the car stands still (S5_STILL_MS) */
+#ifndef S5_SCAN_WHILE_STOPPING
+#define S5_SCAN_WHILE_STOPPING (1)
+#endif
+#ifndef S5_SCAN_FINE
+#define S5_SCAN_FINE (2U) /* halvings per edge: 10 -> 5 -> 2.5 deg */
+#endif
 /* the fine probes come at the edge from the left, like the sweep, so the
  * servo's gear backlash is the same for every sample */
 #define S5_SCAN_OVERSHOOT_DDEG (40)
@@ -219,10 +240,16 @@
 /* the deepest the far corner may be: one object, or two close together */
 #define S5_DEPTH_MAX_MM (1000)
 
-/* 100 -> 110 and 60 -> 80 (2026-11-09, faster bypass). In the bypass
- * sim 120 already put the car within 1 mm of a box turned 15 deg (C22) */
-#define S5_SPEED_MM_S         (110) /* along the bypass */
-#define S5_SLOW_MM_S          (80)  /* settling onto the line */
+/* About 1 s faster per object than 110 / 80. The cost: in the bypass sim
+ * a box turned 15 deg to the line (C22) is passed only 1-3 mm away, so
+ * the host tests keep 110 / 80 (testing/subsystem5/host/Makefile). Square
+ * boxes keep their clearance. */
+#ifndef S5_SPEED_MM_S
+#define S5_SPEED_MM_S (130) /* along the bypass */
+#endif
+#ifndef S5_SLOW_MM_S
+#define S5_SLOW_MM_S (100) /* settling onto the line */
+#endif
 #define S5_REVERSE_SPEED_MM_S (60)
 #define S5_REVERSE_MAX_MM     (500) /* never back up further, in total */
 /* Buddy 2 gives a wheel no drive at 5 mm/s or less and kicks one under

@@ -89,9 +89,14 @@ ER subsystem3_init(void)
 
 ER subsystem3_start(void)
 {
-    /* Pinned to core 0 (TP_PRC1): opposite core to the producer */
-    ID tid = app_start_task(consumer_task, S3_PRI_CONSUMER, TP_PRC1,
-                            "consumer_task");
+    ID tid = E_OK;
+
+#if APP_TEST
+    /* template example, kept for its tests only.
+       Pinned to core 0 (TP_PRC1): opposite core to the producer */
+    tid = app_start_task(consumer_task, S3_PRI_CONSUMER, TP_PRC1,
+                         "consumer_task");
+#endif
 
 /* Buddy 3 is opt-in until its pins, IRQ ownership and vehicle interface are approved.
          * No existing consumer/task behaviour is replaced by this hook. */

@@ -67,7 +67,7 @@
 #include "../subsystem2/motion_control.h"
 #include "../subsystem3/buddy3.h" /* b3_nav_command_t, B3_BASE_SPEED_MM_S */
 
-/* IR pair ahead of the wheel axle (125 mm, measured on 2026-11-06;
+/* IR pair ahead of the wheel axle (125 mm, measured;
  * subsystem 5 has the same number as S5_IR_AHEAD_MM). */
 #define VC_IR_AHEAD_MM 125
 

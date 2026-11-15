@@ -42,12 +42,19 @@
 #endif
 #define VC_BENCH_START_S 10
 
-#define VC_PRI \
-    22                  /* band 22-23: below LineSense (17) and
-                                           ObstacleScan (20), per Week 6 */
+/* below ObstacleScan (16), LineSense (17) and the IMU (18), above Wi-Fi
+ * and telemetry (24) */
+#define VC_PRI       22
 #define VC_PERIOD_MS 10 /* matches Buddy 3's service period */
 /* resend wheel speeds at least this often */
 #define VC_SPEED_REFRESH_MS 100
+/* car lifted: IR_L, IR_R and IR_B all see no floor (they read black)
+ * for this far of wheel travel while the car drives. Longer than any
+ * black patch on the track (a junction is under 25 mm; both line IRs
+ * have read black for up to 67 mm in tight bends). */
+#ifndef VC_LIFT_MM
+#define VC_LIFT_MM 100
+#endif
 
 /* flg_vc: bits 0..7 latched fault causes, bits 8..15 command requests */
 #define VC_FLG_CMD_SHIFT 8U

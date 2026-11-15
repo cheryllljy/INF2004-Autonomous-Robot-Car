@@ -202,9 +202,16 @@ static void h02(void)
                 if (!sweep(&pr, &ms) || !pr.b_found || !pr.b_left_seen ||
                     !pr.b_right_seen)
                 {
-                    /* a wide box near: an edge outside the sweep is right */
-                    if ((atan2(fabs(y) + w / 2.0, faces[j]) + 22.0 * PI / 180.0) <
-                        (60.0 * PI / 180.0))
+                    /* a wide box near: an edge outside the sweep is right
+                     * (the sweep goes less far to the right) */
+                    const double beam = 22.0 * PI / 180.0;
+                    const double l_lim =
+                        (double)S5_SERVO_LIMIT_DDEG * PI / 1800.0;
+                    const double r_lim =
+                        (double)S5_SERVO_LIMIT_R_DDEG * PI / 1800.0;
+
+                    if (((atan2(y + w / 2.0, faces[j]) + beam) < l_lim) &&
+                        ((atan2(w / 2.0 - y, faces[j]) + beam) < r_lim))
                     {
                         bad++;
                         if (g_verbose)
@@ -242,9 +249,10 @@ static void h02(void)
                      n, worst_w, worst_e, worst_ms);
     }
     check("S5-H12", (0 == bad) && (worst_w <= 20.0) && (worst_e <= 15.0) &&
-                        (worst_ms <= 4000U),
+                        (worst_ms <= 2000U),
           "real sweep: boxes 8..32 cm wide at 20..38 cm, width within 20 mm, "
-          "each edge within 15 mm, under 4 s");
+          "each edge within 15 mm, under 2 s from the servo at 0 deg "
+          "(NFR11 from detection: test_s5_car)");
 }
 
 /* H03: missed echoes (30 %) must not pull an edge in */

@@ -626,9 +626,9 @@ void s5_hw_servo(int32_t ddeg)
     {
         a = S5_SERVO_LIMIT_DDEG;
     }
-    if (a < -S5_SERVO_LIMIT_DDEG)
+    if (a < -S5_SERVO_LIMIT_R_DDEG)
     {
-        a = -S5_SERVO_LIMIT_DDEG;
+        a = -S5_SERVO_LIMIT_R_DDEG;
     }
     a += S5_SERVO_TRIM_DDEG;
 #if (S5_SERVO_INVERT != 0)
