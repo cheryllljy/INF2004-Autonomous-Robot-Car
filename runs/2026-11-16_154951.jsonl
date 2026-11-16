@@ -1,0 +1,22 @@
+{"kind":"run_start","wall":"2026-11-16T15:49:51.633","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"event","wall":"2026-11-16T15:49:50.575","text":"[VC] state 5 -> 0","t_ms":-1062,"before_start":true}
+{"kind":"note","wall":"2026-11-16T15:49:51.258","text":"Sent START (seq 8)","t_ms":-375,"before_start":true}
+{"kind":"event","wall":"2026-11-16T15:49:51.511","text":"[VC] MQTT START received seq=8","t_ms":-125,"before_start":true}
+{"kind":"event","wall":"2026-11-16T15:49:51.521","text":"[VC] state 0 -> 1","t_ms":-109,"before_start":true}
+{"kind":"event","wall":"2026-11-16T15:49:51.521","text":"[VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)","t_ms":-109,"before_start":true}
+{"kind":"sample","wall":"2026-11-16T15:49:51.633","t_ms":0,"seq":235,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":0,"speed_r":0,"distance":5878,"range":1101,"letter":"","junctions":12,"lift":0,"hump":0,"uptime":672,"lost":0}
+{"kind":"sample","wall":"2026-11-16T15:49:51.744","t_ms":109,"seq":236,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":70,"speed_r":70,"distance":5889,"range":1106,"letter":"","junctions":12,"lift":0,"hump":0,"uptime":672,"lost":0}
+{"kind":"sample","wall":"2026-11-16T15:49:52.126","t_ms":500,"seq":237,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":94,"speed_r":100,"distance":5908,"range":1101,"letter":"","junctions":12,"lift":0,"hump":0,"uptime":672,"lost":0}
+{"kind":"event","wall":"2026-11-16T15:49:54.784","text":"[VC] barcode scan started","t_ms":3155}
+{"kind":"sample","wall":"2026-11-16T15:49:54.784","t_ms":3155,"seq":238,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":104,"speed_r":104,"distance":5930,"range":0,"letter":"","junctions":13,"lift":0,"hump":0,"uptime":673,"lost":0}
+{"kind":"event","wall":"2026-11-16T15:49:54.784","text":"[VC] junction #13 reached, letter '-', turn STRAIGHT (none)","t_ms":3155}
+{"kind":"sample","wall":"2026-11-16T15:49:54.920","t_ms":3295,"seq":239,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":106,"speed_r":104,"distance":5950,"range":487,"letter":"","junctions":13,"lift":0,"hump":0,"uptime":673,"lost":0}
+{"kind":"sample","wall":"2026-11-16T15:49:54.921","t_ms":3295,"seq":240,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":104,"speed_r":102,"distance":5971,"range":0,"letter":"","junctions":13,"lift":0,"hump":0,"uptime":673,"lost":0}
+{"kind":"sample","wall":"2026-11-16T15:49:54.922","t_ms":3295,"seq":241,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":102,"speed_r":102,"distance":5992,"range":0,"letter":"","junctions":13,"lift":0,"hump":0,"uptime":673,"lost":0}
+{"kind":"sample","wall":"2026-11-16T15:49:54.922","t_ms":3295,"seq":242,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":100,"speed_r":102,"distance":6012,"range":0,"letter":"","junctions":13,"lift":0,"hump":0,"uptime":673,"lost":0}
+{"kind":"event","wall":"2026-11-16T15:49:54.923","text":"[VC] car lifted: all three IR sensors saw no floor for 101 mm","t_ms":3295}
+{"kind":"event","wall":"2026-11-16T15:49:54.924","text":"[VC] E-stop, fault bits 0x20","t_ms":3295}
+{"kind":"event","wall":"2026-11-16T15:49:54.924","text":"[VC] longest drive with no line under a sensor this run: 43 mm (line-loss stop at 2000 mm)","t_ms":3295}
+{"kind":"event","wall":"2026-11-16T15:49:54.983","text":"[VC] state 1 -> 5","t_ms":3359}
+{"kind":"sample","wall":"2026-11-16T15:49:54.984","t_ms":3359,"seq":252,"state":5,"state_name":"ESTOP","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":false,"faults":32,"fault_names":["line (lost / lifted / Buddy 3)"],"speed_l":0,"speed_r":0,"distance":6038,"range":0,"letter":"","junctions":13,"lift":0,"hump":0,"uptime":675,"lost":9}
+{"kind":"run_end","wall":"2026-11-16T15:49:54.984","t_ms":3359,"state":5,"state_name":"ESTOP","reason":"state ESTOP"}

@@ -1,0 +1,31 @@
+{"kind":"run_start","wall":"2026-11-16T15:18:46.894","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"note","wall":"2026-11-16T15:18:45.361","text":"Sent START (seq 165)","t_ms":-1530,"before_start":true}
+{"kind":"event","wall":"2026-11-16T15:18:46.891","text":"[VC] MQTT START received seq=165","t_ms":0,"before_start":true}
+{"kind":"event","wall":"2026-11-16T15:18:46.891","text":"[VC] state 0 -> 1","t_ms":0,"before_start":true}
+{"kind":"event","wall":"2026-11-16T15:18:46.893","text":"[VC] line sensors black L 3 / R 2 mm, 2 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)","t_ms":0,"before_start":true}
+{"kind":"sample","wall":"2026-11-16T15:18:46.894","t_ms":0,"seq":37,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":84,"speed_r":80,"distance":3022,"range":330,"letter":"","junctions":5,"lift":2,"hump":0,"uptime":319,"lost":6}
+{"kind":"sample","wall":"2026-11-16T15:18:48.217","t_ms":1327,"seq":38,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":86,"speed_r":86,"distance":3039,"range":314,"letter":"","junctions":5,"lift":1,"hump":0,"uptime":320,"lost":0}
+{"kind":"note","wall":"2026-11-16T15:18:51.296","text":"Sent RESET (seq 166)","t_ms":4405}
+{"kind":"event","wall":"2026-11-16T15:18:51.321","text":"[VC] state 1 -> 3","t_ms":4422}
+{"kind":"event","wall":"2026-11-16T15:18:51.322","text":"[VC-S5] object 293 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)","t_ms":4422}
+{"kind":"sample","wall":"2026-11-16T15:18:51.323","t_ms":4422,"seq":39,"state":3,"state_name":"OBSTACLE","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":86,"speed_r":84,"distance":3056,"range":293,"letter":"","junctions":5,"lift":2,"hump":0,"uptime":320,"lost":0}
+{"kind":"sample","wall":"2026-11-16T15:18:51.323","t_ms":4422,"seq":40,"state":3,"state_name":"OBSTACLE","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":2,"speed_r":4,"distance":3061,"range":0,"letter":"","junctions":5,"lift":1,"hump":0,"uptime":320,"lost":0}
+{"kind":"event","wall":"2026-11-16T15:18:51.325","text":"[VC-S5] compass: no good sample at the stop (field 47 percent of the calibration's): encoders only","t_ms":4422}
+{"kind":"sample","wall":"2026-11-16T15:18:51.326","t_ms":4422,"seq":41,"state":3,"state_name":"OBSTACLE","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":0,"speed_r":0,"distance":3061,"range":0,"letter":"","junctions":5,"lift":1,"hump":0,"uptime":320,"lost":0}
+{"kind":"event","wall":"2026-11-16T15:18:51.439","text":"[VC-S5] pings 1-13 of 14 (deg:mm): -50:299 -40:291 -30:285 -20:283 -10:283 0:296 10:307 20:317 25:365 27:555 30:716 40:499 50:500","t_ms":4547}
+{"kind":"event","wall":"2026-11-16T15:18:51.440","text":"[VC-S5] pings 14-14 of 14 (deg:mm): 60:485","t_ms":4547}
+{"kind":"event","wall":"2026-11-16T15:18:51.442","text":"[VC-S5] sweep: 14 pings, face 283 mm, echoes from -50 to 26 deg, beam 16 deg","t_ms":4547}
+{"kind":"sample","wall":"2026-11-16T15:18:51.443","t_ms":4547,"seq":60,"state":0,"state_name":"IDLE","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":true,"faults":0,"fault_names":[],"speed_l":164,"speed_r":62,"distance":3347,"range":0,"letter":"","junctions":5,"lift":6,"hump":0,"uptime":324,"lost":18}
+{"kind":"run_end","wall":"2026-11-16T15:18:51.443","t_ms":4547,"state":0,"state_name":"IDLE","reason":"state IDLE"}
+{"kind":"event","wall":"2026-11-16T15:18:51.491","text":"[VC-S5] object 181 mm wide: 20 mm left and 161 mm right of the line, right edge past the sweep, left maybe blocked","t_ms":4594,"after_end":true}
+{"kind":"event","wall":"2026-11-16T15:18:51.497","text":"[VC-S5] left side maybe blocked (beam edge) by an echo at 27 deg, 555 mm","t_ms":4594,"after_end":true}
+{"kind":"event","wall":"2026-11-16T15:18:51.520","text":"[VC-S5] going LEFT anyway, the shorter way (20 / at least 161 mm): the other edge is past the sweep, only a far echo (floor?) at this side's beam edge","t_ms":4625,"after_end":true}
+{"kind":"event","wall":"2026-11-16T15:18:51.574","text":"[VC-S5] going LEFT: axle 130 mm off the line, ramps 336 / 313 mm, back in from 165 mm past the face","t_ms":4672,"after_end":true}
+{"kind":"event","wall":"2026-11-16T15:18:51.578","text":"[VC] TERRAIN_REPORT seq=24 classification=ROLL_HUMP peak_side_height_est=8 mm duration=640 ms imu_samples=14","t_ms":4687,"after_end":true}
+{"kind":"event","wall":"2026-11-16T15:18:51.584","text":"[VC] MQTT RESET received seq=166","t_ms":4687,"after_end":true}
+{"kind":"event","wall":"2026-11-16T15:18:51.721","text":"[VC] longest drive with no line under a sensor this run: 72 mm (line-loss stop at 2000 mm)","t_ms":4827,"after_end":true}
+{"kind":"event","wall":"2026-11-16T15:18:51.726","text":"[VC-S5] bypass stopped by the VehicleController","t_ms":4827,"after_end":true}
+{"kind":"event","wall":"2026-11-16T15:18:51.728","text":"[VC] state 3 -> 0","t_ms":4827,"after_end":true}
+{"kind":"note","wall":"2026-11-16T15:18:52.662","text":"Sent STOP (seq 167)","t_ms":5765,"after_end":true}
+{"kind":"note","wall":"2026-11-16T15:18:53.069","text":"Sent STOP (seq 168)","t_ms":6172,"after_end":true}
+{"kind":"note","wall":"2026-11-16T15:18:53.317","text":"Sent START (seq 169)","t_ms":6422,"after_end":true}

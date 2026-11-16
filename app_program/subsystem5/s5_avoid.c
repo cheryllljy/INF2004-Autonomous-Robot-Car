@@ -248,7 +248,6 @@ typedef struct
     float reversed;
     uint32_t rescans;
     uint32_t scan_seq;
-    bool b_scan_early; /* scan_seq started at detection, car braking */
     s5_sweep_t sweep;
     s5_profile_t prof;
     int32_t side; /* +1 left, -1 right */
@@ -458,10 +457,6 @@ static void s5_enter(s5_phase_t ph)
     if ((S5_PH_STOP == g.ph) && (S5_PH_STOP != ph) && !g.b_mag_fixed)
     {
         s5_mag_fix(); /* the car is about to move */
-    }
-    if ((S5_PH_STOP != ph) && (S5_PH_SCAN != ph))
-    {
-        g.b_scan_early = false; /* the car moves first: sweep again */
     }
     g.ph = ph;
     g.ph_ms = 0U;
@@ -895,18 +890,8 @@ void s5_avoid_begin(const motion_status_t *p_m)
     g.b_search = false;
     g.then = S5_THEN_FACE;
     s5_enter(S5_PH_STOP);
+    s5_sensor_guard();
     (void)s5_get_ping(&p);
-    /* NFR9/NFR11: the sweep starts now, while the car brakes (it rolls
-     * on about 20 mm, and the first bearings are the far left ones) */
-    g.b_scan_early = (0 != S5_SCAN_WHILE_STOPPING);
-    if (g.b_scan_early)
-    {
-        g.scan_seq = s5_sensor_scan();
-    }
-    else
-    {
-        s5_look(S5_SERVO_LIMIT_DDEG);
-    }
     S5_LOG("[VC-S5] object %d mm ahead: stopping (line from the last %d "
            "mm, within %d mm; car %d deg to it)\n",
            (int)p.mm, (int)(n * (uint32_t)S5_HIST_STEP_MM), (int)s5_mm(worst),
@@ -987,11 +972,7 @@ static void s5_block(const char *p_why)
 
 static void s5_scan_start(void)
 {
-    if (!g.b_scan_early)
-    {
-        g.scan_seq = s5_sensor_scan();
-    }
-    g.b_scan_early = false;
+    g.scan_seq = s5_sensor_scan();
     s5_enter(S5_PH_SCAN);
 }
 
