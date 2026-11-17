@@ -248,6 +248,7 @@ typedef struct
     float reversed;
     uint32_t rescans;
     uint32_t scan_seq;
+    bool b_scan_early; /* scan_seq started at detection, car braking */
     s5_sweep_t sweep;
     s5_profile_t prof;
     int32_t side; /* +1 left, -1 right */
@@ -329,6 +330,11 @@ typedef struct
     int32_t cap_second;  /* the IR that went black second */
     float line_win;      /* an IR black this near line_y is our line */
     bool b_ret_black;    /* an IR saw black on the way back */
+    /* Buddy 5, 2026-11-16 */
+    bool b_seek_ours;    /* looking on with no black seen on the way back:
+                          * the first line met is ours, whatever direction
+                          * the encoders give it */
+    uint8_t seek_stage;  /* 0: at S5_SEEK_DEG, 1: at S5_SEEK2_DEG */
     /* an episode begun on the way back from the last one */
     bool b_rejoin;   /* off the line: go back to it if nothing is in the way */
     bool b_passed;   /* the car must not back into ... */
@@ -457,6 +463,10 @@ static void s5_enter(s5_phase_t ph)
     if ((S5_PH_STOP == g.ph) && (S5_PH_STOP != ph) && !g.b_mag_fixed)
     {
         s5_mag_fix(); /* the car is about to move */
+    }
+    if ((S5_PH_STOP != ph) && (S5_PH_SCAN != ph))
+    {
+        g.b_scan_early = false; /* the car moves first: sweep again */
     }
     g.ph = ph;
     g.ph_ms = 0U;
@@ -890,8 +900,18 @@ void s5_avoid_begin(const motion_status_t *p_m)
     g.b_search = false;
     g.then = S5_THEN_FACE;
     s5_enter(S5_PH_STOP);
-    s5_sensor_guard();
     (void)s5_get_ping(&p);
+    /* NFR9/NFR11: the sweep starts now, while the car brakes (it rolls
+     * on about 20 mm, and the first bearings are the far left ones) */
+    g.b_scan_early = (0 != S5_SCAN_WHILE_STOPPING);
+    if (g.b_scan_early)
+    {
+        g.scan_seq = s5_sensor_scan();
+    }
+    else
+    {
+        s5_look(S5_SERVO_LIMIT_DDEG);
+    }
     S5_LOG("[VC-S5] object %d mm ahead: stopping (line from the last %d "
            "mm, within %d mm; car %d deg to it)\n",
            (int)p.mm, (int)(n * (uint32_t)S5_HIST_STEP_MM), (int)s5_mm(worst),
@@ -972,7 +992,11 @@ static void s5_block(const char *p_why)
 
 static void s5_scan_start(void)
 {
-    g.scan_seq = s5_sensor_scan();
+    if (!g.b_scan_early)
+    {
+        g.scan_seq = s5_sensor_scan();
+    }
+    g.b_scan_early = false;
     s5_enter(S5_PH_SCAN);
 }
 
@@ -1535,6 +1559,21 @@ static void s5_say_sweep(void)
            p->b_left_maybe ? ", left maybe blocked" : "",
            p->b_right_blocked ? ", right side blocked" : "",
            p->b_right_maybe ? ", right maybe blocked" : "");
+    /* Buddy 5, 2026-11-16: how the edges were got, with both results, to
+     * hold against a tape measure */
+    if (p->b_by_range)
+    {
+        S5_LOG("[VC-S5] edges by range: face %d mm, corners %d mm (left) "
+               "and %d mm (right) away; by angle it would be %d mm left and "
+               "%d mm right\n",
+               (int)p->face_q_mm, (int)p->edge_l_mm, (int)p->edge_r_mm,
+               (int)s5_mm(p->ya_left), (int)s5_mm(-p->ya_right));
+    }
+    else
+    {
+        S5_LOG("[VC-S5] edges by angle (the sweep was not taken from the "
+               "line, straight)\n");
+    }
     /* what blocked it */
     if (p->b_left_blocked || p->b_left_maybe)
     {
@@ -1837,6 +1876,8 @@ static void s5_start_bypass(void)
     g.b_cap_skip = false;
     g.line_win = (float)S5_LINE_WINDOW_MM;
     g.b_ret_black = false;
+    g.b_seek_ours = false; /* Buddy 5, 2026-11-16 */
+    g.seek_stage = 0U;
     g.path.y_end = g.line_est;
     if (g.path.x0 < g.odo.x)
     {
@@ -2732,8 +2773,14 @@ static bool s5_cap_watch(bool b_ir_l, bool b_ir_r)
                     dy = -dy;
                 }
                 g.cap_phi = s5_atan2f(dy, dx);
-                if (s5_absf(g.cap_phi) >
-                    ((float)S5_CAP_LINE_DEG * S5_DEG2RAD_F))
+                /* Buddy 5, 2026-11-16: not while looking on with no black
+                 * seen on the way back (b_seek_ours). The encoders' heading
+                 * is what has gone wrong by then, and this direction is
+                 * worked out from it: on the track the car's own line was
+                 * turned down here as a junction */
+                if (!g.b_seek_ours &&
+                    (s5_absf(g.cap_phi) >
+                     ((float)S5_CAP_LINE_DEG * S5_DEG2RAD_F)))
                 {
                     S5_LOG("[VC-S5] the IRs crossed a line %d mm from where "
                            "the encoders put ours, at %d deg to it: a "
@@ -2764,7 +2811,9 @@ static bool s5_cap_watch(bool b_ir_l, bool b_ir_r)
                 float yc;
 
                 s5_odom_point(&g.odo, (float)S5_IR_AHEAD_MM, 0.0f, &xc, &yc);
-                if (s5_absf(psi) < ((float)S5_CAP_BOTH_DEG * S5_DEG2RAD_F))
+                /* Buddy 5, 2026-11-16: as above */
+                if (!g.b_seek_ours &&
+                    (s5_absf(psi) < ((float)S5_CAP_BOTH_DEG * S5_DEG2RAD_F)))
                 {
                     S5_LOG("[VC-S5] both IRs black at once %d mm from where "
                            "the encoders put the line, car %d deg to it: a "
@@ -3709,7 +3758,9 @@ static void s5_enter_end(void)
             S5_LOG("[VC-S5] no black on the way back: the first line "
                    "ahead is ours\n");
             g.line_win = (float)S5_SEEK_WINDOW_MM;
+            g.b_seek_ours = true; /* Buddy 5, 2026-11-16 */
         }
+        g.seek_stage = 0U;
         g.seek_from = g.odo.dist;
         s5_enter(S5_PH_SEEK);
     }
@@ -3779,12 +3830,34 @@ static s5_avoid_result_t s5_do_seek(const motion_status_t *p_m, bool b_ir_l,
         s5_enter(S5_PH_ALIGN);
         return s5_do_align(p_m, b_ir_l, b_ir_r);
     }
-    if (!g.b_line && ((g.odo.dist - g.seek_from) > (float)S5_SEEK_MAX_MM))
+    /* Buddy 5, 2026-11-16: a second, steeper try before giving up */
+    if (!g.b_line && (0U == g.seek_stage) && (S5_SEEK2_MM > 0) &&
+        ((g.odo.dist - g.seek_from) > (float)S5_SEEK_MAX_MM))
+    {
+        S5_LOG("[VC-S5] no line after %d mm at %d deg: turning in to %d deg "
+               "for %d mm more%s\n",
+               (int)S5_SEEK_MAX_MM, (int)S5_SEEK_DEG, (int)S5_SEEK2_DEG,
+               (int)S5_SEEK2_MM,
+               g.b_ret_black ? "" : " (the first line met is ours)");
+        g.seek_stage = 1U;
+        g.seek_from = g.odo.dist;
+        if (!g.b_ret_black)
+        {
+            g.b_seek_ours = true;
+            g.line_win = (float)S5_SEEK2_WINDOW_MM;
+        }
+    }
+    if (!g.b_line &&
+        ((g.odo.dist - g.seek_from) >
+         (float)((0U == g.seek_stage) ? S5_SEEK_MAX_MM : S5_SEEK2_MM)))
     {
         return s5_fail("the line was not found (FR24)");
     }
     ref.y = g.odo.y; /* heading only */
-    ref.slope = -(float)g.side * s5_tanf((float)S5_SEEK_DEG * S5_DEG2RAD_F);
+    ref.slope = -(float)g.side *
+                s5_tanf((float)((0U == g.seek_stage) ? S5_SEEK_DEG
+                                                     : S5_SEEK2_DEG) *
+                        S5_DEG2RAD_F);
     ref.curv = 0.0f;
     s5_wheels((float)S5_SLOW_MM_S,
               s5_path_steer(&ref, g.odo.y, g.odo.psi, (float)S5_ALIGN_DIST_MM));

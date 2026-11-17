@@ -36,7 +36,8 @@
 /* ---------------------------------------------------------------------
  *  Task
  * --------------------------------------------------------------------- */
-#define S5_TASK_PRI (20) /* ObstacleScan band (TEAM.md section 4) */
+/* ObstacleScan sits above LineSense (17), IMU (18) and the VC (22) */
+#define S5_TASK_PRI (16)
 #define S5_POLL_MS  (10) /* sensor polls, from a cyclic handler */
 
 /* ---------------------------------------------------------------------
@@ -69,17 +70,20 @@
  * -52 (run 1: box middle 5.2 deg right; run 2 with -52:
  * the box-only echoes and the range profile are centred). Run 3 with
  * -52 read the box 4.5 deg right at 300 mm but ~1 deg at 200 mm, and
- * track runs with a known box place it within ~3 deg: kept. Later the
- * sensor pointed 5-10 deg left at 0 and a box 101 mm left and 30 mm
- * right of the line read 30 left and 101 right: 14 deg more, -192. */
+ * track runs with a known box place it within ~3 deg: kept. */
 #ifndef S5_SERVO_TRIM_DDEG
-#define S5_SERVO_TRIM_DDEG (-192)
+#define S5_SERVO_TRIM_DDEG (-52)
 #endif
 #define S5_SERVO_PULSE_MIN_US (500U)  /* physical 0 deg (full right) */
 #define S5_SERVO_PULSE_MAX_US (2500U) /* physical 180 deg (full left) */
-/* Loaded SG90: 60 deg in 140 ms, then ringing dies down. */
+/* Loaded SG90: 60 deg in 140 ms, then ringing dies down. 15 ms of
+ * ring-down (was 30) lets the profile finish within NFR11's 1.8 s; if
+ * the box width reads wrong on the car, raise it again (25 ms: about
+ * 1.9 s). */
 #define S5_SERVO_MS_PER_60DEG (140)
-#define S5_SERVO_SETTLE_MS    (30)
+#ifndef S5_SERVO_SETTLE_MS
+#define S5_SERVO_SETTLE_MS (15)
+#endif
 
 /* ---------------------------------------------------------------------
  *  HC-SR04P
@@ -110,15 +114,25 @@
  * --------------------------------------------------------------------- */
 #define S5_DETECT_MM      (300) /* 30 cm */
 #define S5_DETECT_CONFIRM (2U)  /* pings in a row at or under it */
-#define S5_STALE_MS       (250) /* NFR12: an older range is unknown */
+#define S5_STALE_MS       (250) /* NFR10: an older range is unknown */
 /* FR25: driving with no new ping for this long is a sensor fault */
 #define S5_SILENT_MS (1000)
 
 /* ---------------------------------------------------------------------
  *  Scan (the car stands still)
  * --------------------------------------------------------------------- */
-#define S5_SCAN_STEP_DDEG (60) /* coarse sweep, +60 .. -60 deg */
-#define S5_SCAN_FINE      (2U) /* halvings per edge: 6 -> 3 -> 1.5 deg */
+#ifndef S5_SCAN_STEP_DDEG
+#define S5_SCAN_STEP_DDEG (100) /* coarse sweep, +60 .. -50 deg */
+#endif
+/* 1: the sweep starts as soon as the object is detected, while the car
+ * brakes; 0: the servo turns to the first bearing then and the sweep
+ * starts once the car stands still (S5_STILL_MS) */
+#ifndef S5_SCAN_WHILE_STOPPING
+#define S5_SCAN_WHILE_STOPPING (1)
+#endif
+#ifndef S5_SCAN_FINE
+#define S5_SCAN_FINE (2U) /* halvings per edge: 10 -> 5 -> 2.5 deg */
+#endif
 /* the fine probes come at the edge from the left, like the sweep, so the
  * servo's gear backlash is the same for every sample */
 #define S5_SCAN_OVERSHOOT_DDEG (40)
@@ -163,6 +177,37 @@
 #endif
 #define S5_BEAM_NEAR_MM (200)
 #define S5_BEAM_FAR_MM  (300)
+
+/* Buddy 5, 2026-11-16: 1 = the corners come from the ranges of the
+ * outermost echoes (sqrt(EDGE^2 - FACE^2), s5_scan.h), not from the angle
+ * where the echoes stop. Needs no beam angle and no exact servo angle.
+ * 0 = the angle method only, as before (to compare on the car: the log
+ * prints both either way). */
+#ifndef S5_EDGE_BY_RANGE
+#define S5_EDGE_BY_RANGE (1)
+#endif
+/* a range that jumps by more than this from the bearing before it (mm,
+ * plus S5_EDGE_STEP_MM_PER_DEG for each degree between them) is a mix
+ * with something behind the object, not its corner. A flat face cannot
+ * rise faster than ~3.3 mm per degree at 30 cm. */
+#define S5_EDGE_JUMP_MM        (8)
+#define S5_EDGE_STEP_MM_PER_DEG (3.5f)
+/* a corner within about 5 cm of the sonar's axis reads less than 4 mm
+ * longer than the face at 30 cm, which is the sensor's noise: whatever
+ * answered straight ahead is taken to reach at least this far to each
+ * side of the sonar */
+/* Buddy 5, 2026-11-16: an edge echo is checked against one at least
+ * this far further in (0.1 deg) */
+#define S5_EDGE_PAIR_DDEG (50)
+#define S5_EDGE_MIN_MM (45)
+/* Buddy 5, 2026-11-16: added to a side got by range, S5_EDGE_PAD_MM2 /
+ * side (mm), at most S5_EDGE_PAD_MAX_MM */
+#define S5_EDGE_PAD_MM2    (600)
+#define S5_EDGE_PAD_MAX_MM (12)
+/* the range method is used for a sweep from the line: the sonar within
+ * this of it and the car this straight along it */
+#define S5_EDGE_ON_LINE_MM  (40)
+#define S5_EDGE_ON_LINE_DEG (15)
 
 /* Both sides within this of each other: pick one at random. */
 #define S5_TIE_MM (10)
@@ -300,6 +345,17 @@
 /* nothing black on the way back: looking on, the first
  * IR black this near where the line should be is our line */
 #define S5_SEEK_WINDOW_MM (300)
+/* Buddy 5, 2026-11-16: second try before giving up (FR24). On the track
+ * the line was 7..228 mm further over than the encoders put it and their
+ * heading was off too: the 30 deg look ran out beside the line (LEFT
+ * bypasses found it 10 times in 27). When S5_SEEK_MAX_MM is used up the car
+ * turns in to this angle for this much further, the window this wide.
+ * S5_SEEK2_MM 0: off (fails as before). */
+#define S5_SEEK2_DEG       (60)
+#ifndef S5_SEEK2_MM
+#define S5_SEEK2_MM        (400)
+#endif
+#define S5_SEEK2_WINDOW_MM (600)
 /* settled: IR pair centred on the line within this and this straight */
 #define S5_ALIGN_TOL_MM  (5)
 #define S5_ALIGN_TOL_DEG (3)

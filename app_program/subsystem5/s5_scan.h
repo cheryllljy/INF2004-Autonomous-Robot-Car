@@ -26,6 +26,51 @@
  *      box of known width, at two distances; between them it is
  *      interpolated. Width = left corner - right corner.
  *
+ *      Edges by range (Buddy 5, 2026-11-16, S5_EDGE_BY_RANGE)
+ *      ------------------------------------------------------
+ *      The angle method above needs BEAM and the servo's angle to be
+ *      right, and on the car neither is: BEAM changes with the object and
+ *      the distance (8..33 deg in the calibration runs), and the servo is
+ *      5-10 deg off (its zero, the sweep's lag, the wires holding it back
+ *      on the right). 10 deg at 280 mm is 50 mm: the track logs of
+ *      2026-11-10 put a 21 cm box on the line "-14 mm left, 179 mm
+ *      right", the car went left 96 mm off the line and into the box.
+ *
+ *      The ranges do not have that problem. While the sensor looks at the
+ *      face they all read FACE (the nearest point, straight in front).
+ *      Turned towards a corner, the last echoes before they stop come
+ *      from the corner itself, so they read the distance to the corner,
+ *      EDGE, a little longer than FACE. Pythagoras:
+ *
+ *          corner, sideways from the sonar = sqrt(EDGE^2 - FACE^2)
+ *
+ *      No angle and no BEAM in it. 29 first sweeps of the 21 cm box in
+ *      those logs (testing/subsystem5/host/real_sweeps.inc, S5-H24): the
+ *      19 with both ends of the echoes inside the sweep come out 208 mm
+ *      wide (median), none under 130 or over 290 mm, none more than 50 mm
+ *      off centre; by angle the 29 were 99..366 mm wide (median 261) and
+ *      93 mm off centre (median).
+ *
+ *      FACE is the mean of the flat middle of the object's ranges (those
+ *      within S5_EDGE_JUMP_MM of their lower quartile). EDGE is the mean
+ *      of the two longest ranges from the face out to the last echo that
+ *      can be trusted: one with no jump to the echo next to it nor to the
+ *      next one at least S5_EDGE_PAIR_DDEG further in (an
+ *      echo that jumps is a mix with whatever is behind the object). A few
+ *      mm are added to each side (S5_EDGE_PAD_MM2) so that noise does not
+ *      put a corner inside the real one.
+ *
+ *      What range cannot do, and what happens then:
+ *      - a corner under S5_EDGE_MIN_MM from the sonar's axis, or the near
+ *        corner of a box that stands turned: that side by angle, as before
+ *        (at least half of S5_EDGE_MIN_MM out);
+ *      - echoes right to the end of the sweep on a side (a wall, another
+ *        object): no side closer in than by angle;
+ *      - a sweep from off the line or not straight (after going round
+ *        another object the sonar can be out beside this one), or nothing
+ *        straight ahead: all by angle, as before.
+ *      Both results are logged after every sweep.
+ *
  *      Room on each side: anything else the sweep saw beyond an edge
  *      (another box, a wall) answered from somewhere within BEAM of the
  *      angle it was seen at (the object's own, nearer echoes can hide
@@ -73,6 +118,13 @@ typedef struct
     float y_left;        /* left corner (line frame, + = left) */
     float y_right;       /* right corner */
     float width;         /* y_left - y_right */
+    /* Buddy 5, 2026-11-16: how the corners were placed (for the log) */
+    bool b_by_range;     /* true: by range; false: by angle */
+    uint16_t face_q_mm;  /* FACE used by the range method */
+    uint16_t edge_l_mm;  /* EDGE, left and right */
+    uint16_t edge_r_mm;
+    float ya_left;       /* the angle method's corners (line frame), */
+    float ya_right;      /* before S5_WIDTH_TRIM_MM */
     bool b_left_blocked; /* something else where the car would pass */
     bool b_right_blocked;
     /* only the edge of the beam of an echo reaches where
