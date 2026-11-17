@@ -518,15 +518,15 @@ static void read_motion(void)
 
     motion_get_status(&vc.motion);
 
-    /* an E-stop another task set on Buddy 2 (the IMU's tilt check) is
-     * this controller's E-stop too, with its fault bit, so the state,
-     * the telemetry and RESET all see it */
+    /* an E-stop another task set on Buddy 2 (the IMU's tilt and pick-up
+     * checks) is this controller's E-stop too, with its fault bit, so the
+     * state, the telemetry and RESET all see it */
     estop = motion_estop_sources() & ~MOTION_ESTOP_VEHICLE;
     if ((0U != estop) && (estop != estop_seen))
     {
         tm_printf((UB *)"[VC] E-stop set by %s\n",
                   (0U != (estop & MOTION_ESTOP_IMU))
-                      ? "the IMU: car tilted to the side"
+                      ? "the IMU: car tilted or picked up"
                       : "the obstacle sensor");
     }
     estop_seen = estop;

@@ -30,4 +30,28 @@
 #endif
 #define S4_TILT_ESTOP_SAMPLES        20U /* 200 ms at 10 ms */
 
+/* ---- Pick-up E-stop ----
+ * Lifting the car by hand shows in the accelerometer as a jolt (the
+ * size of the acceleration away from the 1 g measured at start-up) and
+ * usually as a tilt forwards, backwards or sideways. A car held level
+ * and still in the air reads 1 g again, so VehicleController's check of
+ * the three IRs (no floor under them) stays as well. */
+/* jolt: more than this percent away from 1 g ... */
+#ifndef S4_LIFT_JOLT_PCT
+#define S4_LIFT_JOLT_PCT             25U
+#endif
+/* ... for this many samples in a row (50 ms at 10 ms) */
+#ifndef S4_LIFT_JOLT_SAMPLES
+#define S4_LIFT_JOLT_SAMPLES         5U
+#endif
+/* tilt in any direction: cos of the angle to the start-up gravity below
+ * this percent (91 = about 24 deg) ... */
+#ifndef S4_LIFT_TILT_COS_PCT
+#define S4_LIFT_TILT_COS_PCT         91U
+#endif
+/* ... for this many samples in a row (200 ms at 10 ms) */
+#ifndef S4_LIFT_TILT_SAMPLES
+#define S4_LIFT_TILT_SAMPLES         20U
+#endif
+
 #endif

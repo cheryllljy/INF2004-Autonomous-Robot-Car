@@ -88,7 +88,7 @@
  *     wheel no drive at 5 mm/s or less and kicks one under 10 mm/s).
  * No track shape is assumed: the memory is learnt from the sensors. */
 #ifndef B3_STEER_KICK_CURV      /* host simulations try other values */
-#define B3_STEER_KICK_CURV 4000 /* 250 mm radius */
+#define B3_STEER_KICK_CURV 4400 /* 227 mm radius; was 4000 */
 #endif
 /* The nudge tunes itself to the sensor spacing: a touch on the other side
  * within B3_STEER_OVERSHOOT_MM of the last one means the nudge overshot, so

@@ -31,6 +31,15 @@ typedef struct
     bool hump_active;
     bool hump_start_time_valid;
     uint8_t tilt_samples; /* in a row over S4_TILT_ESTOP_MM */
+    int64_t sum_x;        /* start-up gravity, all three axes */
+    int64_t sum_y;
+    int64_t sum_z;
+    int32_t base_x;
+    int32_t base_y;
+    int32_t base_z;
+    uint8_t jolt_samples; /* in a row past S4_LIFT_JOLT_PCT */
+    uint8_t pick_tilt_samples; /* in a row past S4_LIFT_TILT_COS_PCT */
+    bool picked_up;       /* reported; until the car is still again */
 } s4_hump_state_t;
 
 static s4_hump_state_t s4_hump_state;
@@ -60,6 +69,76 @@ static int32_t s4_axis_value(const imu_vector_t *p, uint32_t ax)
 
 static uint32_t s4_abs_i32(int32_t v) { return (uint32_t)((v < 0) ? -v : v); }
 
+/* Pick-up check on one raw sample: a jolt away from 1 g for
+ * S4_LIFT_JOLT_SAMPLES, or a tilt in any direction past
+ * S4_LIFT_TILT_COS_PCT for S4_LIFT_TILT_SAMPLES, requests the E-stop.
+ * It runs on every sample, before the hump code drops the noisy ones. */
+static void s4_lift_step(const imu_vector_t *p_raw, uint32_t total)
+{
+    const uint32_t base = s4_hump_state.base_total;
+    const uint32_t dev = s4_abs_i32((int32_t)total - (int32_t)base);
+    const int64_t dot = ((int64_t)s4_hump_state.base_x * p_raw->x) +
+                        ((int64_t)s4_hump_state.base_y * p_raw->y) +
+                        ((int64_t)s4_hump_state.base_z * p_raw->z);
+    const bool b_jolt =
+        ((uint64_t)dev * 100U) > ((uint64_t)base * S4_LIFT_JOLT_PCT);
+    const bool b_tilt =
+        (0U != total) &&
+        ((dot * 100) < ((int64_t)S4_LIFT_TILT_COS_PCT * (int64_t)total *
+                        (int64_t)base));
+    bool b_lift = false;
+
+    if (b_jolt)
+    {
+        if (s4_hump_state.jolt_samples < S4_LIFT_JOLT_SAMPLES)
+        {
+            s4_hump_state.jolt_samples++;
+        }
+    }
+    else
+    {
+        s4_hump_state.jolt_samples = 0U;
+    }
+    if (b_tilt)
+    {
+        if (s4_hump_state.pick_tilt_samples < S4_LIFT_TILT_SAMPLES)
+        {
+            s4_hump_state.pick_tilt_samples++;
+        }
+    }
+    else
+    {
+        s4_hump_state.pick_tilt_samples = 0U;
+    }
+    b_lift = (S4_LIFT_JOLT_SAMPLES == s4_hump_state.jolt_samples) ||
+             (S4_LIFT_TILT_SAMPLES == s4_hump_state.pick_tilt_samples);
+    if (b_lift)
+    {
+        if (!s4_hump_state.picked_up)
+        {
+            s4_hump_state.picked_up = true;
+            tm_printf((UB *)"[VC] car picked up (IMU): %s, %u percent of 1 g, "
+                            "E-STOP\n",
+                      (S4_LIFT_JOLT_SAMPLES == s4_hump_state.jolt_samples)
+                          ? "jolt"
+                          : "tilted",
+                      (UINT)((0U != base) ? ((total * 100U) / base) : 0U));
+        }
+        /* again each sample, so a RESET while still lifted does not free
+         * it */
+        motion_estop_request(MOTION_ESTOP_IMU);
+    }
+    else if ((0U == s4_hump_state.jolt_samples) &&
+             (0U == s4_hump_state.pick_tilt_samples))
+    {
+        s4_hump_state.picked_up = false;
+    }
+    else
+    {
+        /* still counting */
+    }
+}
+
 static void s4_hump_step(const imu_vector_t *p_raw)
 {
     int32_t lateral  = s4_axis_value(p_raw, S4_HUMP_LATERAL_AXIS);
@@ -86,11 +165,17 @@ static void s4_hump_step(const imu_vector_t *p_raw)
         s4_hump_state.sum_lateral  += lateral;
         s4_hump_state.sum_vertical += vertical;
         s4_hump_state.sum_total    += total;
+        s4_hump_state.sum_x        += p_raw->x;
+        s4_hump_state.sum_y        += p_raw->y;
+        s4_hump_state.sum_z        += p_raw->z;
         if (++s4_hump_state.cal_samples >= S4_HUMP_CAL_SAMPLES)
         {
             s4_hump_state.base_lateral  = (int32_t)(s4_hump_state.sum_lateral  / S4_HUMP_CAL_SAMPLES);
             s4_hump_state.base_vertical = (int32_t)(s4_hump_state.sum_vertical / S4_HUMP_CAL_SAMPLES);
             s4_hump_state.base_total    = (uint32_t)(s4_hump_state.sum_total   / S4_HUMP_CAL_SAMPLES);
+            s4_hump_state.base_x = (int32_t)(s4_hump_state.sum_x / S4_HUMP_CAL_SAMPLES);
+            s4_hump_state.base_y = (int32_t)(s4_hump_state.sum_y / S4_HUMP_CAL_SAMPLES);
+            s4_hump_state.base_z = (int32_t)(s4_hump_state.sum_z / S4_HUMP_CAL_SAMPLES);
             s4_hump_state.calibrated    = (0U != s4_hump_state.base_total);
             tm_printf((UB*)"S4: roll baseline %s; axes L=%u V=%u\n",
                       s4_hump_state.calibrated ? "ready" : "invalid",
@@ -99,11 +184,17 @@ static void s4_hump_step(const imu_vector_t *p_raw)
                 s4_hump_state.sum_lateral  = 0;
                 s4_hump_state.sum_vertical = 0;
                 s4_hump_state.sum_total    = 0U;
+                s4_hump_state.sum_x        = 0;
+                s4_hump_state.sum_y        = 0;
+                s4_hump_state.sum_z        = 0;
                 s4_hump_state.cal_samples  = 0U;
             }
         }
         return;
     }
+
+    /* ---- Picked up (before noisy samples are dropped) ---- */
+    s4_lift_step(p_raw, total);
 
     /* ---- Reject noisy samples ---- */
     if ((0U == plane) || (0U == s4_hump_state.base_total) ||
