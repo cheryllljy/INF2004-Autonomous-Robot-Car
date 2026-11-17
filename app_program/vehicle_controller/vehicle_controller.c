@@ -162,16 +162,6 @@ static void enter(vc_state_t next)
 {
     if (next != vc.state)
     {
-        if ((VC_STATE_IDLE == next) || (VC_STATE_STOPPED == next) ||
-            (VC_STATE_ESTOP == next))
-        {
-            report_white_run();
-            if (vc.hump_max_mm > 0U)
-            {
-                tm_printf((UB *)"[VC] highest hump this run: %d mm\n",
-                          (int)vc.hump_max_mm);
-            }
-        }
         if (((VC_STATE_LINE_FOLLOW == next) || (VC_STATE_OBSTACLE == next)) &&
             ((VC_STATE_IDLE == vc.state) || (VC_STATE_STOPPED == vc.state)))
         {
