@@ -112,7 +112,13 @@
 /* ---------------------------------------------------------------------
  *  Detection while line following (FR21: within 300 mm)
  * --------------------------------------------------------------------- */
-#define S5_DETECT_MM      (300) /* 30 cm */
+/* line following (and the line search) stops for an object this near */
+#ifndef S5_STOP_MM
+#define S5_STOP_MM (180) /* 18 cm */
+#endif
+/* during a bypass, another object this near ahead or in the pass lane
+ * stops the car (18 cm here left no room to go round a second box) */
+#define S5_DETECT_MM (300) /* 30 cm */
 #define S5_DETECT_CONFIRM (2U)  /* pings in a row at or under it */
 #define S5_STALE_MS       (250) /* NFR10: an older range is unknown */
 /* FR25: driving with no new ping for this long is a sensor fault */

@@ -168,7 +168,7 @@
  * stays near R120 (R122; was R112). Needs that KP: with Buddy 2's old KP
  * 0.5 these two speeds lost more lines than 30 / 15 (go back to those). */
 #ifndef B3_CURVE_SPEED_MM_S
-#define B3_CURVE_SPEED_MM_S 35
+#define B3_CURVE_SPEED_MM_S 30 /* 35 turned left too weakly */
 #endif
 /* the steering moves towards what the sensors ask by at most this much
  * per mm driven, so a sensor touching the line is a nudge, not a jerk */
@@ -188,7 +188,7 @@
  * with IR spots that read black at the tape edge (-s 9): floor 15 lost
  * 10 runs, floor 19 lost 1 (F17, lost at 30/15 too). */
 #ifndef B3_MIN_WHEEL_MM_S
-#define B3_MIN_WHEEL_MM_S 19
+#define B3_MIN_WHEEL_MM_S 15 /* with 30 mm/s bends; 19 went with 35 */
 #endif
 /* both IRs black in a bend. Following a bend of radius
  * R, the tape crosses the IR pair at asin(125 / R) to the car (39 deg at

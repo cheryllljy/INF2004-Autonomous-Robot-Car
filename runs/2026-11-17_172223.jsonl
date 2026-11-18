@@ -1,0 +1,29 @@
+{"kind":"run_start","wall":"2026-11-17T17:22:23.806","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"event","wall":"2026-11-17T17:22:21.916","text":"[VC] TERRAIN_REPORT seq=3 classification=ROLL_HUMP peak_side_height_est=21 mm duration=1620 ms imu_samples=25","t_ms":-1875,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:21.916","text":"[VC] car picked up (IMU): jolt, 139 percent of 1 g, E-STOP","t_ms":-1875,"before_start":true}
+{"kind":"note","wall":"2026-11-17T17:22:22.889","text":"Sent START (seq 221)","t_ms":-905,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:23.327","text":"[VC] E-stop set by the IMU: car tilted or picked up","t_ms":-468,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:23.327","text":"[VC] line sensors black L 136 / R 136 mm, 136 mm together, not a junction: too slow on average (needs 6 mm each at 15 mm/s)","t_ms":-468,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:23.336","text":"[VC] MQTT RESET received seq=220","t_ms":-468,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:23.611","text":"[VC] state 5 -> 0","t_ms":-186,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:23.614","text":"[VC] MQTT START received seq=221","t_ms":-186,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:23.803","text":"[VC] state 0 -> 1","t_ms":0,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:23.804","text":"[VC] barcode scan started","t_ms":0,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:22:23.806","text":"[VC] barcode sensor black on a hump: not backing up","t_ms":0,"before_start":true}
+{"kind":"sample","wall":"2026-11-17T17:22:23.806","t_ms":0,"seq":108,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":136,"speed_r":160,"distance":190,"range":0,"letter":"","junctions":0,"lift":21,"hump":21,"uptime":27,"lost":3}
+{"kind":"sample","wall":"2026-11-17T17:22:23.960","t_ms":156,"seq":109,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":false,"faults":0,"fault_names":[],"speed_l":166,"speed_r":128,"distance":219,"range":0,"letter":"","junctions":0,"lift":15,"hump":21,"uptime":27,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:22:24.149","t_ms":344,"seq":110,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":150,"speed_r":130,"distance":248,"range":0,"letter":"","junctions":0,"lift":15,"hump":21,"uptime":27,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:22:24.367","t_ms":563,"seq":111,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":146,"speed_r":138,"distance":277,"range":0,"letter":"","junctions":0,"lift":15,"hump":21,"uptime":27,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:22:24.723","t_ms":922,"seq":112,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":150,"speed_r":142,"distance":305,"range":0,"letter":"","junctions":0,"lift":19,"hump":21,"uptime":27,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:22:24.975","t_ms":1172,"seq":113,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":150,"speed_r":146,"distance":335,"range":0,"letter":"","junctions":0,"lift":20,"hump":21,"uptime":28,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:22:26.978","t_ms":3188,"seq":114,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":150,"speed_r":150,"distance":365,"range":0,"letter":"","junctions":0,"lift":18,"hump":21,"uptime":28,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:22:27.027","t_ms":3235,"seq":115,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":140,"speed_r":140,"distance":393,"range":0,"letter":"","junctions":0,"lift":15,"hump":21,"uptime":28,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:22:27.027","t_ms":3235,"seq":116,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":144,"speed_r":140,"distance":421,"range":0,"letter":"","junctions":0,"lift":15,"hump":21,"uptime":28,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:22:27.027","text":"[VC] car picked up (IMU): jolt, 152 percent of 1 g, E-STOP","t_ms":3235}
+{"kind":"sample","wall":"2026-11-17T17:22:27.027","t_ms":3235,"seq":117,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":150,"speed_r":138,"distance":450,"range":1998,"letter":"","junctions":0,"lift":15,"hump":21,"uptime":28,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:22:27.027","text":"[VC] E-stop set by the IMU: car tilted or picked up","t_ms":3235}
+{"kind":"event","wall":"2026-11-17T17:22:27.027","text":"[VC] E-stop, fault bits 0x04","t_ms":3235}
+{"kind":"sample","wall":"2026-11-17T17:22:27.027","t_ms":3235,"seq":118,"state":5,"state_name":"ESTOP","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":4,"fault_names":["IMU / tilt"],"speed_l":0,"speed_r":0,"distance":457,"range":1991,"letter":"","junctions":0,"lift":14,"hump":21,"uptime":29,"lost":0}
+{"kind":"run_end","wall":"2026-11-17T17:22:27.027","t_ms":3235,"state":5,"state_name":"ESTOP","reason":"state ESTOP"}
+{"kind":"event","wall":"2026-11-17T17:22:27.118","text":"[VC] state 1 -> 5","t_ms":3313,"after_end":true}
+{"kind":"event","wall":"2026-11-17T17:22:27.118","text":"[VC] car picked up (IMU): tilted, 109 percent of 1 g, E-STOP","t_ms":3313,"after_end":true}

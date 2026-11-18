@@ -575,7 +575,7 @@ static void s5_read(uint32_t req)
     {
         if (p.b_valid)
         {
-            if ((0U != p.mm) && (p.mm <= (uint16_t)S5_DETECT_MM))
+            if ((0U != p.mm) && (p.mm <= (uint16_t)S5_STOP_MM))
             {
                 g_d.close_run++;
             }

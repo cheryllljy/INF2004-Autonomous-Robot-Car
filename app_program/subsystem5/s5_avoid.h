@@ -65,7 +65,7 @@ void s5_avoid_init(void);
  * following the line (its direction is learnt from these passes). */
 void s5_avoid_track(const motion_status_t *p_m, bool b_following);
 
-/* True: stop now, something is within S5_DETECT_MM ahead. Only while
+/* True: stop now, something is within S5_STOP_MM ahead. Only while
  * b_armed (line following, nothing else driving). */
 bool s5_avoid_check(bool b_armed);
 

@@ -1,0 +1,144 @@
+{"kind":"run_start","wall":"2026-11-17T17:59:39.413","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"event","wall":"2026-11-17T17:59:37.425","text":"[VC] MQTT RESET received seq=35","t_ms":-1985,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:59:37.425","text":"[VC] state 5 -> 0","t_ms":-1985,"before_start":true}
+{"kind":"note","wall":"2026-11-17T17:59:39.179","text":"Sent START (seq 36)","t_ms":-235,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:59:39.333","text":"[VC] MQTT START received seq=36","t_ms":-78,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:59:39.334","text":"[VC] state 0 -> 1","t_ms":-78,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:59:39.334","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 93 R 101 mm/s)","t_ms":-78,"before_start":true}
+{"kind":"event","wall":"2026-11-17T17:59:39.413","text":"[VC] hump over: Buddy 3's speeds again","t_ms":0,"before_start":true}
+{"kind":"sample","wall":"2026-11-17T17:59:39.413","t_ms":0,"seq":123,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":24,"speed_r":22,"distance":1483,"range":0,"letter":"","junctions":2,"lift":8,"hump":8,"uptime":132,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:39.417","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":14}
+{"kind":"event","wall":"2026-11-17T17:59:42.169","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":2764}
+{"kind":"event","wall":"2026-11-17T17:59:42.170","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":2764}
+{"kind":"event","wall":"2026-11-17T17:59:42.170","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":2764}
+{"kind":"event","wall":"2026-11-17T17:59:42.257","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":2843}
+{"kind":"sample","wall":"2026-11-17T17:59:42.259","t_ms":2858,"seq":124,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":20,"speed_r":42,"distance":1490,"range":1770,"letter":"","junctions":2,"lift":9,"hump":9,"uptime":132,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:42.261","t_ms":2858,"seq":125,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":24,"speed_r":40,"distance":1495,"range":0,"letter":"","junctions":2,"lift":8,"hump":9,"uptime":132,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:42.263","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 36 R 44 mm/s)","t_ms":2858}
+{"kind":"event","wall":"2026-11-17T17:59:42.263","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":2858}
+{"kind":"sample","wall":"2026-11-17T17:59:42.266","t_ms":2858,"seq":126,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":70,"speed_r":80,"distance":1506,"range":0,"letter":"","junctions":2,"lift":8,"hump":9,"uptime":133,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:42.266","t_ms":2858,"seq":127,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":false,"faults":0,"fault_names":[],"speed_l":72,"speed_r":80,"distance":1521,"range":0,"letter":"","junctions":2,"lift":6,"hump":9,"uptime":133,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:42.332","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":2921}
+{"kind":"event","wall":"2026-11-17T17:59:42.333","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":2921}
+{"kind":"event","wall":"2026-11-17T17:59:42.333","text":"[VC] hump top passed (IMU, 8 mm): 50 mm/s faster until level again","t_ms":2921}
+{"kind":"event","wall":"2026-11-17T17:59:43.627","text":"[VC] hump over: Buddy 3's speeds again","t_ms":4218}
+{"kind":"event","wall":"2026-11-17T17:59:43.627","text":"[VC] TERRAIN_REPORT seq=20 classification=ROLL_HUMP peak_side_height_est=9 mm duration=12400 ms imu_samples=600","t_ms":4218}
+{"kind":"event","wall":"2026-11-17T17:59:43.627","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 89 R 87 mm/s)","t_ms":4218}
+{"kind":"sample","wall":"2026-11-17T17:59:43.627","t_ms":4218,"seq":138,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":80,"speed_r":78,"distance":1747,"range":1117,"letter":"","junctions":2,"lift":6,"hump":9,"uptime":135,"lost":10}
+{"kind":"event","wall":"2026-11-17T17:59:43.692","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":4280}
+{"kind":"event","wall":"2026-11-17T17:59:43.692","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":4280}
+{"kind":"event","wall":"2026-11-17T17:59:43.692","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":4280}
+{"kind":"sample","wall":"2026-11-17T17:59:43.692","t_ms":4280,"seq":139,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":112,"speed_r":116,"distance":1766,"range":1129,"letter":"","junctions":2,"lift":5,"hump":9,"uptime":135,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:43.692","t_ms":4280,"seq":140,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":140,"speed_r":134,"distance":1791,"range":1104,"letter":"","junctions":2,"lift":5,"hump":9,"uptime":135,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:43.692","t_ms":4280,"seq":141,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":96,"speed_r":114,"distance":1819,"range":1080,"letter":"","junctions":2,"lift":5,"hump":9,"uptime":136,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:43.692","t_ms":4280,"seq":142,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":86,"speed_r":88,"distance":1836,"range":0,"letter":"","junctions":2,"lift":7,"hump":9,"uptime":136,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:43.731","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":4327}
+{"kind":"event","wall":"2026-11-17T17:59:43.738","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":4327}
+{"kind":"event","wall":"2026-11-17T17:59:43.738","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":4327}
+{"kind":"event","wall":"2026-11-17T17:59:43.804","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":4389}
+{"kind":"event","wall":"2026-11-17T17:59:43.804","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":4389}
+{"kind":"event","wall":"2026-11-17T17:59:43.804","text":"[VC] hump top passed (IMU, 8 mm): 50 mm/s faster until level again","t_ms":4389}
+{"kind":"sample","wall":"2026-11-17T17:59:44.020","t_ms":4608,"seq":145,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":124,"speed_r":122,"distance":1893,"range":1008,"letter":"","junctions":2,"lift":7,"hump":9,"uptime":136,"lost":2}
+{"kind":"event","wall":"2026-11-17T17:59:44.034","text":"[VC] TERRAIN_REPORT seq=21 classification=ROLL_HUMP peak_side_height_est=9 mm duration=440 ms imu_samples=19","t_ms":4625}
+{"kind":"event","wall":"2026-11-17T17:59:44.034","text":"[VC] hump over: Buddy 3's speeds again","t_ms":4625}
+{"kind":"event","wall":"2026-11-17T17:59:44.034","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 95 R 95 mm/s)","t_ms":4625}
+{"kind":"sample","wall":"2026-11-17T17:59:44.110","t_ms":4702,"seq":146,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":98,"speed_r":100,"distance":1919,"range":975,"letter":"","junctions":2,"lift":4,"hump":9,"uptime":137,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:44.120","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":4718}
+{"kind":"event","wall":"2026-11-17T17:59:44.120","text":"[VC] hump top passed (IMU, 8 mm): 50 mm/s faster until level again","t_ms":4718}
+{"kind":"event","wall":"2026-11-17T17:59:44.120","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":4718}
+{"kind":"event","wall":"2026-11-17T17:59:44.145","text":"[VC] hump over: Buddy 3's speeds again","t_ms":4733}
+{"kind":"event","wall":"2026-11-17T17:59:44.145","text":"[VC] TERRAIN_REPORT seq=22 classification=ROLL_HUMP peak_side_height_est=8 mm duration=320 ms imu_samples=8","t_ms":4733}
+{"kind":"event","wall":"2026-11-17T17:59:44.145","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 84 R 82 mm/s)","t_ms":4733}
+{"kind":"event","wall":"2026-11-17T17:59:44.238","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":4827}
+{"kind":"event","wall":"2026-11-17T17:59:44.238","text":"[VC] hump top passed (IMU, 8 mm): 50 mm/s faster until level again","t_ms":4827}
+{"kind":"event","wall":"2026-11-17T17:59:44.244","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":4843}
+{"kind":"sample","wall":"2026-11-17T17:59:44.244","t_ms":4843,"seq":147,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":96,"speed_r":98,"distance":1937,"range":959,"letter":"","junctions":2,"lift":8,"hump":9,"uptime":137,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:44.318","text":"[VC] TERRAIN_REPORT seq=23 classification=ROLL_HUMP peak_side_height_est=8 mm duration=380 ms imu_samples=13","t_ms":4905}
+{"kind":"event","wall":"2026-11-17T17:59:44.320","text":"[VC] hump over: Buddy 3's speeds again","t_ms":4905}
+{"kind":"event","wall":"2026-11-17T17:59:44.320","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 92 R 92 mm/s)","t_ms":4905}
+{"kind":"event","wall":"2026-11-17T17:59:44.409","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":5000}
+{"kind":"event","wall":"2026-11-17T17:59:44.412","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":5000}
+{"kind":"event","wall":"2026-11-17T17:59:44.412","text":"[VC] hump top passed (IMU, 8 mm): 50 mm/s faster until level again","t_ms":5000}
+{"kind":"sample","wall":"2026-11-17T17:59:44.470","t_ms":5061,"seq":148,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":146,"speed_r":150,"distance":1962,"range":938,"letter":"","junctions":2,"lift":6,"hump":9,"uptime":137,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:44.470","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":5061}
+{"kind":"event","wall":"2026-11-17T17:59:44.470","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":5061}
+{"kind":"event","wall":"2026-11-17T17:59:44.470","text":"[VC] TERRAIN_REPORT seq=24 classification=ROLL_HUMP peak_side_height_est=9 mm duration=300 ms imu_samples=9","t_ms":5061}
+{"kind":"event","wall":"2026-11-17T17:59:44.541","text":"[VC] hump over: Buddy 3's speeds again","t_ms":5139}
+{"kind":"event","wall":"2026-11-17T17:59:44.542","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 95 R 95 mm/s)","t_ms":5139}
+{"kind":"event","wall":"2026-11-17T17:59:44.542","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":5139}
+{"kind":"event","wall":"2026-11-17T17:59:44.606","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":5202}
+{"kind":"event","wall":"2026-11-17T17:59:44.608","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":5202}
+{"kind":"event","wall":"2026-11-17T17:59:44.609","text":"[VC] hump top passed (IMU, 8 mm): 50 mm/s faster until level again","t_ms":5202}
+{"kind":"sample","wall":"2026-11-17T17:59:44.706","t_ms":5296,"seq":149,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":138,"speed_r":136,"distance":1992,"range":912,"letter":"","junctions":2,"lift":4,"hump":9,"uptime":137,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:44.706","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":5296}
+{"kind":"event","wall":"2026-11-17T17:59:44.706","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":5296}
+{"kind":"event","wall":"2026-11-17T17:59:44.706","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":5296}
+{"kind":"event","wall":"2026-11-17T17:59:44.889","text":"[VC] TERRAIN_REPORT seq=25 classification=ROLL_HUMP peak_side_height_est=9 mm duration=340 ms imu_samples=11","t_ms":5483}
+{"kind":"event","wall":"2026-11-17T17:59:44.899","text":"[VC] hump over: Buddy 3's speeds again","t_ms":5483}
+{"kind":"event","wall":"2026-11-17T17:59:44.899","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 98 R 98 mm/s)","t_ms":5483}
+{"kind":"sample","wall":"2026-11-17T17:59:44.900","t_ms":5500,"seq":150,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":94,"speed_r":94,"distance":2011,"range":833,"letter":"","junctions":2,"lift":7,"hump":9,"uptime":137,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:44.970","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":5561}
+{"kind":"event","wall":"2026-11-17T17:59:44.970","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":5561}
+{"kind":"sample","wall":"2026-11-17T17:59:46.253","t_ms":6843,"seq":151,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":false,"faults":0,"fault_names":[],"speed_l":96,"speed_r":98,"distance":2029,"range":819,"letter":"","junctions":2,"lift":7,"hump":9,"uptime":138,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:46.253","text":"[VC] hump top passed (IMU, 8 mm): 50 mm/s faster until level again","t_ms":6843}
+{"kind":"event","wall":"2026-11-17T17:59:46.253","text":"[VC] hump over: Buddy 3's speeds again","t_ms":6843}
+{"kind":"event","wall":"2026-11-17T17:59:46.402","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":7000}
+{"kind":"event","wall":"2026-11-17T17:59:46.404","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":7000}
+{"kind":"event","wall":"2026-11-17T17:59:46.404","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 88 R 76 mm/s)","t_ms":7000}
+{"kind":"sample","wall":"2026-11-17T17:59:46.404","t_ms":7000,"seq":152,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":148,"speed_r":134,"distance":2054,"range":793,"letter":"","junctions":2,"lift":6,"hump":9,"uptime":138,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:46.404","t_ms":7000,"seq":153,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":136,"speed_r":136,"distance":2081,"range":761,"letter":"","junctions":2,"lift":7,"hump":9,"uptime":138,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:46.404","t_ms":7000,"seq":154,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":138,"speed_r":138,"distance":2111,"range":717,"letter":"","junctions":2,"lift":5,"hump":9,"uptime":138,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:46.404","t_ms":7000,"seq":155,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":138,"speed_r":122,"distance":2138,"range":690,"letter":"","junctions":2,"lift":6,"hump":9,"uptime":138,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:46.605","text":"[VC] hump over: Buddy 3's speeds again","t_ms":7202}
+{"kind":"event","wall":"2026-11-17T17:59:46.608","text":"[VC] TERRAIN_REPORT seq=26 classification=ROLL_HUMP peak_side_height_est=8 mm duration=960 ms imu_samples=21","t_ms":7202}
+{"kind":"sample","wall":"2026-11-17T17:59:46.608","t_ms":7202,"seq":158,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":86,"speed_r":84,"distance":2189,"range":642,"letter":"","junctions":2,"lift":6,"hump":9,"uptime":139,"lost":2}
+{"kind":"event","wall":"2026-11-17T17:59:46.710","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 90 R 88 mm/s)","t_ms":7296}
+{"kind":"event","wall":"2026-11-17T17:59:46.710","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":7296}
+{"kind":"sample","wall":"2026-11-17T17:59:46.712","t_ms":7296,"seq":159,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":88,"speed_r":92,"distance":2206,"range":620,"letter":"","junctions":2,"lift":10,"hump":10,"uptime":139,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:47.811","text":"[VC] hump top passed (IMU, 10 mm): 50 mm/s faster until level again","t_ms":8405}
+{"kind":"event","wall":"2026-11-17T17:59:48.061","text":"[VC] hump over: Buddy 3's speeds again","t_ms":8655}
+{"kind":"sample","wall":"2026-11-17T17:59:48.063","t_ms":8655,"seq":160,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":false,"faults":0,"fault_names":[],"speed_l":118,"speed_r":120,"distance":2228,"range":601,"letter":"","junctions":2,"lift":9,"hump":10,"uptime":139,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:48.063","t_ms":8655,"seq":161,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":122,"speed_r":104,"distance":2253,"range":575,"letter":"","junctions":2,"lift":10,"hump":10,"uptime":140,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:48.063","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 70 R 58 mm/s)","t_ms":8655}
+{"kind":"sample","wall":"2026-11-17T17:59:48.063","t_ms":8655,"seq":162,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":126,"speed_r":136,"distance":2275,"range":558,"letter":"","junctions":2,"lift":9,"hump":11,"uptime":140,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:48.065","text":"[VC] hump over: Buddy 3's speeds again","t_ms":8655}
+{"kind":"event","wall":"2026-11-17T17:59:48.172","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":8764}
+{"kind":"event","wall":"2026-11-17T17:59:48.172","text":"[VC] hump 10 mm: right wheel 10 mm/s faster","t_ms":8764}
+{"kind":"event","wall":"2026-11-17T17:59:48.174","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":8764}
+{"kind":"event","wall":"2026-11-17T17:59:48.295","text":"[VC] hump 10 mm: right wheel 10 mm/s faster","t_ms":8889}
+{"kind":"event","wall":"2026-11-17T17:59:48.297","text":"[VC] barcode scan started","t_ms":8889}
+{"kind":"event","wall":"2026-11-17T17:59:48.297","text":"[VC] barcode sensor black on a hump (tilt 7.0 deg, side lift 9 mm): not backing up","t_ms":8889}
+{"kind":"sample","wall":"2026-11-17T17:59:48.301","t_ms":8889,"seq":167,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":128,"speed_r":142,"distance":2387,"range":450,"letter":"","junctions":2,"lift":8,"hump":11,"uptime":141,"lost":4}
+{"kind":"event","wall":"2026-11-17T17:59:48.451","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 30 R 36 mm/s)","t_ms":9046}
+{"kind":"event","wall":"2026-11-17T17:59:48.451","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":9046}
+{"kind":"event","wall":"2026-11-17T17:59:48.451","text":"[VC] hump 8 mm: right wheel 10 mm/s faster","t_ms":9046}
+{"kind":"sample","wall":"2026-11-17T17:59:48.451","t_ms":9046,"seq":168,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":70,"speed_r":84,"distance":2407,"range":430,"letter":"","junctions":2,"lift":11,"hump":11,"uptime":141,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:48.511","text":"[VC] curve: asked R272 (L 97 R 124 mm/s), wheels L 95 R 117 mm/s = R539, IRs ww","t_ms":9108}
+{"kind":"event","wall":"2026-11-17T17:59:48.511","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":9108}
+{"kind":"event","wall":"2026-11-17T17:59:48.511","text":"[VC] hump 9 mm: right wheel 10 mm/s faster","t_ms":9108}
+{"kind":"sample","wall":"2026-11-17T17:59:48.622","t_ms":9218,"seq":169,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":76,"speed_r":90,"distance":2424,"range":414,"letter":"","junctions":2,"lift":9,"hump":11,"uptime":141,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:49.944","t_ms":10530,"seq":170,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":76,"speed_r":92,"distance":2439,"range":407,"letter":"","junctions":2,"lift":9,"hump":11,"uptime":141,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:50.146","t_ms":10733,"seq":171,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":76,"speed_r":90,"distance":2457,"range":383,"letter":"","junctions":2,"lift":11,"hump":11,"uptime":142,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:50.146","t_ms":10733,"seq":172,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":76,"speed_r":88,"distance":2474,"range":376,"letter":"","junctions":2,"lift":10,"hump":11,"uptime":142,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:50.146","t_ms":10733,"seq":173,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":60,"speed_r":102,"distance":2491,"range":358,"letter":"","junctions":2,"lift":12,"hump":12,"uptime":142,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:50.146","t_ms":10733,"seq":174,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":62,"speed_r":62,"distance":2503,"range":351,"letter":"","junctions":2,"lift":12,"hump":13,"uptime":142,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:50.146","t_ms":10733,"seq":175,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":42,"speed_r":62,"distance":2514,"range":362,"letter":"","junctions":2,"lift":8,"hump":13,"uptime":142,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:50.146","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":10733}
+{"kind":"event","wall":"2026-11-17T17:59:50.209","text":"[VC] TERRAIN_REPORT seq=27 classification=ROLL_HUMP peak_side_height_est=13 mm duration=3480 ms imu_samples=104","t_ms":10796}
+{"kind":"event","wall":"2026-11-17T17:59:50.211","text":"[VC] hump over: Buddy 3's speeds again","t_ms":10796}
+{"kind":"event","wall":"2026-11-17T17:59:50.211","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 85 R 87 mm/s)","t_ms":10796}
+{"kind":"event","wall":"2026-11-17T17:59:50.290","text":"[VC] hump 10 mm: right wheel 10 mm/s faster","t_ms":10889}
+{"kind":"sample","wall":"2026-11-17T17:59:50.290","t_ms":10889,"seq":177,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":108,"speed_r":138,"distance":2556,"range":358,"letter":"","junctions":2,"lift":6,"hump":13,"uptime":143,"lost":1}
+{"kind":"event","wall":"2026-11-17T17:59:50.290","text":"[VC] hump top passed (IMU, 10 mm): 50 mm/s faster until level again","t_ms":10889}
+{"kind":"event","wall":"2026-11-17T17:59:50.290","text":"[VC] hump under 8 mm: right wheel as asked","t_ms":10889}
+{"kind":"event","wall":"2026-11-17T17:59:50.431","text":"[VC] TERRAIN_REPORT seq=28 classification=ROLL_HUMP peak_side_height_est=10 mm duration=180 ms imu_samples=3","t_ms":11030}
+{"kind":"event","wall":"2026-11-17T17:59:50.432","text":"[VC] hump over: Buddy 3's speeds again","t_ms":11030}
+{"kind":"event","wall":"2026-11-17T17:59:50.474","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 88 R 90 mm/s)","t_ms":11061}
+{"kind":"event","wall":"2026-11-17T17:59:50.474","text":"[VC] hump 9 mm: right wheel 10 mm/s faster","t_ms":11061}
+{"kind":"sample","wall":"2026-11-17T17:59:50.474","t_ms":11061,"seq":178,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":104,"speed_r":112,"distance":2580,"range":395,"letter":"","junctions":2,"lift":9,"hump":13,"uptime":143,"lost":0}
+{"kind":"sample","wall":"2026-11-17T17:59:50.700","t_ms":11296,"seq":179,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":104,"speed_r":122,"distance":2603,"range":470,"letter":"","junctions":2,"lift":14,"hump":14,"uptime":143,"lost":0}
+{"kind":"event","wall":"2026-11-17T17:59:50.774","text":"[VC] car lifted: all three IR sensors saw no floor for 102 mm","t_ms":11375}
+{"kind":"event","wall":"2026-11-17T17:59:50.774","text":"[VC] E-stop, fault bits 0x20","t_ms":11375}
+{"kind":"event","wall":"2026-11-17T17:59:50.774","text":"[VC] state 1 -> 5","t_ms":11375}
+{"kind":"sample","wall":"2026-11-17T17:59:50.907","t_ms":11500,"seq":180,"state":5,"state_name":"ESTOP","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":32,"fault_names":["line (lost / lifted / Buddy 3)"],"speed_l":86,"speed_r":102,"distance":2624,"range":490,"letter":"","junctions":2,"lift":21,"hump":18,"uptime":143,"lost":0}
+{"kind":"run_end","wall":"2026-11-17T17:59:50.907","t_ms":11500,"state":5,"state_name":"ESTOP","reason":"state ESTOP"}

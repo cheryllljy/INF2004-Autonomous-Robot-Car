@@ -1,0 +1,43 @@
+{"kind":"run_start","wall":"2026-11-17T19:06:46.390","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"note","wall":"2026-11-17T19:06:45.791","text":"Sent START (seq 173)","t_ms":-594,"before_start":true}
+{"kind":"event","wall":"2026-11-17T19:06:46.390","text":"[VC] MQTT START received seq=173","t_ms":0,"before_start":true}
+{"kind":"event","wall":"2026-11-17T19:06:46.390","text":"[VC] state 0 -> 1","t_ms":0,"before_start":true}
+{"kind":"sample","wall":"2026-11-17T19:06:46.390","t_ms":0,"seq":152,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":24,"speed_r":12,"distance":3047,"range":1856,"letter":"","junctions":2,"lift":1,"hump":0,"uptime":246,"lost":3}
+{"kind":"sample","wall":"2026-11-17T19:06:46.394","t_ms":0,"seq":153,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":102,"speed_r":106,"distance":3063,"range":1842,"letter":"","junctions":2,"lift":0,"hump":0,"uptime":246,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:46.617","t_ms":219,"seq":154,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":102,"speed_r":104,"distance":3084,"range":1820,"letter":"","junctions":2,"lift":0,"hump":0,"uptime":247,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:46.828","t_ms":437,"seq":155,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":false,"faults":0,"fault_names":[],"speed_l":102,"speed_r":104,"distance":3103,"range":1809,"letter":"","junctions":2,"lift":1,"hump":0,"uptime":247,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:46.971","t_ms":577,"seq":156,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":false,"faults":0,"fault_names":[],"speed_l":86,"speed_r":84,"distance":3122,"range":1780,"letter":"","junctions":2,"lift":2,"hump":0,"uptime":247,"lost":0}
+{"kind":"event","wall":"2026-11-17T19:06:47.111","text":"[VC] end of the ramp passed: right turns allowed again","t_ms":719}
+{"kind":"event","wall":"2026-11-17T19:06:47.205","text":"[VC] barcode scan started","t_ms":812}
+{"kind":"sample","wall":"2026-11-17T19:06:47.205","t_ms":812,"seq":157,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":18,"speed_r":16,"distance":3129,"range":1773,"letter":"","junctions":2,"lift":2,"hump":0,"uptime":247,"lost":0}
+{"kind":"event","wall":"2026-11-17T19:06:47.314","text":"[VC] barcode ahead at 6 mm/s (tilt 3.2 deg): stopping to back up","t_ms":922}
+{"kind":"event","wall":"2026-11-17T19:06:47.434","text":"[VC] barcode: stopped 0 mm past it, backing up 100 mm","t_ms":1047}
+{"kind":"sample","wall":"2026-11-17T19:06:47.434","t_ms":1047,"seq":158,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":false,"faults":0,"fault_names":[],"speed_l":0,"speed_r":0,"distance":3129,"range":1773,"letter":"","junctions":2,"lift":2,"hump":0,"uptime":247,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:50.092","t_ms":3702,"seq":159,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":true,"ir_b":false,"faults":0,"fault_names":[],"speed_l":-38,"speed_r":-40,"distance":3123,"range":1776,"letter":"","junctions":2,"lift":3,"hump":0,"uptime":248,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:50.193","t_ms":3797,"seq":160,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":-104,"speed_r":-112,"distance":3104,"range":1792,"letter":"","junctions":2,"lift":1,"hump":0,"uptime":248,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:50.194","t_ms":3797,"seq":161,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":-96,"speed_r":-92,"distance":3085,"range":1813,"letter":"","junctions":2,"lift":2,"hump":0,"uptime":248,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:50.194","t_ms":3797,"seq":162,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":-100,"speed_r":-98,"distance":3065,"range":1831,"letter":"","junctions":2,"lift":1,"hump":0,"uptime":248,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:50.194","t_ms":3797,"seq":163,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":-96,"speed_r":-98,"distance":3045,"range":1852,"letter":"","junctions":2,"lift":1,"hump":0,"uptime":248,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:50.194","t_ms":3797,"seq":164,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":-42,"speed_r":-42,"distance":3035,"range":1869,"letter":"","junctions":2,"lift":1,"hump":0,"uptime":249,"lost":0}
+{"kind":"sample","wall":"2026-11-17T19:06:50.194","t_ms":3797,"seq":165,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":-10,"speed_r":-12,"distance":3029,"range":1876,"letter":"","junctions":2,"lift":0,"hump":0,"uptime":249,"lost":0}
+{"kind":"event","wall":"2026-11-17T19:06:50.249","text":"[VC] barcode: backed up, reading it at 30 mm/s","t_ms":3859}
+{"kind":"note","wall":"2026-11-17T19:06:58.384","text":"Sent RESET (seq 174)","t_ms":12000}
+{"kind":"note","wall":"2026-11-17T19:07:00.393","text":"Sent START (seq 175)","t_ms":14000}
+{"kind":"note","wall":"2026-11-17T19:07:03.327","text":"Pico W is OFFLINE","t_ms":16937}
+{"kind":"note","wall":"2026-11-17T19:07:03.471","text":"Sent RESET (seq 176)","t_ms":17077}
+{"kind":"note","wall":"2026-11-17T19:07:03.689","text":"Pico W is ONLINE","t_ms":17297}
+{"kind":"note","wall":"2026-11-17T19:07:03.693","text":"Barcode mapping received: A->LEFT, B->RIGHT, C->FORWARD, D->U-TURN","t_ms":17297}
+{"kind":"sample","wall":"2026-11-17T19:07:03.832","t_ms":17437,"seq":0,"state":5,"state_name":"ESTOP","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":4,"fault_names":["IMU / tilt"],"speed_l":0,"speed_r":0,"distance":0,"range":1932,"letter":"","junctions":0,"lift":0,"hump":0,"uptime":7,"lost":0}
+{"kind":"run_end","wall":"2026-11-17T19:07:03.832","t_ms":17437,"state":5,"state_name":"ESTOP","reason":"state ESTOP"}
+{"kind":"event","wall":"2026-11-17T19:07:03.834","text":"[VC-S5] ready: HC-SR04P TRIG GP16 ECHO GP17, servo GP15, stops for objects within 180 mm","t_ms":17437,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:03.836","text":"[VC] IMU fault: no sample yet (status 0, age 0 ms)","t_ms":17437,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:03.911","text":"[VC] E-stop, fault bits 0x04","t_ms":17516,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:03.913","text":"[VC] state 0 -> 5","t_ms":17516,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:03.941","text":"[BUDDY1] FR3 monitor started","t_ms":17547,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:03.957","text":"[BUDDY1] FR3 communication unhealthy; monitoring","t_ms":17562,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:03.962","text":"[BUDDY1] FR3 communication restored","t_ms":17577,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:03.986","text":"[BUDDY1] FR3 recovery: latch=0 reason=0","t_ms":17594,"after_end":true}
+{"kind":"note","wall":"2026-11-17T19:07:05.160","text":"Sent STOP (seq 177)","t_ms":18766,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:05.345","text":"[VC] MQTT STOP received seq=177","t_ms":18952,"after_end":true}
+{"kind":"note","wall":"2026-11-17T19:07:05.480","text":"Sent START (seq 178)","t_ms":19094,"after_end":true}
+{"kind":"event","wall":"2026-11-17T19:07:05.677","text":"[VC] MQTT START received seq=178","t_ms":19280,"after_end":true}

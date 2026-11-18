@@ -12,7 +12,7 @@
  *      What it does is chosen by the VehicleController's task (through
  *      s5_avoid.c) with three requests:
  *        s5_sensor_guard()      sensor straight ahead; each ping says
- *                               whether something is within S5_DETECT_MM
+ *                               whether something is within S5_STOP_MM
  *                               (S5_DETECT_CONFIRM pings in a row)
  *        s5_sensor_look(angle)  sensor held at an angle (the bypass looks
  *                               at the object's corners with it)
@@ -41,7 +41,7 @@ typedef struct
     int16_t ddeg;      /* servo angle it was fired at, + = left */
     uint16_t mm;       /* range; 0 = nothing within S5_RANGE_MAX_MM */
     bool b_valid;      /* false: the sensor gave no echo pulse at all */
-    bool b_close;      /* guard: something within S5_DETECT_MM ahead */
+    bool b_close;      /* guard: something within S5_STOP_MM ahead */
 } s5_ping_t;
 
 typedef struct

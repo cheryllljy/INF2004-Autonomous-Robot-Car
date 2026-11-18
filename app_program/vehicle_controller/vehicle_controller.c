@@ -33,8 +33,56 @@ ID flg_vc = 0;
 static volatile uint32_t g_status_word; /* written only by vc_task */
 
 /* on a hump (subsystem4_on_hump(), the IMU's roll) line following runs
- * at this or faster, so the car does not stall on the climb */
-#define VC_HUMP_MIN_MM_S 80
+ * at this or faster, so the car does not stall on the climb. Above
+ * Buddy 3's straight-line speed (100), so it speeds up there too. */
+#ifndef VC_HUMP_MIN_MM_S
+#define VC_HUMP_MIN_MM_S 80 /* 150 sped the car up in bends */
+#endif
+/* the IMU also reports a hump in bends and turns, so the hump speed is
+ * used only while Buddy 3 asks for straight on: wheels apart by at most
+ * this percent of their average */
+#ifndef VC_HUMP_STRAIGHT_PCT
+#define VC_HUMP_STRAIGHT_PCT 20
+#endif
+/* past the top of a hump (the side lift has dropped this far below the
+ * highest it reached, and that was at least VC_HUMP_PEAK_MIN_MM) both
+ * wheels go this much faster, so the car does not slide off to the side
+ * on the way down. Until level again, at most VC_HUMP_PEAK_MAX_MS. */
+#ifndef VC_HUMP_PEAK_BOOST_MM_S
+#define VC_HUMP_PEAK_BOOST_MM_S 50
+#endif
+#ifndef VC_HUMP_PEAK_MIN_MM
+#define VC_HUMP_PEAK_MIN_MM 8
+#endif
+#ifndef VC_HUMP_PEAK_DROP_MM
+#define VC_HUMP_PEAK_DROP_MM 2
+#endif
+#ifndef VC_HUMP_PEAK_MAX_MS
+#define VC_HUMP_PEAK_MAX_MS 1500
+#endif
+/* side lift (subsystem4_side_lift_mm()) at or over this: on the hump,
+ * both wheels at the average of what Buddy 3 asks, the right plus this */
+#ifndef VC_HUMP_RIGHT_FROM_MM
+#define VC_HUMP_RIGHT_FROM_MM 8
+#endif
+#ifndef VC_HUMP_RIGHT_EXTRA_MM_S
+#define VC_HUMP_RIGHT_EXTRA_MM_S 0
+#endif
+/* on the hump, the left wheel plus this (negative: slower) */
+#ifndef VC_HUMP_LEFT_EXTRA_MM_S
+#define VC_HUMP_LEFT_EXTRA_MM_S (-8)
+#endif
+/* for VC_HUMP_END_MM after the hump (side lift back under
+ * VC_HUMP_RIGHT_FROM_MM): while both IRs are white (line in the middle)
+ * both wheels at the average speed, the right plus this, as
+ * Buddy 3 still asks for the right turn it learnt on the ramp; when an
+ * IR reads black, Buddy 3 steers the line back to the middle. */
+#ifndef VC_HUMP_END_EXTRA_MM_S
+#define VC_HUMP_END_EXTRA_MM_S -2
+#endif
+#ifndef VC_HUMP_END_MM
+#define VC_HUMP_END_MM 200
+#endif
 
 /* the arc takes about 4 s at 50 mm/s (8 s at 25) and the
  * U-turn about 5 s (vc_turn.c), so 5 s was too short. */
@@ -81,6 +129,11 @@ typedef struct
     int32_t cv_got_r;
     int32_t cv_curv;   /* Buddy 3's curve, 1e6 / radius mm */
     bool b_hump;       /* subsystem4_on_hump() last pass */
+    int32_t hump_top_mm;  /* highest side lift on this hump */
+    int32_t hump_peak_ms; /* since the top was passed; -1: not yet */
+    bool b_hump_right;    /* right wheel sped up for the hump */
+    bool b_hump_end;      /* end of the ramp: right wheel still faster */
+    int32_t hump_end_mm;  /* where the end of the ramp began */
     /* line-loss and lift checks: Buddy 3's last-black time and the
      * distance where the current white (or all-black) run began */
     bool b_ground_ref;
@@ -1165,16 +1218,58 @@ static int32_t curve_radius(int32_t l, int32_t r)
     return radius;
 }
 
-/* On a hump: both wheels scaled up together until their average is
- * VC_HUMP_MIN_MM_S, so the car keeps the curve Buddy 3 asked for. */
+/* On a hump: follows the side lift to its highest point, then adds
+ * VC_HUMP_PEAK_BOOST_MM_S to both wheels from just past the top. */
+static void hump_peak_boost(int16_t *p_left, int16_t *p_right)
+{
+    const int32_t lift = (int32_t)subsystem4_side_lift_mm();
+
+    if (vc.hump_peak_ms < 0)
+    {
+        if (lift > vc.hump_top_mm)
+        {
+            vc.hump_top_mm = lift;
+        }
+        else if ((vc.hump_top_mm >= VC_HUMP_PEAK_MIN_MM) &&
+                 (lift <= (vc.hump_top_mm - VC_HUMP_PEAK_DROP_MM)))
+        {
+            vc.hump_peak_ms = 0;
+            tm_printf((UB *)"[VC] hump top passed (IMU, %d mm): %d mm/s "
+                            "faster until level again\n",
+                      (int)vc.hump_top_mm, (int)VC_HUMP_PEAK_BOOST_MM_S);
+        }
+        else
+        {
+            /* still climbing, or too low to be the hump */
+        }
+    }
+    if ((vc.hump_peak_ms >= 0) && (vc.hump_peak_ms < VC_HUMP_PEAK_MAX_MS))
+    {
+        vc.hump_peak_ms += vc.dt_ms;
+        *p_left = (int16_t)(*p_left + VC_HUMP_PEAK_BOOST_MM_S);
+        *p_right = (int16_t)(*p_right + VC_HUMP_PEAK_BOOST_MM_S);
+    }
+}
+
+/* On a hump and going straight: both wheels scaled up together until
+ * their average is VC_HUMP_MIN_MM_S. In a bend or turn, Buddy 3's
+ * speeds as they are. */
 static void hump_min_speed(int16_t *p_left, int16_t *p_right)
 {
-    const bool b_hump = subsystem4_on_hump();
     const int32_t sum = (int32_t)*p_left + (int32_t)*p_right;
+    const int32_t diff = (int32_t)*p_left - (int32_t)*p_right;
+    const bool b_straight =
+        (sum > 0) && ((((diff < 0) ? -diff : diff) * 200) <=
+                      (VC_HUMP_STRAIGHT_PCT * sum));
+    const bool b_hump = subsystem4_on_hump() && b_straight;
 
     if (b_hump != vc.b_hump)
     {
         vc.b_hump = b_hump;
+        if (b_hump && (vc.hump_peak_ms < 0))
+        {
+            vc.hump_top_mm = 0;
+        }
         if (b_hump)
         {
             tm_printf((UB *)"[VC] hump (IMU): at least %d mm/s until level "
@@ -1186,12 +1281,94 @@ static void hump_min_speed(int16_t *p_left, int16_t *p_right)
             tm_printf((UB *)"[VC] hump over: Buddy 3's speeds again\n");
         }
     }
-    if ((!b_hump) || (sum <= 0) || (sum >= (2 * VC_HUMP_MIN_MM_S)))
+    if (!b_hump)
     {
+        if (subsystem4_on_hump() && (vc.hump_peak_ms >= 0))
+        {
+            /* past the top and steering: keep the boost */
+            hump_peak_boost(p_left, p_right);
+        }
+        else
+        {
+            vc.hump_top_mm = 0;
+            vc.hump_peak_ms = -1;
+        }
         return;
     }
-    *p_left = (int16_t)(((int32_t)*p_left * 2 * VC_HUMP_MIN_MM_S) / sum);
-    *p_right = (int16_t)(((int32_t)*p_right * 2 * VC_HUMP_MIN_MM_S) / sum);
+    if ((sum > 0) && (sum < (2 * VC_HUMP_MIN_MM_S)))
+    {
+        *p_left = (int16_t)(((int32_t)*p_left * 2 * VC_HUMP_MIN_MM_S) / sum);
+        *p_right =
+            (int16_t)(((int32_t)*p_right * 2 * VC_HUMP_MIN_MM_S) / sum);
+    }
+    hump_peak_boost(p_left, p_right);
+}
+
+/* On the hump (side lift VC_HUMP_RIGHT_FROM_MM or more): both wheels
+ * the same. For VC_HUMP_END_MM after it: both wheels the same while
+ * both IRs are white, Buddy 3 steers while an IR is black. */
+static void hump_right_extra(int16_t *p_left, int16_t *p_right)
+{
+    const int32_t lift = (int32_t)subsystem4_side_lift_mm();
+    const bool b_on = (lift >= VC_HUMP_RIGHT_FROM_MM);
+    const int16_t avg = (int16_t)(((int32_t)*p_left + *p_right) / 2);
+
+    if (b_on != vc.b_hump_right)
+    {
+        vc.b_hump_right = b_on;
+        if (b_on)
+        {
+            tm_printf((UB *)"[VC] hump %d mm: both wheels the same\n",
+                      (int)lift);
+        }
+        else
+        {
+            vc.b_hump_end = true;
+            vc.hump_end_mm = vc.motion.distance_total_mm;
+            tm_printf((UB *)"[VC] hump under %d mm: straight while the "
+                            "line is between the IRs, for "
+                            "%d mm more\n",
+                      (int)VC_HUMP_RIGHT_FROM_MM, (int)VC_HUMP_END_MM);
+        }
+    }
+    if (b_on)
+    {
+        vc.b_hump_end = false;
+        *p_left = (int16_t)(avg + VC_HUMP_LEFT_EXTRA_MM_S);
+        *p_right = (int16_t)(avg + VC_HUMP_RIGHT_EXTRA_MM_S);
+    }
+    else if (vc.b_hump_end)
+    {
+        if ((vc.motion.distance_total_mm - vc.hump_end_mm) >= VC_HUMP_END_MM)
+        {
+            vc.b_hump_end = false;
+            tm_printf((UB *)"[VC] end of the ramp passed: Buddy 3 "
+                            "steers again\n");
+        }
+        else if (!vc.line.line.left_black && !vc.line.line.right_black)
+        {
+            *p_left = avg;
+            *p_right = (int16_t)(avg + VC_HUMP_END_EXTRA_MM_S);
+        }
+        else
+        {
+            /* an IR on the line: Buddy 3 brings it back to the middle */
+        }
+    }
+    else
+    {
+        /* level */
+    }
+}
+
+bool vc_on_hump(void)
+{
+    return vc.b_hump;
+}
+
+bool vc_on_ramp(void)
+{
+    return vc.b_hump_right || vc.b_hump_end;
 }
 
 static void curve_log(int16_t ask_l, int16_t ask_r)
@@ -1289,6 +1466,7 @@ static void act(void)
                     vc.soft_ms += vc.dt_ms;
                 }
                 hump_min_speed(&left, &right);
+                hump_right_extra(&left, &right);
                 drive(left, right);
                 curve_log(left, right);
             }
@@ -1455,6 +1633,7 @@ ER vc_init(void)
     vc.state = VC_STATE_IDLE;
     vc.soft_ms = VC_SOFT_START_MS; /* no soft start yet */
     vc.dt_ms = VC_PERIOD_MS;
+    vc.hump_peak_ms = -1; /* no hump top passed yet */
     g_status_word = vc_status_pack(VC_STATE_IDLE, 0U, B3_NAV_NONE, 0, 0U, 0U);
     return E_OK;
 }

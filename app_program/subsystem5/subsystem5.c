@@ -54,7 +54,7 @@ ER subsystem5_init(void)
     S5_LOG("[VC-S5] ready: HC-SR04P TRIG GP%d ECHO GP%d, servo GP%d, "
            "stops for objects within %d mm%s\n",
            (int)S5_TRIG_GPIO, (int)S5_ECHO_GPIO, (int)S5_SERVO_GPIO,
-           (int)S5_DETECT_MM,
+           (int)S5_STOP_MM,
            (0 != S5_CAL_BUILD) ? " (CALIBRATION BUILD)" : "");
     return E_OK;
 }

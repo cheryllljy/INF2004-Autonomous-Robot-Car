@@ -2836,7 +2836,7 @@ static bool s5_cap_watch(bool b_ir_l, bool b_ir_r)
     return false;
 }
 
-/* line search. Something within S5_DETECT_MM ahead
+/* line search. Something within S5_STOP_MM ahead
  * stops the car until it has gone: there is no line yet to plan a way
  * round it against. True: standing. */
 static bool s5_search_held(void)
@@ -2847,7 +2847,7 @@ static bool s5_search_held(void)
     s5_look(0);
     b_near = s5_get_ping(&p) && p.b_valid && s5_fresh(&p) &&
              (p.ddeg <= S5_LOOK_TOL_DDEG) && (p.ddeg >= -S5_LOOK_TOL_DDEG) &&
-             (0U != p.mm) && (p.mm <= (uint16_t)S5_DETECT_MM);
+             (0U != p.mm) && (p.mm <= (uint16_t)S5_STOP_MM);
     if (b_near && !g.b_search_held)
     {
         S5_LOG("[VC-S5] line search: something %d mm ahead; standing until "

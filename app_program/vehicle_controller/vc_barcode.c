@@ -5,6 +5,12 @@
  */
 
 #include "vc_barcode.h"
+#include "../subsystem4/subsystem4.h" /* hump and tilt */
+
+/* the IR_B black that starts a scan is taken as the hump, not a barcode,
+ * while the IMU reports a hump or the car is on the ramp or just past it
+ * (vc_on_ramp()). Tilt is not used: it read 5 to 10 deg at barcodes on
+ * flat ground (braking and shaking), the same as on the ramp. */
 
 typedef enum
 {
@@ -25,6 +31,7 @@ typedef struct
     int32_t cmd_ms; /* since the move was sent */
     bool sent;      /* back-up move sent */
     bool busy_seen; /* Buddy 2 started it */
+    bool hump_scan; /* this barcode scan began or ran on a hump */
 } vb_t;
 
 static vb_t vb;
@@ -71,17 +78,40 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
     switch (vb.phase)
     {
         case VB_ARMED:
-            if (vb_enabled() && p_line->scan_active &&
+            /* black under the barcode sensor on a hump is the hump, not a
+             * barcode: no back-up for that scan, even once level again */
+            if (!p_line->scan_active)
+            {
+                vb.hump_scan = false;
+            }
+            else if (!vb.hump_scan &&
+                     (subsystem4_on_hump() || vc_on_ramp()))
+            {
+                vb.hump_scan = true;
+                tm_printf((UB *)"[VC] barcode sensor black on a hump "
+                                "(tilt %d.%d deg, side lift %d mm): "
+                                "not backing up\n",
+                          (INT)(subsystem4_tilt_ddeg() / 10U),
+                          (INT)(subsystem4_tilt_ddeg() % 10U),
+                          (INT)subsystem4_side_lift_mm());
+            }
+            else
+            {
+                /* nothing changes */
+            }
+            if (vb_enabled() && p_line->scan_active && !vb.hump_scan &&
                 (p_line->scan_elements >= VC_BAR_DETECT_ELEMENTS) &&
                 !(p_line->line.left_black && p_line->line.right_black))
             {
                 vb.detect_mm = at;
                 (void)motion_stop();
                 tm_printf(
-                    (UB *)"[VC] barcode ahead at %d mm/s: stopping "
-                          "to back up\n",
+                    (UB *)"[VC] barcode ahead at %d mm/s (tilt %d.%d deg): "
+                          "stopping to back up\n",
                     (INT)((p_motion->speed_l_mmps + p_motion->speed_r_mmps) /
-                          2));
+                          2),
+                    (INT)(subsystem4_tilt_ddeg() / 10U),
+                    (INT)(subsystem4_tilt_ddeg() % 10U));
                 vb_goto(VB_STOPPING);
                 return true;
             }

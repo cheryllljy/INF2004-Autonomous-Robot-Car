@@ -44,6 +44,8 @@ typedef struct
 
 static s4_hump_state_t s4_hump_state;
 static volatile uint8_t s4_lift_now_mm;
+/* tilt from the start-up level in any direction, 0.1 deg, smoothed */
+static volatile uint16_t s4_tilt_ddeg;
 
 static uint32_t s4_isqrt(uint64_t value)
 {
@@ -73,6 +75,37 @@ static uint32_t s4_abs_i32(int32_t v) { return (uint32_t)((v < 0) ? -v : v); }
  * S4_LIFT_JOLT_SAMPLES, or a tilt in any direction past
  * S4_LIFT_TILT_COS_PCT for S4_LIFT_TILT_SAMPLES, requests the E-stop.
  * It runs on every sample, before the hump code drops the noisy ones. */
+/* Angle between gravity now and at start-up, from |base x now| =
+ * |base| |now| sin(angle); small-angle degrees, averaged over ~4
+ * samples. Pitch on a ramp shows here; the hump height only sees roll. */
+static void s4_tilt_update(const imu_vector_t *p_raw, uint32_t total)
+{
+    const int64_t bx = s4_hump_state.base_x;
+    const int64_t by = s4_hump_state.base_y;
+    const int64_t bz = s4_hump_state.base_z;
+    const int64_t cx = (by * p_raw->z) - (bz * p_raw->y);
+    const int64_t cy = (bz * p_raw->x) - (bx * p_raw->z);
+    const int64_t cz = (bx * p_raw->y) - (by * p_raw->x);
+    const uint64_t den =
+        (uint64_t)total * (uint64_t)s4_hump_state.base_total;
+    uint32_t now_ddeg = 0U;
+
+    if (0U != den)
+    {
+        const uint64_t cross = s4_isqrt((uint64_t)((cx * cx) + (cy * cy) +
+                                                   (cz * cz)));
+
+        /* sin -> 0.1 deg (573 = 10 * 180 / pi) */
+        now_ddeg = (uint32_t)((cross * 573U) / den);
+        if (now_ddeg > 900U)
+        {
+            now_ddeg = 900U;
+        }
+    }
+    s4_tilt_ddeg = (uint16_t)(((3U * (uint32_t)s4_tilt_ddeg) + now_ddeg) /
+                              4U);
+}
+
 static void s4_lift_step(const imu_vector_t *p_raw, uint32_t total)
 {
     const uint32_t base = s4_hump_state.base_total;
@@ -88,6 +121,7 @@ static void s4_lift_step(const imu_vector_t *p_raw, uint32_t total)
                         (int64_t)base));
     bool b_lift = false;
 
+    s4_tilt_update(p_raw, total);
     if (b_jolt)
     {
         if (s4_hump_state.jolt_samples < S4_LIFT_JOLT_SAMPLES)
@@ -304,6 +338,11 @@ bool subsystem4_on_hump(void)
 uint8_t subsystem4_side_lift_mm(void)
 {
     return s4_lift_now_mm;
+}
+
+uint16_t subsystem4_tilt_ddeg(void)
+{
+    return s4_tilt_ddeg;
 }
 
 void monitor_alarm_handler(void *exinf)

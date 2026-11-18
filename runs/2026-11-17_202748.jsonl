@@ -1,0 +1,18 @@
+{"kind":"run_start","wall":"2026-11-17T20:27:48.394","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"note","wall":"2026-11-17T20:27:47.284","text":"Sent START (seq 162)","t_ms":-1108,"before_start":true}
+{"kind":"event","wall":"2026-11-17T20:27:48.391","text":"[VC] MQTT START received seq=162","t_ms":0,"before_start":true}
+{"kind":"event","wall":"2026-11-17T20:27:48.392","text":"[VC] state 0 -> 1","t_ms":0,"before_start":true}
+{"kind":"sample","wall":"2026-11-17T20:27:48.394","t_ms":0,"seq":150,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":6,"speed_r":10,"distance":2616,"range":413,"letter":"","junctions":4,"lift":1,"hump":0,"uptime":86,"lost":0}
+{"kind":"event","wall":"2026-11-17T20:27:48.407","text":"[VC] state 1 -> 3","t_ms":16}
+{"kind":"sample","wall":"2026-11-17T20:27:48.424","t_ms":30,"seq":151,"state":3,"state_name":"OBSTACLE","wifi":true,"mqtt":true,"ir_l":true,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":38,"speed_r":64,"distance":2624,"range":106,"letter":"","junctions":4,"lift":2,"hump":0,"uptime":86,"lost":0}
+{"kind":"event","wall":"2026-11-17T20:27:48.562","text":"[VC-S5] object 106 mm ahead: stopping (line from the last 0 mm, within 0 mm; car 0 deg to it)","t_ms":172}
+{"kind":"event","wall":"2026-11-17T20:27:48.566","text":"[VC-S5] compass: no good sample at the stop (field 68 percent of the calibration's): encoders only","t_ms":172}
+{"kind":"sample","wall":"2026-11-17T20:27:48.566","t_ms":172,"seq":155,"state":3,"state_name":"OBSTACLE","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":0,"speed_r":0,"distance":2625,"range":0,"letter":"","junctions":4,"lift":2,"hump":0,"uptime":87,"lost":3}
+{"kind":"sample","wall":"2026-11-17T20:27:48.675","t_ms":280,"seq":156,"state":3,"state_name":"OBSTACLE","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":0,"speed_r":10,"distance":2626,"range":0,"letter":"","junctions":4,"lift":2,"hump":0,"uptime":87,"lost":0}
+{"kind":"sample","wall":"2026-11-17T20:27:48.890","t_ms":500,"seq":157,"state":3,"state_name":"OBSTACLE","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":0,"speed_r":4,"distance":2627,"range":0,"letter":"","junctions":4,"lift":1,"hump":0,"uptime":87,"lost":0}
+{"kind":"note","wall":"2026-11-17T20:27:48.957","text":"Sent STOP (seq 163)","t_ms":562}
+{"kind":"event","wall":"2026-11-17T20:27:49.030","text":"[VC] MQTT STOP received seq=163","t_ms":641}
+{"kind":"event","wall":"2026-11-17T20:27:49.128","text":"[VC-S5] bypass stopped by the VehicleController","t_ms":734}
+{"kind":"event","wall":"2026-11-17T20:27:49.128","text":"[VC] state 3 -> 4","t_ms":734}
+{"kind":"sample","wall":"2026-11-17T20:27:49.128","t_ms":734,"seq":158,"state":4,"state_name":"STOPPED","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":0,"speed_r":0,"distance":2627,"range":0,"letter":"","junctions":4,"lift":1,"hump":0,"uptime":88,"lost":0}
+{"kind":"run_end","wall":"2026-11-17T20:27:49.128","t_ms":734,"state":4,"state_name":"STOPPED","reason":"state STOPPED"}

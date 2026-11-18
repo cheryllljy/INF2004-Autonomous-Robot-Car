@@ -49,6 +49,9 @@ extern ER subsystem4_get_imu_snapshot(s4_imu_snapshot_t *p_snapshot);
 extern bool subsystem4_on_hump(void);
 /* side lift now, in mm, the same measure as the hump height */
 extern uint8_t subsystem4_side_lift_mm(void);
+/* tilt from level (start-up) in any direction, 0.1 deg: pitch on a ramp
+ * as well as roll */
+extern uint16_t subsystem4_tilt_ddeg(void);
 
 /* Private to subsystem 4 */
 extern ID alm_monitor;

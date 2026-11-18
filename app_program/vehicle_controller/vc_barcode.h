@@ -52,5 +52,9 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
 int16_t vc_bar_speed_mm_s(void); /* line speed now */
 bool vc_bar_scan_allowed(void);  /* false while stopping / backing up */
 bool vc_bar_busy(void);          /* stopping / backing up */
+/* on a hump going straight (vehicle_controller.c) */
+bool vc_on_hump(void);
+/* on the ramp or within VC_HUMP_END_MM after it (vehicle_controller.c) */
+bool vc_on_ramp(void);
 
 #endif /* VC_BARCODE_H */

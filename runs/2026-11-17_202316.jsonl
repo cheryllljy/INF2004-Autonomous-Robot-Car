@@ -1,0 +1,26 @@
+{"kind":"run_start","wall":"2026-11-17T20:23:16.981","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"event","wall":"2026-11-17T20:23:16.619","text":"[VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)","t_ms":-359,"before_start":true}
+{"kind":"note","wall":"2026-11-17T20:23:16.738","text":"Sent START (seq 133)","t_ms":-250,"before_start":true}
+{"kind":"event","wall":"2026-11-17T20:23:16.920","text":"[VC] MQTT START received seq=133","t_ms":-63,"before_start":true}
+{"kind":"event","wall":"2026-11-17T20:23:16.920","text":"[VC] state 0 -> 1","t_ms":-63,"before_start":true}
+{"kind":"event","wall":"2026-11-17T20:23:16.921","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)","t_ms":-63,"before_start":true}
+{"kind":"event","wall":"2026-11-17T20:23:16.981","text":"[VC] hump 8 mm: both wheels the same","t_ms":0,"before_start":true}
+{"kind":"sample","wall":"2026-11-17T20:23:16.981","t_ms":0,"seq":228,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":0,"speed_r":0,"distance":1334,"range":1051,"letter":"","junctions":3,"lift":10,"hump":10,"uptime":101,"lost":0}
+{"kind":"sample","wall":"2026-11-17T20:23:17.148","t_ms":155,"seq":229,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":58,"speed_r":62,"distance":1343,"range":1228,"letter":"","junctions":3,"lift":10,"hump":10,"uptime":101,"lost":0}
+{"kind":"event","wall":"2026-11-17T20:23:17.217","text":"[VC] junction #4 reached, letter '-', turn STRAIGHT (none)","t_ms":233}
+{"kind":"sample","wall":"2026-11-17T20:23:17.348","t_ms":358,"seq":230,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":104,"speed_r":106,"distance":1364,"range":619,"letter":"","junctions":4,"lift":12,"hump":12,"uptime":102,"lost":0}
+{"kind":"note","wall":"2026-11-17T20:23:17.735","text":"Sent RESET (seq 134)","t_ms":750}
+{"kind":"note","wall":"2026-11-17T20:23:18.651","text":"Sent RESET (seq 135)","t_ms":1672}
+{"kind":"sample","wall":"2026-11-17T20:23:19.003","t_ms":2015,"seq":231,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":102,"speed_r":106,"distance":1385,"range":1611,"letter":"","junctions":4,"lift":11,"hump":12,"uptime":102,"lost":0}
+{"kind":"event","wall":"2026-11-17T20:23:19.125","text":"[VC] hump top passed (IMU, 12 mm): 50 mm/s faster until level again","t_ms":2140}
+{"kind":"sample","wall":"2026-11-17T20:23:19.125","t_ms":2140,"seq":232,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":140,"speed_r":144,"distance":1409,"range":1599,"letter":"","junctions":4,"lift":9,"hump":12,"uptime":102,"lost":0}
+{"kind":"event","wall":"2026-11-17T20:23:19.128","text":"[VC] MQTT RESET received seq=134","t_ms":2140}
+{"kind":"event","wall":"2026-11-17T20:23:19.128","text":"[VC] state 1 -> 0","t_ms":2140}
+{"kind":"sample","wall":"2026-11-17T20:23:19.128","t_ms":2140,"seq":233,"state":0,"state_name":"IDLE","wifi":true,"mqtt":true,"ir_l":true,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":82,"speed_r":100,"distance":1435,"range":1564,"letter":"","junctions":4,"lift":9,"hump":12,"uptime":102,"lost":0}
+{"kind":"run_end","wall":"2026-11-17T20:23:19.128","t_ms":2140,"state":0,"state_name":"IDLE","reason":"state IDLE"}
+{"kind":"event","wall":"2026-11-17T20:23:19.201","text":"[VC] MQTT RESET received seq=135","t_ms":2218,"after_end":true}
+{"kind":"note","wall":"2026-11-17T20:23:19.752","text":"Sent START (seq 136)","t_ms":2765,"after_end":true}
+{"kind":"event","wall":"2026-11-17T20:23:19.902","text":"[VC] MQTT START received seq=136","t_ms":2922,"after_end":true}
+{"kind":"event","wall":"2026-11-17T20:23:19.914","text":"[VC] state 0 -> 1","t_ms":2922,"after_end":true}
+{"kind":"event","wall":"2026-11-17T20:23:19.919","text":"[VC] hump under 8 mm: straight while the line is between the IRs, for 200 mm more","t_ms":2936,"after_end":true}
+{"kind":"event","wall":"2026-11-17T20:23:20.200","text":"[VC] hump over: Buddy 3's speeds again","t_ms":3218,"after_end":true}
