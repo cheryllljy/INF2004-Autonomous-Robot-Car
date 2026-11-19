@@ -67,5 +67,12 @@ bool s5_sensor_ping(s5_ping_t *p_out);
 /* FR25: S5_DEAD_PINGS pings in a row without any echo pulse, or ECHO
  * stuck high. */
 bool s5_sensor_dead(void);
+/* Buddy 5, 2026-11-19: the start-up auto trim (S5_AUTO_TRIM) is sweeping.
+ * Line following starting stops it (s5_avoid_check() calls
+ * s5_sensor_trim_abort()). */
+void s5_sensor_set_trimming(bool b_on);
+bool s5_trimming(void);
+void s5_sensor_trim_abort(void);
+bool s5_trim_aborted(void);
 
 #endif /* S5_SENSOR_H */

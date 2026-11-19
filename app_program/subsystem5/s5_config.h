@@ -71,6 +71,30 @@
  * the box-only echoes and the range profile are centred). Run 3 with
  * -52 read the box 4.5 deg right at 300 mm but ~1 deg at 200 mm, and
  * track runs with a known box place it within ~3 deg: kept. */
+/* Buddy 5, 2026-11-19: auto trim at start-up. With an object put straight
+ * ahead of the car (on the line, 100..400 mm from the sensor) when it is
+ * switched on, the sensor sweeps it twice and corrects the trim below by
+ * where the middle of its echoes reads (for this run only, nothing is
+ * saved). Nothing there, or the two sweeps disagree: the trim below as it
+ * is. 0: off. */
+#ifndef S5_AUTO_TRIM
+#define S5_AUTO_TRIM (1)
+#endif
+#define S5_AUTO_TRIM_WAIT_MS   (2000) /* after power-up, before the first */
+#define S5_AUTO_TRIM_NEAR_MM   (100)  /* the object's face within these */
+#define S5_AUTO_TRIM_FAR_MM    (400)
+#define S5_AUTO_TRIM_MAX_DDEG  (250)  /* never correct by more (25 deg) */
+#define S5_AUTO_TRIM_AGREE_DDEG (30)  /* the two sweeps within 3 deg */
+/* Buddy 5, 2026-11-19: the objects on the track are 80..250 mm wide. A
+ * sweep from the line that reads narrower is widened to the least around
+ * the middle of its echoes; one that reads wider (echoes from the floor or
+ * from beside the object) is cut back to the most around that middle. Not
+ * when an edge is past the sweep (then it is not known which echoes are
+ * the object's). */
+#define S5_OBJ_MIN_MM (80)
+#ifndef S5_OBJ_MAX_MM
+#define S5_OBJ_MAX_MM (250)
+#endif
 #ifndef S5_SERVO_TRIM_DDEG
 #define S5_SERVO_TRIM_DDEG (-52)
 #endif
@@ -206,6 +230,12 @@
  * this far further in (0.1 deg) */
 #define S5_EDGE_PAIR_DDEG (50)
 #define S5_EDGE_MIN_MM (45)
+/* Buddy 5, 2026-11-19: the least half-width taken for a narrow object
+ * placed by the middle of its echoes (s5_scan.c) */
+#define S5_NARROW_HALF_MIN_MM (S5_OBJ_MIN_MM / 2)
+#ifndef S5_NARROW_ON
+#define S5_NARROW_ON (1)
+#endif
 /* Buddy 5, 2026-11-16: added to a side got by range, S5_EDGE_PAD_MM2 /
  * side (mm), at most S5_EDGE_PAD_MAX_MM */
 #define S5_EDGE_PAD_MM2    (600)

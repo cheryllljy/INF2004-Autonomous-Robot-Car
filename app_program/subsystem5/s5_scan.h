@@ -120,6 +120,9 @@ typedef struct
     float width;         /* y_left - y_right */
     /* Buddy 5, 2026-11-16: how the corners were placed (for the log) */
     bool b_by_range;     /* true: by range; false: by angle */
+    bool b_narrow;   /* Buddy 5, 2026-11-19: placed by the middle of its echoes */
+    float y_mid;     /* ... that middle, line frame (mm) */
+    bool b_limited;  /* Buddy 5, 2026-11-19: S5_OBJ_MIN_MM / MAX_MM applied */
     uint16_t face_q_mm;  /* FACE used by the range method */
     uint16_t edge_l_mm;  /* EDGE, left and right */
     uint16_t edge_r_mm;
@@ -165,6 +168,11 @@ int16_t s5_scan_beam_ddeg(uint16_t face_mm);
 void s5_scan_sort(s5_sample_t *p_s, uint32_t n);
 
 /* The whole profile. Samples sorted by angle. */
+/* Buddy 5, 2026-11-19: S5_AUTO_TRIM. True and *p_corr (0.1 deg, add to
+ * the servo trim) if this sweep, taken standing with an object straight
+ * ahead, is one to trim by */
+bool s5_scan_trim_from(const s5_profile_t *p_pr, int16_t *p_corr);
+
 void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
                      const s5_view_t *p_view, s5_profile_t *p_out);
 

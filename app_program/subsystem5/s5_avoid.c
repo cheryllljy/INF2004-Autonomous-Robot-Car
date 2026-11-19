@@ -641,6 +641,14 @@ bool s5_avoid_check(bool b_armed)
 #else
     s5_ping_t p;
 
+    /* Buddy 5, 2026-11-19: line following started while the start-up auto
+     * trim is still sweeping (subsystem5.c): stop that, the sensor goes
+     * back to straight ahead */
+    if (b_armed && s5_trimming())
+    {
+        s5_sensor_trim_abort();
+        return false;
+    }
     if (!b_armed || (S5_PH_IDLE != g.ph) || !s5_get_ping(&p))
     {
         return false;
@@ -1559,6 +1567,10 @@ static void s5_say_sweep(void)
            p->b_left_maybe ? ", left maybe blocked" : "",
            p->b_right_blocked ? ", right side blocked" : "",
            p->b_right_maybe ? ", right maybe blocked" : "");
+    /* Buddy 5, 2026-11-19: the start-up auto trim's line may be lost (sent
+     * before the WiFi is up): the trim in use, with every sweep */
+    S5_LOG("[VC-S5] servo trim in use %d (0.1 deg; S5_SERVO_TRIM_DDEG %d)\n",
+           (int)s5_hw_trim_now(), (int)S5_SERVO_TRIM_DDEG);
     /* Buddy 5, 2026-11-16: how the edges were got, with both results, to
      * hold against a tape measure */
     if (p->b_by_range)
@@ -1568,6 +1580,18 @@ static void s5_say_sweep(void)
                "%d mm right\n",
                (int)p->face_q_mm, (int)p->edge_l_mm, (int)p->edge_r_mm,
                (int)s5_mm(p->ya_left), (int)s5_mm(-p->ya_right));
+        if (p->b_narrow)
+        {
+            /* Buddy 5, 2026-11-19. With a narrow object put dead centre on
+             * the line, "middle of its echoes" should read 0 deg; if not,
+             * the servo trim (S5_SERVO_TRIM_DDEG) is off by about that */
+            S5_LOG("[VC-S5] narrow: placed by the middle of its echoes, %d "
+                   "deg, %d mm %s of the line\n",
+                   (int)(((int32_t)p->left_ddeg + (int32_t)p->right_ddeg) /
+                         20),
+                   (int)s5_mm(s5_absf(p->y_mid)),
+                   (p->y_mid >= 0.0f) ? "left" : "right");
+        }
     }
     else
     {
