@@ -70,7 +70,7 @@ static volatile uint32_t g_status_word; /* written only by vc_task */
 #endif
 /* on the hump, the left wheel plus this (negative: slower) */
 #ifndef VC_HUMP_LEFT_EXTRA_MM_S
-#define VC_HUMP_LEFT_EXTRA_MM_S (-8)
+#define VC_HUMP_LEFT_EXTRA_MM_S (0)
 #endif
 /* for VC_HUMP_END_MM after the hump (side lift back under
  * VC_HUMP_RIGHT_FROM_MM): while both IRs are white (line in the middle)
@@ -78,7 +78,7 @@ static volatile uint32_t g_status_word; /* written only by vc_task */
  * Buddy 3 still asks for the right turn it learnt on the ramp; when an
  * IR reads black, Buddy 3 steers the line back to the middle. */
 #ifndef VC_HUMP_END_EXTRA_MM_S
-#define VC_HUMP_END_EXTRA_MM_S -2
+#define VC_HUMP_END_EXTRA_MM_S 5
 #endif
 #ifndef VC_HUMP_END_MM
 #define VC_HUMP_END_MM 200
@@ -951,7 +951,8 @@ static void exchange_line(void)
                          (VC_STATE_TURNING == vc.state) ||
                          (VC_STATE_OBSTACLE == vc.state);
     /* no scanning while stopping and backing up for a
-     * barcode (vc_barcode.c), which also sets the line speed */
+     * barcode or on the hump (vc_barcode.c), which also sets the line
+     * speed */
     ctx.scan_enabled =
         (VC_STATE_LINE_FOLLOW == vc.state) && vc_bar_scan_allowed();
     ctx.base_speed_mm_s = vc_bar_speed_mm_s();
@@ -1173,8 +1174,14 @@ static void exchange_line(void)
                                                     : '-',
                   turn_name(turn));
         on_junction(vc.junctions);
-        if ((VC_STATE_LINE_FOLLOW == vc.state) &&
-            !vc_bar_busy()) /* not while backing up */
+        if ((VC_STATE_LINE_FOLLOW == vc.state) && vc_bar_waiting())
+        {
+            /* the barcode before this junction is not read yet: back up
+             * and read it first; the junction comes again after it */
+            vc_bar_back_now(&vc.motion);
+        }
+        else if ((VC_STATE_LINE_FOLLOW == vc.state) &&
+                 !vc_bar_busy()) /* not while backing up */
         {
             take_junction();
         }

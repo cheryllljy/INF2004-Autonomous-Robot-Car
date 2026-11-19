@@ -37,6 +37,11 @@
 #define VC_BAR_REARM_MM        250  /* after a failed pass: no back-up */
 #define VC_BAR_CMD_TIMEOUT_MS  1000 /* Buddy 2 never took the command */
 #define VC_BAR_STEP_TIMEOUT_MS 8000 /* stop or back-up took too long */
+/* after the first black under IR_B, drive this far before stopping: IR_B
+ * is 125 mm ahead of the wheels, so the IMU feels the hump only later */
+#ifndef VC_BAR_WAIT_MM
+#define VC_BAR_WAIT_MM 130
+#endif
 
 /* Line following starts again (START, after a turn or a bypass). */
 void vc_bar_reset(const motion_status_t *p_motion);
@@ -50,8 +55,13 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
 
 /* For Buddy 3's context. */
 int16_t vc_bar_speed_mm_s(void); /* line speed now */
-bool vc_bar_scan_allowed(void);  /* false while stopping / backing up */
+bool vc_bar_scan_allowed(void);  /* false while stopping / backing up
+                                  * and on the hump */
 bool vc_bar_busy(void);          /* stopping / backing up */
+/* barcode seen, driving on VC_BAR_WAIT_MM before stopping */
+bool vc_bar_waiting(void);
+/* a junction came first: stop and back up for the barcode now */
+void vc_bar_back_now(const motion_status_t *p_motion);
 /* on a hump going straight (vehicle_controller.c) */
 bool vc_on_hump(void);
 /* on the ramp or within VC_HUMP_END_MM after it (vehicle_controller.c) */

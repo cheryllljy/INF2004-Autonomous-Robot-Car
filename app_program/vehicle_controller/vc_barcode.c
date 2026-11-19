@@ -7,10 +7,13 @@
 #include "vc_barcode.h"
 #include "../subsystem4/subsystem4.h" /* hump and tilt */
 
-/* the IR_B black that starts a scan is taken as the hump, not a barcode,
- * while the IMU reports a hump or the car is on the ramp or just past it
- * (vc_on_ramp()). Tilt is not used: it read 5 to 10 deg at barcodes on
- * flat ground (braking and shaking), the same as on the ramp. */
+/* On the hump (the IMU reports it, or the car is on the ramp or just
+ * past it: vc_on_ramp()) Buddy 3's barcode scanning is off. IR_B is
+ * 125 mm ahead of the wheels, so it reaches the ramp before the IMU can
+ * feel it: after the first black the car drives on VC_BAR_WAIT_MM before
+ * stopping, and a hump in that distance means it was not a barcode.
+ * Tilt is not used: it read 5 to 10 deg at barcodes on flat ground
+ * (braking and shaking), the same as on the ramp. */
 
 typedef enum
 {
@@ -31,7 +34,9 @@ typedef struct
     int32_t cmd_ms; /* since the move was sent */
     bool sent;      /* back-up move sent */
     bool busy_seen; /* Buddy 2 started it */
-    bool hump_scan; /* this barcode scan began or ran on a hump */
+    bool waiting;   /* barcode seen, driving on VC_BAR_WAIT_MM first */
+    bool hump_seen; /* the hump came while stopping or backing up */
+    bool scan_off;  /* on the hump: Buddy 3's scanning off */
 } vb_t;
 
 static vb_t vb;
@@ -60,6 +65,25 @@ void vc_bar_reset(const motion_status_t *p_motion)
     vb_goto(VB_ARMED);
 }
 
+/* the IMU reports the hump, or the car is on the ramp or just past it */
+static bool vb_hump(void)
+{
+    return subsystem4_on_hump() || vc_on_ramp();
+}
+
+static void vb_stop_for_barcode(const motion_status_t *p_motion,
+                                const char *why)
+{
+    vb.waiting = false;
+    (void)motion_stop();
+    tm_printf((UB *)"[VC] barcode %d mm back at %d mm/s, %s: stopping to "
+                    "back up\n",
+              (INT)vb_abs(p_motion->distance_total_mm - vb.detect_mm),
+              (INT)((p_motion->speed_l_mmps + p_motion->speed_r_mmps) / 2),
+              why);
+    vb_goto(VB_STOPPING);
+}
+
 static void vb_start_slow(const motion_status_t *p_motion, const char *why)
 {
     vb.from_mm = p_motion->distance_total_mm;
@@ -73,58 +97,86 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
 {
     const int32_t at = p_motion->distance_total_mm;
 
+    const bool b_hump = vb_hump();
+
     vb.phase_ms += dt_ms;
+
+    if (b_hump != vb.scan_off)
+    {
+        vb.scan_off = b_hump;
+        tm_printf((UB *)"[VC] %s the hump: barcode scanning %s\n",
+                  b_hump ? "on" : "off", b_hump ? "off" : "on again");
+    }
 
     switch (vb.phase)
     {
         case VB_ARMED:
-            /* black under the barcode sensor on a hump is the hump, not a
-             * barcode: no back-up for that scan, even once level again */
-            if (!p_line->scan_active)
+            if (vb.waiting)
             {
-                vb.hump_scan = false;
+                if (b_hump)
+                {
+                    vb.waiting = false;
+                    tm_printf((UB *)"[VC] the black under the barcode "
+                                    "sensor %d mm back was the hump (side "
+                                    "lift %d mm): not backing up\n",
+                              (INT)vb_abs(at - vb.detect_mm),
+                              (INT)subsystem4_side_lift_mm());
+                }
+                else if (decoded)
+                {
+                    vb.waiting = false;
+                    tm_printf((UB *)"[VC] barcode read at %d mm/s: no "
+                                    "back-up needed\n",
+                              (INT)((p_motion->speed_l_mmps +
+                                     p_motion->speed_r_mmps) /
+                                    2));
+                }
+                else if (vb_abs(at - vb.detect_mm) >= VC_BAR_WAIT_MM)
+                {
+                    vb_stop_for_barcode(p_motion, "no hump");
+                    return true;
+                }
+                else
+                {
+                    /* driving on */
+                }
             }
-            else if (!vb.hump_scan &&
-                     (subsystem4_on_hump() || vc_on_ramp()))
+            else if (vb_enabled() && p_line->scan_active && !b_hump &&
+                     (p_line->scan_elements >= VC_BAR_DETECT_ELEMENTS) &&
+                     !(p_line->line.left_black && p_line->line.right_black))
             {
-                vb.hump_scan = true;
-                tm_printf((UB *)"[VC] barcode sensor black on a hump "
-                                "(tilt %d.%d deg, side lift %d mm): "
-                                "not backing up\n",
-                          (INT)(subsystem4_tilt_ddeg() / 10U),
-                          (INT)(subsystem4_tilt_ddeg() % 10U),
-                          (INT)subsystem4_side_lift_mm());
+                vb.detect_mm = at;
+                vb.waiting = true;
+                tm_printf((UB *)"[VC] barcode sensor black: driving %d mm "
+                                "on in case it is the hump\n",
+                          (INT)VC_BAR_WAIT_MM);
             }
             else
             {
-                /* nothing changes */
-            }
-            if (vb_enabled() && p_line->scan_active && !vb.hump_scan &&
-                (p_line->scan_elements >= VC_BAR_DETECT_ELEMENTS) &&
-                !(p_line->line.left_black && p_line->line.right_black))
-            {
-                vb.detect_mm = at;
-                (void)motion_stop();
-                tm_printf(
-                    (UB *)"[VC] barcode ahead at %d mm/s (tilt %d.%d deg): "
-                          "stopping to back up\n",
-                    (INT)((p_motion->speed_l_mmps + p_motion->speed_r_mmps) /
-                          2),
-                    (INT)(subsystem4_tilt_ddeg() / 10U),
-                    (INT)(subsystem4_tilt_ddeg() % 10U));
-                vb_goto(VB_STOPPING);
-                return true;
+                /* no barcode */
             }
             return false;
 
         case VB_STOPPING:
-            if (MOTION_STATE_IDLE == p_motion->state)
+            if (b_hump)
+            {
+                vb.hump_seen = true;
+            }
+            if ((MOTION_STATE_IDLE == p_motion->state) && vb.hump_seen)
+            {
+                tm_printf((UB *)"[VC] barcode: it was the hump, not "
+                                "backing up\n");
+                vb_goto(VB_ARMED);
+                return false;
+            }
+            else if (MOTION_STATE_IDLE == p_motion->state)
             {
                 /* back past where it was seen, which was a few mm into the
                  * barcode, plus the white for its leading quiet zone */
                 vb.back_mm = vb_abs(at - vb.detect_mm) + VC_BAR_BACK_MM;
                 vb.sent = false;
                 vb.busy_seen = false;
+                vb.hump_seen = false;
                 vb.cmd_ms = 0;
                 tm_printf((UB *)"[VC] barcode: stopped %d mm past it, "
                                 "backing up %d mm\n",
@@ -148,6 +200,10 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
 
         case VB_BACKING:
             vb.cmd_ms += dt_ms;
+            if (b_hump)
+            {
+                vb.hump_seen = true;
+            }
             if (!vb.sent)
             {
                 if (MOTION_OK ==
@@ -172,6 +228,14 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
                     /* not started yet */
                 }
             }
+            else if ((MOTION_STATE_IDLE == p_motion->state) &&
+                     vb.hump_seen)
+            {
+                tm_printf((UB *)"[VC] barcode: backed up, but it was the "
+                                "hump: back to %d mm/s\n",
+                          (INT)B3_BASE_SPEED_MM_S);
+                vb_goto(VB_ARMED);
+            }
             else if (MOTION_STATE_IDLE == p_motion->state)
             {
                 vb_start_slow(p_motion, "backed up");
@@ -189,7 +253,14 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
             return VB_BACKING == vb.phase;
 
         case VB_SLOW:
-            if (decoded)
+            if (b_hump)
+            {
+                tm_printf((UB *)"[VC] barcode: it was the hump, back to %d "
+                                "mm/s\n",
+                          (INT)B3_BASE_SPEED_MM_S);
+                vb_goto(VB_ARMED);
+            }
+            else if (decoded)
             {
                 tm_printf((UB *)"[VC] barcode read, back to %d mm/s\n",
                           (INT)B3_BASE_SPEED_MM_S);
@@ -234,7 +305,20 @@ int16_t vc_bar_speed_mm_s(void)
 
 bool vc_bar_scan_allowed(void)
 {
-    return !vc_bar_busy();
+    return !vc_bar_busy() && !vb.scan_off;
+}
+
+bool vc_bar_waiting(void)
+{
+    return (VB_ARMED == vb.phase) && vb.waiting;
+}
+
+void vc_bar_back_now(const motion_status_t *p_motion)
+{
+    if (vc_bar_waiting())
+    {
+        vb_stop_for_barcode(p_motion, "junction reached first");
+    }
 }
 
 bool vc_bar_busy(void)

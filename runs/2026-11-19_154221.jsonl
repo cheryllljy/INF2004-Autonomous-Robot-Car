@@ -1,0 +1,31 @@
+{"kind":"run_start","wall":"2026-11-19T15:42:21.506","t_ms":0,"trigger":"state ESTOP -> LINE_FOLLOW"}
+{"kind":"note","wall":"2026-11-19T15:42:20.364","text":"Sent START (seq 117)","t_ms":-1155,"before_start":true}
+{"kind":"note","wall":"2026-11-19T15:42:20.574","text":"Sent START (seq 118)","t_ms":-936,"before_start":true}
+{"kind":"event","wall":"2026-11-19T15:42:21.404","text":"[VC] TERRAIN_REPORT seq=27 classification=ROLL_HUMP peak_side_height_est=21 mm duration=1540 ms imu_samples=26","t_ms":-108,"before_start":true}
+{"kind":"event","wall":"2026-11-19T15:42:21.404","text":"[VC] car picked up (IMU): tilted, 124 percent of 1 g, E-STOP","t_ms":-108,"before_start":true}
+{"kind":"event","wall":"2026-11-19T15:42:21.504","text":"[VC] line sensors black L 0 / R 0 mm, 0 mm together, not a junction: a sensor's run too short (needs 6 mm each at 15 mm/s)","t_ms":-14,"before_start":true}
+{"kind":"event","wall":"2026-11-19T15:42:21.505","text":"[VC] TERRAIN_REPORT seq=28 classification=ROLL_HUMP peak_side_height_est=16 mm duration=1300 ms imu_samples=23","t_ms":-14,"before_start":true}
+{"kind":"event","wall":"2026-11-19T15:42:21.505","text":"[VC] MQTT RESET received seq=115","t_ms":-14,"before_start":true}
+{"kind":"sample","wall":"2026-11-19T15:42:21.506","t_ms":0,"seq":134,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":0,"speed_r":0,"distance":1516,"range":0,"letter":"","junctions":4,"lift":0,"hump":0,"uptime":236,"lost":39}
+{"kind":"note","wall":"2026-11-19T15:42:21.878","text":"Sent RESET (seq 119)","t_ms":360}
+{"kind":"note","wall":"2026-11-19T15:42:22.107","text":"Sent RESET (seq 120)","t_ms":594}
+{"kind":"event","wall":"2026-11-19T15:42:23.355","text":"[VC] state 5 -> 0","t_ms":1844}
+{"kind":"event","wall":"2026-11-19T15:42:23.356","text":"[VC] MQTT RESET received seq=116","t_ms":1844}
+{"kind":"event","wall":"2026-11-19T15:42:23.356","text":"[VC] MQTT START received seq=117","t_ms":1844}
+{"kind":"sample","wall":"2026-11-19T15:42:23.357","t_ms":1844,"seq":135,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":36,"speed_r":24,"distance":1519,"range":0,"letter":"","junctions":4,"lift":3,"hump":0,"uptime":236,"lost":0}
+{"kind":"event","wall":"2026-11-19T15:42:23.441","text":"[VC] state 0 -> 1","t_ms":1922}
+{"kind":"event","wall":"2026-11-19T15:42:23.441","text":"[VC] on the hump: barcode scanning off","t_ms":1922}
+{"kind":"event","wall":"2026-11-19T15:42:23.441","text":"[VC] MQTT START received seq=118","t_ms":1922}
+{"kind":"sample","wall":"2026-11-19T15:42:23.441","t_ms":1922,"seq":136,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":78,"speed_r":86,"distance":1533,"range":0,"letter":"","junctions":4,"lift":1,"hump":0,"uptime":236,"lost":0}
+{"kind":"sample","wall":"2026-11-19T15:42:23.442","t_ms":1922,"seq":137,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":78,"speed_r":84,"distance":1550,"range":0,"letter":"","junctions":4,"lift":1,"hump":0,"uptime":237,"lost":0}
+{"kind":"sample","wall":"2026-11-19T15:42:23.442","t_ms":1922,"seq":138,"state":0,"state_name":"IDLE","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":80,"speed_r":86,"distance":1567,"range":0,"letter":"","junctions":4,"lift":3,"hump":0,"uptime":237,"lost":0}
+{"kind":"run_end","wall":"2026-11-19T15:42:23.442","t_ms":1922,"state":0,"state_name":"IDLE","reason":"state IDLE"}
+{"kind":"event","wall":"2026-11-19T15:42:23.614","text":"[VC] end of the ramp passed: Buddy 3 steers again","t_ms":2094,"after_end":true}
+{"kind":"event","wall":"2026-11-19T15:42:23.617","text":"[VC] off the hump: barcode scanning on again","t_ms":2110,"after_end":true}
+{"kind":"event","wall":"2026-11-19T15:42:23.620","text":"[VC] MQTT RESET received seq=119","t_ms":2110,"after_end":true}
+{"kind":"event","wall":"2026-11-19T15:42:23.654","text":"[VC] state 1 -> 0","t_ms":2141,"after_end":true}
+{"kind":"event","wall":"2026-11-19T15:42:23.657","text":"[VC] MQTT RESET received seq=120","t_ms":2141,"after_end":true}
+{"kind":"note","wall":"2026-11-19T15:42:23.893","text":"Sent START (seq 121)","t_ms":2375,"after_end":true}
+{"kind":"note","wall":"2026-11-19T15:42:24.141","text":"Sent START (seq 122)","t_ms":2625,"after_end":true}
+{"kind":"event","wall":"2026-11-19T15:42:25.022","text":"[VC] MQTT START received seq=121","t_ms":3516,"after_end":true}
+{"kind":"event","wall":"2026-11-19T15:42:25.026","text":"[VC] state 0 -> 1","t_ms":3516,"after_end":true}
