@@ -10,6 +10,7 @@
 #include "s5_config.h"
 #include "s5_hw.h"
 #include "s5_port.h"
+#include "s5_scan.h"
 #include "s5_sensor.h"
 
 static ID g_s5_tid;
@@ -31,6 +32,88 @@ void s5_poll_wait(void)
     (void)tk_slp_tsk(S5_POLL_MS);
 }
 
+#if (0 != S5_AUTO_TRIM) && !S5_CAL_BUILD
+/* one standing sweep, as the profile; false: it did not finish */
+static bool s5_trim_sweep(s5_profile_t *p_pr)
+{
+    static s5_sweep_t sw;
+    const s5_view_t view = { 0.0f, 0.0f, 0.0f };
+    const uint32_t seq = s5_sensor_scan();
+    const uint32_t t0 = s5_hw_us();
+
+    while (!s5_sensor_scan_get(seq, &sw))
+    {
+        if (s5_trim_aborted() ||
+            ((s5_hw_us() - t0) > ((uint32_t)S5_SCAN_TIMEOUT_MS * 1000U)))
+        {
+            return false;
+        }
+        s5_sensor_poll();
+        s5_poll_wait();
+    }
+    s5_scan_profile(sw.s, sw.n, &view, p_pr);
+    return true;
+}
+
+/* S5_AUTO_TRIM: an object straight ahead at power-up corrects the servo
+ * trim for this run */
+static void s5_auto_trim(void)
+{
+    static s5_profile_t pr;
+    const uint32_t t0 = s5_hw_us();
+    int16_t c1 = 0;
+    int16_t c2 = 0;
+    bool b_ok;
+
+    s5_sensor_set_trimming(true);
+    while (((s5_hw_us() - t0) < ((uint32_t)S5_AUTO_TRIM_WAIT_MS * 1000U)) &&
+           !s5_trim_aborted())
+    {
+        s5_sensor_poll();
+        s5_poll_wait();
+    }
+    b_ok = s5_trim_sweep(&pr) && s5_scan_trim_from(&pr, &c1) &&
+           s5_trim_sweep(&pr) && s5_scan_trim_from(&pr, &c2);
+    /* the two at the same trim: then the correction (applied once, after) */
+    s5_sensor_guard();
+    if (s5_trim_aborted())
+    {
+        S5_LOG("[VC-S5] auto trim: line following started first, skipped: "
+               "keeping S5_SERVO_TRIM_DDEG %d\n",
+               (int)S5_SERVO_TRIM_DDEG);
+        b_ok = false;
+        c1 = 0;
+        c2 = 0x7FFF; /* not taken */
+    }
+    else if (b_ok && ((c1 - c2) <= S5_AUTO_TRIM_AGREE_DDEG) &&
+        ((c2 - c1) <= S5_AUTO_TRIM_AGREE_DDEG))
+    {
+        const int32_t c = ((int32_t)c1 + (int32_t)c2) / 2;
+
+        s5_hw_trim_adj(c);
+        S5_LOG("[VC-S5] auto trim: the object ahead (%d mm) reads %d (0.1 "
+               "deg, + = left) off centre: servo trim %d -> %d for this "
+               "run\n",
+               (int)pr.face_mm, (int)c, (int)S5_SERVO_TRIM_DDEG,
+               (int)s5_hw_trim_now());
+    }
+    else if (b_ok)
+    {
+        S5_LOG("[VC-S5] auto trim: the two sweeps disagree (%d / %d, 0.1 "
+               "deg): keeping S5_SERVO_TRIM_DDEG %d\n",
+               (int)c1, (int)c2, (int)S5_SERVO_TRIM_DDEG);
+    }
+    else if (0x7FFF != c2)
+    {
+        S5_LOG("[VC-S5] auto trim: no object straight ahead %d..%d mm (or an "
+               "edge past the sweep): keeping S5_SERVO_TRIM_DDEG %d\n",
+               (int)S5_AUTO_TRIM_NEAR_MM, (int)S5_AUTO_TRIM_FAR_MM,
+               (int)S5_SERVO_TRIM_DDEG);
+    }
+    s5_sensor_set_trimming(false);
+}
+#endif
+
 static void s5_task(INT stacd, void *exinf)
 {
     (void)stacd;
@@ -38,6 +121,9 @@ static void s5_task(INT stacd, void *exinf)
 
 #if S5_CAL_BUILD
     s5_cal_run(); /* never returns */
+#endif
+#if (0 != S5_AUTO_TRIM) && !S5_CAL_BUILD
+    s5_auto_trim(); /* Buddy 5, 2026-11-19 */
 #endif
     for (;;)
     {

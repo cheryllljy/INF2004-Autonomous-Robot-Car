@@ -670,3 +670,32 @@ void s5_sensor_poll(void)
         }
     }
 }
+
+/* Buddy 5, 2026-11-19: S5_AUTO_TRIM (subsystem5.c) */
+static volatile bool g_b_trimming = false;
+
+static volatile bool g_b_trim_abort = false;
+
+void s5_sensor_set_trimming(bool b_on)
+{
+    g_b_trimming = b_on;
+    if (b_on)
+    {
+        g_b_trim_abort = false;
+    }
+}
+
+void s5_sensor_trim_abort(void)
+{
+    g_b_trim_abort = true;
+}
+
+bool s5_trim_aborted(void)
+{
+    return g_b_trim_abort;
+}
+
+bool s5_trimming(void)
+{
+    return g_b_trimming;
+}

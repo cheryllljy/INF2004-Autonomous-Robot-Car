@@ -39,6 +39,10 @@ uint32_t s5_hw_us(void);
 /* Servo to a logical angle, 0.1 deg, + = left, 0 = straight ahead. Trim
  * and direction (s5_config.h) are applied here; clamped to the bracket. */
 void s5_hw_servo(int32_t ddeg);
+/* Buddy 5, 2026-11-19: added to S5_SERVO_TRIM_DDEG from now on (S5_AUTO_TRIM)
+ * and the trim in use (0.1 deg) */
+void s5_hw_trim_adj(int32_t ddeg);
+int32_t s5_hw_trim_now(void);
 
 /* Fire one ping. False if ECHO is still high from the last one. */
 bool s5_hw_fire(void);

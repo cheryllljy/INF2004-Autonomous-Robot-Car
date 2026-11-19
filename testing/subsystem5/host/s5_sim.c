@@ -617,6 +617,18 @@ uint32_t s5_hw_us(void)
     return g_us;
 }
 
+/* Buddy 5, 2026-11-19: S5_AUTO_TRIM runs on the car only (subsystem5.c);
+ * the simulated servo has its own error (servo_trim_deg) */
+void s5_hw_trim_adj(int32_t ddeg)
+{
+    (void)ddeg;
+}
+
+int32_t s5_hw_trim_now(void)
+{
+    return (int32_t)S5_SERVO_TRIM_DDEG;
+}
+
 void s5_hw_servo(int32_t ddeg)
 {
     int32_t a = ddeg;
