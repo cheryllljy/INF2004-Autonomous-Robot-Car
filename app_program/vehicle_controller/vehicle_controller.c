@@ -83,6 +83,29 @@ static volatile uint32_t g_status_word; /* written only by vc_task */
 #ifndef VC_HUMP_END_MM
 #define VC_HUMP_END_MM 200
 #endif
+/* heading hold by the encoders, from the hump to the end of
+ * VC_HUMP_END_MM: the left wheel's distance minus the right's is kept
+ * where it was when the hump began, as the barcode sensor scraping the
+ * ramp slows one side and turns the car. Each mm the difference moves
+ * sets the wheels VC_HUMP_HOLD_GAIN_PCT / 100 mm/s apart against it, at
+ * most VC_HUMP_HOLD_MAX_MM_S. Applied wherever both wheels are set the
+ * same (not while Buddy 3 steers to an IR). */
+#ifndef VC_HUMP_HOLD_GAIN_PCT
+#define VC_HUMP_HOLD_GAIN_PCT 150
+#endif
+#ifndef VC_HUMP_HOLD_MAX_MM_S
+#define VC_HUMP_HOLD_MAX_MM_S 40
+#endif
+#ifndef VC_HUMP_HOLD_LOG_MM
+#define VC_HUMP_HOLD_LOG_MM 50 /* log the difference this often */
+#endif
+/* a junction Buddy 3 counts while the car is on the hump is not a
+ * junction: on the ramp all the IRs can read black. Flat ground again
+ * after this much driving with Buddy 4 seeing no hump and the side lift
+ * under VC_HUMP_RIGHT_FROM_MM (the lift flickers around it on the ramp). */
+#ifndef VC_JUNCTION_FLAT_MM
+#define VC_JUNCTION_FLAT_MM 50
+#endif
 
 /* the arc takes about 4 s at 50 mm/s (8 s at 25) and the
  * U-turn about 5 s (vc_turn.c), so 5 s was too short. */
@@ -134,6 +157,12 @@ typedef struct
     bool b_hump_right;    /* right wheel sped up for the hump */
     bool b_hump_end;      /* end of the ramp: right wheel still faster */
     int32_t hump_end_mm;  /* where the end of the ramp began */
+    bool b_hold;          /* heading hold over the hump on */
+    int32_t hold_diff0;   /* left - right distance when it began, mm */
+    int32_t hold_max;     /* largest difference from it, mm */
+    int32_t hold_log_mm;  /* distance of the last hold log line */
+    bool b_off_flat;      /* hump seen within VC_JUNCTION_FLAT_MM */
+    int32_t hump_seen_mm; /* distance where it was last seen */
     /* line-loss and lift checks: Buddy 3's last-black time and the
      * distance where the current white (or all-black) run began */
     bool b_ground_ref;
@@ -211,10 +240,16 @@ static void track_hump(void)
     }
 }
 
+static void hold_end(void);
+
 static void enter(vc_state_t next)
 {
     if (next != vc.state)
     {
+        if ((VC_STATE_LINE_FOLLOW == vc.state) && vc.b_hold)
+        {
+            hold_end(); /* a turn or a stop: not the hump's drift */
+        }
         if (((VC_STATE_LINE_FOLLOW == next) || (VC_STATE_OBSTACLE == next)) &&
             ((VC_STATE_IDLE == vc.state) || (VC_STATE_STOPPED == vc.state)))
         {
@@ -935,6 +970,30 @@ static void report_white_run(void)
     }
 }
 
+/* on the hump, or less than VC_JUNCTION_FLAT_MM past it */
+static void flat_update(void)
+{
+    const bool b_hump =
+        subsystem4_on_hump() ||
+        ((int32_t)subsystem4_side_lift_mm() >= VC_HUMP_RIGHT_FROM_MM);
+
+    if (b_hump)
+    {
+        vc.b_off_flat = true;
+        vc.hump_seen_mm = vc.motion.distance_total_mm;
+    }
+    else if (vc.b_off_flat &&
+             ((vc.motion.distance_total_mm - vc.hump_seen_mm) >=
+              VC_JUNCTION_FLAT_MM))
+    {
+        vc.b_off_flat = false;
+    }
+    else
+    {
+        /* still on flat ground, or not far enough past the hump */
+    }
+}
+
 static void exchange_line(void)
 {
     b3_context_t ctx = { 0 };
@@ -1156,6 +1215,7 @@ static void exchange_line(void)
         }
     }
 
+    flat_update();
     if (vc.line.junction_sequence != vc.junctions)
     {
         b3_nav_command_t turn = vc.pending_turn;
@@ -1174,7 +1234,17 @@ static void exchange_line(void)
                                                     : '-',
                   turn_name(turn));
         on_junction(vc.junctions);
-        if ((VC_STATE_LINE_FOLLOW == vc.state) && vc_bar_waiting())
+        if ((VC_STATE_LINE_FOLLOW == vc.state) && vc.b_off_flat)
+        {
+            /* the hump, not a junction: the turn stays for the next
+             * junction on flat ground */
+            tm_printf((UB *)"[VC] junction #%u on the hump (side lift %d "
+                            "mm): ignored, turn %s waits for the next "
+                            "junction on flat ground\n",
+                      (uint32_t)vc.junctions,
+                      (int)subsystem4_side_lift_mm(), turn_name(turn));
+        }
+        else if ((VC_STATE_LINE_FOLLOW == vc.state) && vc_bar_waiting())
         {
             /* the barcode before this junction is not read yet: back up
              * and read it first; the junction comes again after it */
@@ -1311,14 +1381,76 @@ static void hump_min_speed(int16_t *p_left, int16_t *p_right)
     hump_peak_boost(p_left, p_right);
 }
 
+/* left - right wheel distance now, mm */
+static int32_t hold_diff(void)
+{
+    return vc.motion.dist_l_mm - vc.motion.dist_r_mm;
+}
+
+/* Heading hold: the speed to add to the right wheel (and take off the
+ * left) to bring the wheels' distance difference back. */
+static int16_t hold_corr(void)
+{
+    const int32_t err = hold_diff() - vc.hold_diff0;
+    int32_t corr = (err * VC_HUMP_HOLD_GAIN_PCT) / 100;
+    const int32_t mag = (err < 0) ? -err : err;
+
+    if (mag > vc.hold_max)
+    {
+        vc.hold_max = mag;
+    }
+    if (corr > VC_HUMP_HOLD_MAX_MM_S)
+    {
+        corr = VC_HUMP_HOLD_MAX_MM_S;
+    }
+    if (corr < -VC_HUMP_HOLD_MAX_MM_S)
+    {
+        corr = -VC_HUMP_HOLD_MAX_MM_S;
+    }
+    if ((vc.motion.distance_total_mm - vc.hold_log_mm) >=
+        VC_HUMP_HOLD_LOG_MM)
+    {
+        vc.hold_log_mm = vc.motion.distance_total_mm;
+        tm_printf((UB *)"[VC] heading hold: left wheel %d mm ahead of "
+                        "the right since the hump, right wheel %d mm/s "
+                        "faster\n",
+                  (int)err, (int)corr);
+    }
+    return (int16_t)corr;
+}
+
+static void hold_start(void)
+{
+    vc.b_hold = true;
+    vc.hold_diff0 = hold_diff();
+    vc.hold_max = 0;
+    vc.hold_log_mm = vc.motion.distance_total_mm;
+    tm_printf((UB *)"[VC] hump: holding the heading by the encoders\n");
+}
+
+static void hold_end(void)
+{
+    vc.b_hold = false;
+    tm_printf((UB *)"[VC] heading hold ended: wheels %d mm apart (most "
+                    "%d mm)\n",
+              (int)(hold_diff() - vc.hold_diff0), (int)vc.hold_max);
+}
+
 /* On the hump (side lift VC_HUMP_RIGHT_FROM_MM or more): both wheels
  * the same. For VC_HUMP_END_MM after it: both wheels the same while
- * both IRs are white, Buddy 3 steers while an IR is black. */
+ * both IRs are white, Buddy 3 steers while an IR is black. Where both
+ * wheels are the same, the heading hold corrects them. */
 static void hump_right_extra(int16_t *p_left, int16_t *p_right)
 {
     const int32_t lift = (int32_t)subsystem4_side_lift_mm();
     const bool b_on = (lift >= VC_HUMP_RIGHT_FROM_MM);
     const int16_t avg = (int16_t)(((int32_t)*p_left + *p_right) / 2);
+    int16_t corr = 0;
+
+    if (b_on && !vc.b_hold)
+    {
+        hold_start();
+    }
 
     if (b_on != vc.b_hump_right)
     {
@@ -1341,8 +1473,9 @@ static void hump_right_extra(int16_t *p_left, int16_t *p_right)
     if (b_on)
     {
         vc.b_hump_end = false;
-        *p_left = (int16_t)(avg + VC_HUMP_LEFT_EXTRA_MM_S);
-        *p_right = (int16_t)(avg + VC_HUMP_RIGHT_EXTRA_MM_S);
+        corr = hold_corr();
+        *p_left = (int16_t)(avg + VC_HUMP_LEFT_EXTRA_MM_S - (corr / 2));
+        *p_right = (int16_t)(avg + VC_HUMP_RIGHT_EXTRA_MM_S + (corr / 2));
     }
     else if (vc.b_hump_end)
     {
@@ -1351,11 +1484,19 @@ static void hump_right_extra(int16_t *p_left, int16_t *p_right)
             vc.b_hump_end = false;
             tm_printf((UB *)"[VC] end of the ramp passed: Buddy 3 "
                             "steers again\n");
+            if (vc.b_hold)
+            {
+                hold_end();
+            }
         }
         else if (!vc.line.line.left_black && !vc.line.line.right_black)
         {
-            *p_left = avg;
-            *p_right = (int16_t)(avg + VC_HUMP_END_EXTRA_MM_S);
+            if (vc.b_hold)
+            {
+                corr = hold_corr();
+            }
+            *p_left = (int16_t)(avg - (corr / 2));
+            *p_right = (int16_t)(avg + VC_HUMP_END_EXTRA_MM_S + (corr / 2));
         }
         else
         {
