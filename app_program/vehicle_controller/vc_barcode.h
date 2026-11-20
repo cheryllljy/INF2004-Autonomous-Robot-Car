@@ -15,8 +15,9 @@
  *        4. goes back to B3_BASE_SPEED_MM_S once the letter is decoded.
  *
  *      Scanning is off while stopping and backing up, so the decoder never
- *      sees the bars backwards. If the slow pass fails (a reject, or no
- *      barcode within VC_BAR_SLOW_MAX_MM) the car speeds up again and does
+ *      sees the bars backwards. If the slow pass fails (a reject once
+ *      VC_BAR_SLOW_MIN_MM is driven, or no barcode within
+ *      VC_BAR_SLOW_MAX_MM) the car speeds up again and does
  *      not back up for the next VC_BAR_REARM_MM, so a barcode it cannot read
  *      is not tried over and over.
  *
@@ -34,6 +35,12 @@
 #define VC_BAR_BACK_MM         100 /* white past its start; was 100 */
 #define VC_BAR_BACK_SPEED_MM_S 100
 #define VC_BAR_SLOW_MAX_MM     400  /* slow pass gives up after this */
+/* the slow pass drives at least this far after the back-up, even when a
+ * scan is rejected before (1.5 x an A4 page, 297 mm); a letter read still
+ * ends it at once */
+#ifndef VC_BAR_SLOW_MIN_MM
+#define VC_BAR_SLOW_MIN_MM 446
+#endif
 #define VC_BAR_REARM_MM        250  /* after a failed pass: no back-up */
 #define VC_BAR_CMD_TIMEOUT_MS  1000 /* Buddy 2 never took the command */
 #define VC_BAR_STEP_TIMEOUT_MS 8000 /* stop or back-up took too long */

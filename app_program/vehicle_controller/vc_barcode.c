@@ -35,8 +35,8 @@ typedef struct
     bool sent;      /* back-up move sent */
     bool busy_seen; /* Buddy 2 started it */
     bool waiting;   /* barcode seen, driving on VC_BAR_WAIT_MM first */
-    bool hump_seen; /* the hump came while stopping or backing up */
     bool scan_off;  /* on the hump: Buddy 3's scanning off */
+    bool kept_slow; /* rejected before VC_BAR_SLOW_MIN_MM: still slow */
 } vb_t;
 
 static vb_t vb;
@@ -87,6 +87,7 @@ static void vb_stop_for_barcode(const motion_status_t *p_motion,
 static void vb_start_slow(const motion_status_t *p_motion, const char *why)
 {
     vb.from_mm = p_motion->distance_total_mm;
+    vb.kept_slow = false;
     tm_printf((UB *)"[VC] barcode: %s, reading it at %d mm/s\n", why,
               (INT)B3_SCAN_SPEED_MM_S);
     vb_goto(VB_SLOW);
@@ -158,25 +159,17 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
             return false;
 
         case VB_STOPPING:
-            if (b_hump)
-            {
-                vb.hump_seen = true;
-            }
-            if ((MOTION_STATE_IDLE == p_motion->state) && vb.hump_seen)
-            {
-                tm_printf((UB *)"[VC] barcode: it was the hump, not "
-                                "backing up\n");
-                vb_goto(VB_ARMED);
-                return false;
-            }
-            else if (MOTION_STATE_IDLE == p_motion->state)
+            /* No hump check while stopping and backing up: the car has
+             * just driven VC_BAR_WAIT_MM over this ground with no hump,
+             * and a short lift spike while reversing (9 mm for 0.3 s on
+             * the car) threw the read away. The slow pass still checks. */
+            if (MOTION_STATE_IDLE == p_motion->state)
             {
                 /* back past where it was seen, which was a few mm into the
                  * barcode, plus the white for its leading quiet zone */
                 vb.back_mm = vb_abs(at - vb.detect_mm) + VC_BAR_BACK_MM;
                 vb.sent = false;
                 vb.busy_seen = false;
-                vb.hump_seen = false;
                 vb.cmd_ms = 0;
                 tm_printf((UB *)"[VC] barcode: stopped %d mm past it, "
                                 "backing up %d mm\n",
@@ -200,10 +193,6 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
 
         case VB_BACKING:
             vb.cmd_ms += dt_ms;
-            if (b_hump)
-            {
-                vb.hump_seen = true;
-            }
             if (!vb.sent)
             {
                 if (MOTION_OK ==
@@ -227,14 +216,6 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
                 {
                     /* not started yet */
                 }
-            }
-            else if ((MOTION_STATE_IDLE == p_motion->state) &&
-                     vb.hump_seen)
-            {
-                tm_printf((UB *)"[VC] barcode: backed up, but it was the "
-                                "hump: back to %d mm/s\n",
-                          (INT)B3_BASE_SPEED_MM_S);
-                vb_goto(VB_ARMED);
             }
             else if (MOTION_STATE_IDLE == p_motion->state)
             {
@@ -266,13 +247,31 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
                           (INT)B3_BASE_SPEED_MM_S);
                 vb_goto(VB_ARMED);
             }
-            else if (rejected || (vb_abs(at - vb.from_mm) >=
-                                  (vb.back_mm + VC_BAR_SLOW_MAX_MM)))
+            else if (rejected &&
+                     (vb_abs(at - vb.from_mm) < VC_BAR_SLOW_MIN_MM))
+            {
+                if (!vb.kept_slow)
+                {
+                    tm_printf((UB *)"[VC] barcode rejected %d mm into the "
+                                    "slow pass: staying at %d mm/s to %d "
+                                    "mm\n",
+                              (INT)vb_abs(at - vb.from_mm),
+                              (INT)B3_SCAN_SPEED_MM_S,
+                              (INT)VC_BAR_SLOW_MIN_MM);
+                }
+                vb.kept_slow = true;
+            }
+            else if (rejected ||
+                     (vb.kept_slow &&
+                      (vb_abs(at - vb.from_mm) >= VC_BAR_SLOW_MIN_MM)) ||
+                     (vb_abs(at - vb.from_mm) >=
+                      (vb.back_mm + VC_BAR_SLOW_MAX_MM)))
             {
                 tm_printf((UB *)"[VC] barcode not read at %d mm/s (%s), back "
                                 "to %d mm/s\n",
                           (INT)B3_SCAN_SPEED_MM_S,
-                          rejected ? "rejected" : "none found",
+                          (rejected || vb.kept_slow) ? "rejected"
+                                                     : "none found",
                           (INT)B3_BASE_SPEED_MM_S);
                 vb.from_mm = at;
                 vb_goto(VB_REARM);
