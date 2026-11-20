@@ -133,11 +133,26 @@
 #ifndef B3_STEER_LEARN_TIGHT_CURV
 #define B3_STEER_LEARN_TIGHT_CURV 450
 #endif
+/* IR_L black while a left curve of at least B3_CURVE_FULL_CURV (R670) is
+ * learnt: that curve is learnt this % as fast and the nudge is this % of
+ * the usual. On the car left bends turned less than right ones: the
+ * wheels gave 74 % of the curve asked in left bends and 82 % in right
+ * ones, and the tightest left asked was R131 (right R112). A touch of
+ * IR_L on a straight or in a right bend is unchanged. Host sim with left
+ * turns weaker than right: 145 to 180 lost no bend 100 kept and kept
+ * the R80 left bend; 130 lost the R130 left semicircle with weak wheels.
+ * 100: off. */
+#ifndef B3_STEER_LEFT_PCT
+#define B3_STEER_LEFT_PCT 150
+#endif
 #ifndef B3_STEER_FORGET_MM
 #define B3_STEER_FORGET_MM 80
 #endif
 /* a side against the learnt curve black for this long ends the curve: the
- * steering it left is kept rather than turning back to the old curve */
+ * steering it left is kept rather than turning back to the old curve.
+ * 40: at 15 the car cut inside a right bend, IR_L touched the line for
+ * 10-30 mm twice, each touch dropped the right curve and the car lost the
+ * bend. At 40 the left turn after a right bend comes about 25 mm late. */
 #ifndef B3_STEER_CURVE_END_MM
 #define B3_STEER_CURVE_END_MM 40
 #endif
@@ -193,6 +208,11 @@
  * Host sim, wheels fitted to the car's curve log: same 10 pivots, kicks
  * 67 -> 61, 15 % faster, no line lost; 35 / 20 (R131) pivoted in 16.
  * On the car 35 / 19 turned left too weakly, so watch the left bends. */
+/* 20, not lower: at 10 and 12 the inner wheel asked 12-15 mm/s ran
+ * 22-24 on average (up to 40) and now and then dropped to 2-8, so the car
+ * turned wider than asked, pivoted and then snapped too far. Buddy 2 only
+ * cuts a wheel's power, it never brakes it, so the outer wheel drags the
+ * inner one along in a bend. */
 #ifndef B3_MIN_WHEEL_MM_S
 #define B3_MIN_WHEEL_MM_S 20 /* half of B3_CURVE_SPEED_MM_S */
 #endif

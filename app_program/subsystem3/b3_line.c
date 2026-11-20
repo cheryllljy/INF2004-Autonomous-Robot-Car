@@ -250,6 +250,12 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
     }
     else if (0 != result.error)
     {
+        /* IR_L black in a left curve already learnt: B3_STEER_LEFT_PCT */
+        const int64_t side_pct =
+            ((result.error < 0) && (p_line->memory >= B3_CURVE_FULL_CURV))
+                ? (int64_t)B3_STEER_LEFT_PCT
+                : 100;
+
         p_line->black_um += (uint32_t)ds_um;
         if (((int64_t)result.error * p_line->memory) > 0)
         {
@@ -264,11 +270,12 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         {
             /* faster when the black side asks for more of a tight curve
              * already learnt (B3_STEER_LEARN_TIGHT_CURV) */
-            const int64_t rate =
+            const int64_t base_rate =
                 ((((int64_t)result.error * p_line->memory) < 0) &&
                  (abs32(p_line->memory) >= B3_STEER_TIGHT_FROM_CURV))
                     ? B3_STEER_LEARN_TIGHT_CURV
                     : B3_STEER_LEARN_CURV;
+            const int64_t rate = (base_rate * side_pct) / 100;
 
             p_line->memory -=
                 (int32_t)(((int64_t)result.error * rate * ds_um *
@@ -289,6 +296,7 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
             kick += ((B3_STEER_KICK_CURV - kick) * (int64_t)p_line->black_um) /
                     ((int64_t)B3_STEER_KICK_RAMP_MM * 1000);
         }
+        kick = (kick * side_pct) / 100;
         target = p_line->memory - (result.error * (int32_t)kick);
     }
     else

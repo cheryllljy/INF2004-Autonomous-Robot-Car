@@ -36,7 +36,7 @@ static volatile uint32_t g_status_word; /* written only by vc_task */
  * at this or faster, so the car does not stall on the climb. Above
  * Buddy 3's straight-line speed (100), so it speeds up there too. */
 #ifndef VC_HUMP_MIN_MM_S
-#define VC_HUMP_MIN_MM_S 80 /* 150 sped the car up in bends */
+#define VC_HUMP_MIN_MM_S 50 /* 150 sped the car up in bends */
 #endif
 /* the IMU also reports a hump in bends and turns, so the hump speed is
  * used only while Buddy 3 asks for straight on: wheels apart by at most
@@ -244,7 +244,8 @@ static void hold_end(void);
 
 static void update_imu_jolt_hold(void)
 {
-    subsystem4_hold_jolt((VC_STATE_OBSTACLE == vc.state) || vc_bar_busy());
+    subsystem4_hold_jolt((0 != VC_IMU_OFF) ||
+                         (VC_STATE_OBSTACLE == vc.state) || vc_bar_busy());
 }
 
 static void enter(vc_state_t next)
@@ -1773,7 +1774,8 @@ static void send_telemetry(uint32_t faults)
     }
     run.letter = vc.last_symbol;
     run.junctions = (uint8_t)vc.junctions;
-    run.lift_mm = subsystem4_side_lift_mm();
+    /* the real reading, also with VC_IMU_OFF: (name) skips the macro */
+    run.lift_mm = (subsystem4_side_lift_mm)();
     run.hump_mm = vc.hump_max_mm;
     if (tk_get_otm(&now) >= E_OK)
     {
