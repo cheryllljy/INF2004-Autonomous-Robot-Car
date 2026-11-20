@@ -8,6 +8,7 @@
 
 #define S4_HUMP_TRACK_WIDTH_MM      112U
 #define S4_HUMP_START_HEIGHT_MM     8U
+#define S4_HUMP_START_SAMPLES       4U /* consecutive valid samples */
 #define S4_HUMP_LEVEL_HEIGHT_MM     4U
 #define S4_HUMP_MIN_PEAK_HEIGHT_MM  8U
 #define S4_HUMP_LEVEL_SAMPLES       1U

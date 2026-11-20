@@ -43,14 +43,14 @@ extern ID mtx_imu;
 
 extern ER subsystem4_publish_imu_snapshot(const s4_imu_snapshot_t *p_snapshot);
 extern ER subsystem4_get_imu_snapshot(s4_imu_snapshot_t *p_snapshot);
-/* true from the moment the hump detector (task_monitor.c) sees one side
- * S4_HUMP_START_HEIGHT_MM up until the car is level again (HUMP_DONE);
+/* true after the hump detector sees S4_HUMP_START_HEIGHT_MM or more for
+ * S4_HUMP_START_SAMPLES consecutive valid samples, until level again;
  * the VehicleController keeps the car at VC_HUMP_MIN_MM_S or more */
 extern bool subsystem4_on_hump(void);
 /* side lift now, in mm, the same measure as the hump height */
 extern uint8_t subsystem4_side_lift_mm(void);
-/* Buddy 5, 2026-11-19: true while a bypass drives: a jolt alone is no
- * pick-up E-stop (a tilt still is) */
+/* True during intentional obstacle or barcode stop/reverse motion, when a
+ * jolt alone is not evidence of a pick-up (tilt detection remains active). */
 extern void subsystem4_hold_jolt(bool b_hold);
 /* tilt from level (start-up) in any direction, 0.1 deg: pitch on a ramp
  * as well as roll */

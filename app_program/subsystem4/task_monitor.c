@@ -20,6 +20,7 @@ typedef struct
     int32_t base_vertical;
     uint32_t base_total;
     int32_t filtered_sin_q15;
+    uint8_t hump_start_samples;
     uint8_t level_samples;
     uint8_t hump_sequence;
     uint8_t peak_height_mm;
@@ -44,10 +45,8 @@ typedef struct
 
 static s4_hump_state_t s4_hump_state;
 
-/* Buddy 5, 2026-11-19 (asked by Darwin): while Buddy 5 drives a bypass
- * (VehicleController OBSTACLE state) a jolt alone is not a pick-up: the
- * turn out and back in shake the car (on the track a 141 % jolt E-stopped
- * it as it came back onto the line). Tilt still is. */
+/* Intentional obstacle and barcode stop/reverse maneuvers can jolt the car;
+ * those phases hold off only the jolt-based pick-up check. Tilt still is. */
 static volatile bool s4_jolt_hold = false;
 
 void subsystem4_hold_jolt(bool b_hold)
@@ -246,6 +245,10 @@ static void s4_hump_step(const imu_vector_t *p_raw)
     if ((0U == plane) || (0U == s4_hump_state.base_total) ||
         ((uint64_t)s4_abs_i32((int32_t)total - (int32_t)s4_hump_state.base_total) * 100U >
          (uint64_t)s4_hump_state.base_total * S4_HUMP_ACCEL_TOLERANCE_PCT)) {
+        if (!s4_hump_state.hump_active) {
+            s4_hump_state.hump_start_samples = 0U;
+            s4_hump_state.peak_height_mm = 0U;
+        }
         return;
     }
 
@@ -253,7 +256,13 @@ static void s4_hump_step(const imu_vector_t *p_raw)
                                      s4_hump_state.base_lateral) +
                           (uint64_t)((int64_t)s4_hump_state.base_vertical *
                                      s4_hump_state.base_vertical));
-    if (0U == base_plane) return;
+    if (0U == base_plane) {
+        if (!s4_hump_state.hump_active) {
+            s4_hump_state.hump_start_samples = 0U;
+            s4_hump_state.peak_height_mm = 0U;
+        }
+        return;
+    }
 
     cross = (int64_t)s4_hump_state.base_vertical * lateral -
             (int64_t)s4_hump_state.base_lateral  * vertical;
@@ -293,10 +302,27 @@ static void s4_hump_step(const imu_vector_t *p_raw)
     }
 
     if (!s4_hump_state.hump_active) {
-        if (height_mm < S4_HUMP_START_HEIGHT_MM) return;
+        if (height_mm < S4_HUMP_START_HEIGHT_MM) {
+            s4_hump_state.hump_start_samples = 0U;
+            s4_hump_state.peak_height_mm = 0U;
+            return;
+        }
+        if (0U == s4_hump_state.hump_start_samples) {
+            s4_hump_state.peak_height_mm = 0U;
+        }
+        if (height_mm > s4_hump_state.peak_height_mm) {
+            s4_hump_state.peak_height_mm =
+                (uint8_t)((height_mm > 255U) ? 255U : height_mm);
+            s4_hump_state.peak_roll_sign = (sin_q15 < 0) ? -1 : 1;
+        }
+        if (s4_hump_state.hump_start_samples < S4_HUMP_START_SAMPLES) {
+            s4_hump_state.hump_start_samples++;
+        }
+        if (s4_hump_state.hump_start_samples < S4_HUMP_START_SAMPLES) {
+            return;
+        }
+        s4_hump_state.hump_start_samples = 0U;
         s4_hump_state.hump_active        = true;
-        s4_hump_state.peak_height_mm     = (uint8_t)((height_mm > 255U) ? 255U : height_mm);
-        s4_hump_state.peak_roll_sign     = (sin_q15 < 0) ? -1 : 1;
         s4_hump_state.hump_sample_count  = 0U;
         s4_hump_state.level_samples      = 0U;
         time_er = tk_get_tim(&now);

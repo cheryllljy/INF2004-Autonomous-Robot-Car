@@ -242,6 +242,11 @@ static void track_hump(void)
 
 static void hold_end(void);
 
+static void update_imu_jolt_hold(void)
+{
+    subsystem4_hold_jolt((VC_STATE_OBSTACLE == vc.state) || vc_bar_busy());
+}
+
 static void enter(vc_state_t next)
 {
     if (next != vc.state)
@@ -262,9 +267,6 @@ static void enter(vc_state_t next)
         {
             s5_avoid_abort();
         }
-        /* Buddy 5, 2026-11-19 (asked by Darwin): no pick-up E-stop on a
-         * jolt alone while the bypass drives (subsystem4_hold_jolt()) */
-        subsystem4_hold_jolt(VC_STATE_OBSTACLE == next);
         tm_printf((UB *)"[VC] state %d -> %d\n", vc.state, next);
         vc.state = next;
         vc.state_ms = 0;
@@ -272,6 +274,8 @@ static void enter(vc_state_t next)
         {
             vc_bar_reset(&vc.motion); /* fast again */
         }
+        /* Intentional obstacle and barcode reverse motion can jolt the IMU. */
+        update_imu_jolt_hold();
     }
 }
 
@@ -976,9 +980,7 @@ static void report_white_run(void)
 /* on the hump, or less than VC_JUNCTION_FLAT_MM past it */
 static void flat_update(void)
 {
-    const bool b_hump =
-        subsystem4_on_hump() ||
-        ((int32_t)subsystem4_side_lift_mm() >= VC_HUMP_RIGHT_FROM_MM);
+    const bool b_hump = subsystem4_on_hump();
 
     if (b_hump)
     {
@@ -1457,7 +1459,8 @@ static void hold_end(void)
 static void hump_right_extra(int16_t *p_left, int16_t *p_right)
 {
     const int32_t lift = (int32_t)subsystem4_side_lift_mm();
-    const bool b_on = (lift >= VC_HUMP_RIGHT_FROM_MM);
+    const bool b_on = subsystem4_on_hump() &&
+                      (lift >= VC_HUMP_RIGHT_FROM_MM);
     const int16_t avg = (int16_t)(((int32_t)*p_left + *p_right) / 2);
     int16_t corr = 0;
 
@@ -1724,6 +1727,7 @@ static void vc_task(INT stacd, void *exinf)
         exchange_line();
         pass_time();
         act();
+        update_imu_jolt_hold();
         track_hump();
 
         /* 6. one aligned store: readers see all or nothing. no way round an
