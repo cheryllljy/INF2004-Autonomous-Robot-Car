@@ -1,0 +1,46 @@
+{"kind":"run_start","wall":"2026-11-20T16:06:24.702","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"event","wall":"2026-11-20T16:06:23.756","text":"[VC] MQTT RESET requested for FR3 safety latch","t_ms":-953,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:23.758","text":"[BUDDY1] FR3 controller reset accepted","t_ms":-953,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:23.764","text":"[VC] Communication reset complete","t_ms":-937,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:23.786","text":"[VC] state 5 -> 0","t_ms":-921,"before_start":true}
+{"kind":"note","wall":"2026-11-20T16:06:24.289","text":"Sent RESET (seq 171)","t_ms":-421,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:24.404","text":"[VC] MQTT RESET received seq=171","t_ms":-296,"before_start":true}
+{"kind":"note","wall":"2026-11-20T16:06:24.476","text":"Sent START (seq 172)","t_ms":-233,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:24.535","text":"[VC] MQTT START received seq=172","t_ms":-171,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:24.558","text":"[VC] state 0 -> 1","t_ms":-140,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:24.565","text":"[VC] on the hump: barcode scanning off","t_ms":-140,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:24.641","text":"[VC] hump (IMU): at least 80 mm/s until level again (asked L 100 R 100 mm/s)","t_ms":-62,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:06:24.643","text":"[VC] hump: holding the heading by the encoders","t_ms":-62,"before_start":true}
+{"kind":"sample","wall":"2026-11-20T16:06:24.702","t_ms":0,"seq":253,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":true,"faults":0,"fault_names":[],"speed_l":0,"speed_r":0,"distance":1110,"range":739,"letter":"","junctions":1,"lift":13,"hump":13,"uptime":115,"lost":0}
+{"kind":"sample","wall":"2026-11-20T16:06:24.848","t_ms":141,"seq":254,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":true,"faults":0,"fault_names":[],"speed_l":44,"speed_r":40,"distance":1115,"range":747,"letter":"","junctions":1,"lift":12,"hump":13,"uptime":115,"lost":0}
+{"kind":"sample","wall":"2026-11-20T16:06:25.050","t_ms":344,"seq":255,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":true,"faults":0,"fault_names":[],"speed_l":108,"speed_r":108,"distance":1133,"range":731,"letter":"","junctions":1,"lift":13,"hump":13,"uptime":115,"lost":0}
+{"kind":"sample","wall":"2026-11-20T16:06:25.361","t_ms":657,"seq":0,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":true,"faults":0,"fault_names":[],"speed_l":104,"speed_r":102,"distance":1154,"range":726,"letter":"","junctions":1,"lift":12,"hump":13,"uptime":115,"lost":0}
+{"kind":"event","wall":"2026-11-20T16:06:25.440","text":"[VC] heading hold: left wheel 0 mm ahead of the right since the hump, right wheel 0 mm/s faster","t_ms":734}
+{"kind":"note","wall":"2026-11-20T16:06:26.315","text":"Sent START (seq 173)","t_ms":1609}
+{"kind":"sample","wall":"2026-11-20T16:06:26.700","t_ms":2000,"seq":1,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":100,"speed_r":104,"distance":1174,"range":720,"letter":"","junctions":1,"lift":15,"hump":15,"uptime":116,"lost":0}
+{"kind":"sample","wall":"2026-11-20T16:06:26.757","t_ms":2046,"seq":2,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":true,"faults":0,"fault_names":[],"speed_l":96,"speed_r":100,"distance":1194,"range":711,"letter":"","junctions":1,"lift":16,"hump":18,"uptime":116,"lost":0}
+{"kind":"event","wall":"2026-11-20T16:06:26.760","text":"[VC] heading hold: left wheel -2 mm ahead of the right since the hump, right wheel -3 mm/s faster","t_ms":2046}
+{"kind":"sample","wall":"2026-11-20T16:06:26.764","t_ms":2062,"seq":3,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":98,"speed_r":102,"distance":1214,"range":698,"letter":"","junctions":1,"lift":14,"hump":18,"uptime":116,"lost":0}
+{"kind":"sample","wall":"2026-11-20T16:06:26.767","t_ms":2062,"seq":4,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":true,"faults":0,"fault_names":[],"speed_l":100,"speed_r":100,"distance":1234,"range":690,"letter":"","junctions":1,"lift":13,"hump":18,"uptime":116,"lost":0}
+{"kind":"sample","wall":"2026-11-20T16:06:26.769","t_ms":2062,"seq":5,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":true,"faults":0,"fault_names":[],"speed_l":102,"speed_r":102,"distance":1255,"range":680,"letter":"","junctions":1,"lift":14,"hump":18,"uptime":116,"lost":0}
+{"kind":"event","wall":"2026-11-20T16:06:26.778","text":"[VC] heading hold: left wheel -2 mm ahead of the right since the hump, right wheel -3 mm/s faster","t_ms":2078}
+{"kind":"event","wall":"2026-11-20T16:06:26.780","text":"[VC] MQTT START received seq=173","t_ms":2078}
+{"kind":"event","wall":"2026-11-20T16:06:26.846","text":"[VC] heading hold: left wheel -5 mm ahead of the right since the hump, right wheel -7 mm/s faster","t_ms":2141}
+{"kind":"sample","wall":"2026-11-20T16:06:26.877","t_ms":2171,"seq":8,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":86,"speed_r":86,"distance":1313,"range":740,"letter":"","junctions":1,"lift":12,"hump":18,"uptime":117,"lost":2}
+{"kind":"event","wall":"2026-11-20T16:06:26.983","text":"[VC] junction #2 reached, letter '-', turn STRAIGHT (none)","t_ms":2282}
+{"kind":"event","wall":"2026-11-20T16:06:28.379","text":"[VC] junction #2 on the hump (side lift 9 mm): ignored, turn STRAIGHT (none) waits for the next junction on flat ground","t_ms":3671}
+{"kind":"sample","wall":"2026-11-20T16:06:28.395","t_ms":3687,"seq":9,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":64,"speed_r":102,"distance":1332,"range":709,"letter":"","junctions":2,"lift":12,"hump":18,"uptime":117,"lost":0}
+{"kind":"note","wall":"2026-11-20T16:06:29.503","text":"Sent STOP (seq 174)","t_ms":4796}
+{"kind":"sample","wall":"2026-11-20T16:06:33.053","t_ms":8344,"seq":10,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":104,"speed_r":94,"distance":1351,"range":751,"letter":"","junctions":2,"lift":16,"hump":18,"uptime":117,"lost":0}
+{"kind":"event","wall":"2026-11-20T16:06:33.061","text":"[VC] heading hold: left wheel -6 mm ahead of the right since the hump, right wheel -9 mm/s faster","t_ms":8359}
+{"kind":"event","wall":"2026-11-20T16:06:33.062","text":"[VC] car picked up (IMU): tilted, 120 percent of 1 g, E-STOP","t_ms":8359}
+{"kind":"sample","wall":"2026-11-20T16:06:33.074","t_ms":8375,"seq":11,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":0,"fault_names":[],"speed_l":112,"speed_r":98,"distance":1373,"range":0,"letter":"","junctions":2,"lift":16,"hump":18,"uptime":118,"lost":0}
+{"kind":"event","wall":"2026-11-20T16:06:33.078","text":"[VC] E-stop set by the IMU: car tilted or picked up","t_ms":8375}
+{"kind":"sample","wall":"2026-11-20T16:06:34.638","t_ms":9937,"seq":16,"state":5,"state_name":"ESTOP","wifi":true,"mqtt":true,"ir_l":true,"ir_r":true,"ir_b":true,"faults":4,"fault_names":["IMU / tilt"],"speed_l":0,"speed_r":0,"distance":1376,"range":486,"letter":"","junctions":2,"lift":12,"hump":18,"uptime":119,"lost":4}
+{"kind":"run_end","wall":"2026-11-20T16:06:34.638","t_ms":9937,"state":5,"state_name":"ESTOP","reason":"state ESTOP"}
+{"kind":"event","wall":"2026-11-20T16:06:34.642","text":"[VC] E-stop, fault bits 0x04","t_ms":9937,"after_end":true}
+{"kind":"event","wall":"2026-11-20T16:06:34.650","text":"[VC] heading hold ended: wheels -5 mm apart (most 11 mm)","t_ms":9937,"after_end":true}
+{"kind":"event","wall":"2026-11-20T16:06:34.655","text":"[VC] state 1 -> 5","t_ms":9953,"after_end":true}
+{"kind":"event","wall":"2026-11-20T16:06:34.763","text":"[VC] TERRAIN_REPORT seq=11 classification=ROLL_HUMP peak_side_height_est=18 mm duration=14370 ms imu_samples=594","t_ms":10062,"after_end":true}
+{"kind":"event","wall":"2026-11-20T16:06:34.780","text":"[VC] car picked up (IMU): jolt, 221 percent of 1 g, E-STOP","t_ms":10078,"after_end":true}
+{"kind":"event","wall":"2026-11-20T16:06:34.804","text":"[VC] MQTT STOP received seq=174","t_ms":10094,"after_end":true}

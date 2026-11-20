@@ -137,7 +137,7 @@ INT usermain(void)
 #endif
 
     /* Phase 2: every subsystem starts its tasks */
-    // CHECK(subsystem1_start(), "subsystem1_start");
+    CHECK(subsystem1_start(), "subsystem1_start");
     CHECK(subsystem2_start(), "subsystem2_start");
     CHECK(subsystem3_start(), "subsystem3_start");
     CHECK(subsystem4_start(), "subsystem4_start");
