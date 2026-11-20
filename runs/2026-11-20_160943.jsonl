@@ -1,0 +1,10 @@
+{"kind":"run_start","wall":"2026-11-20T16:09:43.321","t_ms":0,"trigger":"state IDLE -> LINE_FOLLOW"}
+{"kind":"note","wall":"2026-11-20T16:09:42.497","text":"Sent START (seq 180)","t_ms":-812,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:09:43.284","text":"[VC] MQTT START received seq=180","t_ms":-30,"before_start":true}
+{"kind":"note","wall":"2026-11-20T16:09:43.287","text":"Sent STOP (seq 181)","t_ms":-30,"before_start":true}
+{"kind":"event","wall":"2026-11-20T16:09:43.320","text":"[VC] state 0 -> 1","t_ms":0,"before_start":true}
+{"kind":"sample","wall":"2026-11-20T16:09:43.321","t_ms":0,"seq":9,"state":1,"state_name":"LINE_FOLLOW","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":92,"speed_r":92,"distance":2362,"range":556,"letter":"F","junctions":1,"lift":0,"hump":0,"uptime":169,"lost":3}
+{"kind":"event","wall":"2026-11-20T16:09:43.423","text":"[VC] MQTT STOP received seq=181","t_ms":109}
+{"kind":"event","wall":"2026-11-20T16:09:43.477","text":"[VC] state 1 -> 4","t_ms":156}
+{"kind":"sample","wall":"2026-11-20T16:09:43.505","t_ms":187,"seq":10,"state":4,"state_name":"STOPPED","wifi":true,"mqtt":true,"ir_l":false,"ir_r":false,"ir_b":false,"faults":0,"fault_names":[],"speed_l":78,"speed_r":78,"distance":2380,"range":547,"letter":"F","junctions":1,"lift":0,"hump":0,"uptime":169,"lost":0}
+{"kind":"run_end","wall":"2026-11-20T16:09:43.505","t_ms":187,"state":4,"state_name":"STOPPED","reason":"state STOPPED"}
