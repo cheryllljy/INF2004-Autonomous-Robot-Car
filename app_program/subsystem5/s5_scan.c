@@ -627,6 +627,9 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
         p_out->face_q_mm = p_out->face_mm;
         p_out->edge_l_mm = 0U;
         p_out->edge_r_mm = 0U;
+        p_out->b_narrow = false;
+        p_out->y_mid = 0.0f;
+        p_out->b_limited = false;
 #if (0 != S5_EDGE_BY_RANGE)
         {
             /* Buddy 5, 2026-11-16: the corners by range (the face is
@@ -648,6 +651,8 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
             {
                 float side_l = s5_range_side(el, fq);
                 float side_r = s5_range_side(er, fq);
+                const float raw_l = side_l; /* before any fallback */
+                const float raw_r = side_r;
 
                 p_out->b_by_range = true;
                 p_out->face_q_mm = fq;
@@ -668,7 +673,9 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
                 const bool b_alone = p_out->b_left_seen &&
                                      p_out->b_right_seen;
                 /* the least a side that range cannot tell is taken to be */
-                const float near = 0.5f * (float)S5_EDGE_MIN_MM;
+                /* Buddy 5, 2026-11-19: half the least object (S5_OBJ_MIN_MM),
+                 * was half of S5_EDGE_MIN_MM (22 mm) */
+                const float near = (float)S5_NARROW_HALF_MIN_MM;
 
                 /* a corner closer to the sonar's axis than S5_EDGE_MIN_MM
                  * cannot be told from the face by range (it may even be
@@ -703,6 +710,91 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
                 }
                 p_out->y_left = p_view->y + side_l;
                 p_out->y_right = p_view->y - side_r;
+
+                /* Buddy 5, 2026-11-19: a narrow object (a 9 cm one), both
+                 * corners too near the sonar's axis to tell by range. Its
+                 * echoes spread out by the beam the same on both sides,
+                 * so the middle of where they start and stop is where the
+                 * object is, whatever the beam (only the servo's trim
+                 * counts, so S5_AUTO_TRIM). Half its width: the two sides
+                 * by range, even if short, kept within
+                 * S5_NARROW_HALF_MIN_MM .. S5_EDGE_MIN_MM. Not when one
+                 * side is told by range (a wider object off centre): a
+                 * servo error would move the middle and cut that object
+                 * short on the other side. Before, the unresolved side came from
+                 * the angle method (beam and servo both off on the car)
+                 * and a 9 cm object 2..4 cm off the line went round the
+                 * long way. */
+                if ((0 != S5_NARROW_ON) && b_alone &&
+                    (raw_l < (float)S5_EDGE_MIN_MM) &&
+                    (raw_r < (float)S5_EDGE_MIN_MM))
+                {
+                    const float mid =
+                        p_view->psi +
+                        s5_ddeg_to_rad((l_obs + r_obs) / 2);
+                    const float yc = p_view->y + ((float)fq * s5_tanf(mid));
+                    float hw = 0.5f * (raw_l + raw_r);
+
+                    if (hw > (float)S5_EDGE_MIN_MM)
+                    {
+                        hw = (float)S5_EDGE_MIN_MM;
+                    }
+                    if (hw < (float)S5_NARROW_HALF_MIN_MM)
+                    {
+                        hw = (float)S5_NARROW_HALF_MIN_MM;
+                    }
+                    p_out->b_narrow = true;
+                    p_out->y_mid = yc;
+                    if (raw_l < (float)S5_EDGE_MIN_MM)
+                    {
+                        p_out->y_left = yc + hw;
+                    }
+                    if (raw_r < (float)S5_EDGE_MIN_MM)
+                    {
+                        p_out->y_right = yc - hw;
+                    }
+                }
+                /* Buddy 5, 2026-11-19: S5_OBJ_MIN_MM .. S5_OBJ_MAX_MM
+                 * around the middle of the echoes */
+                if (b_alone)
+                {
+                    const float mid =
+                        p_view->psi +
+                        s5_ddeg_to_rad((l_obs + r_obs) / 2);
+                    const float ym = p_view->y + ((float)fq * s5_tanf(mid));
+                    const float half_min = 0.5f * (float)S5_OBJ_MIN_MM;
+                    const float half_max = 0.5f * (float)S5_OBJ_MAX_MM;
+                    const float w = p_out->y_left - p_out->y_right;
+
+                    if (w < (float)S5_OBJ_MIN_MM)
+                    {
+                        if (p_out->y_left < (ym + half_min))
+                        {
+                            p_out->y_left = ym + half_min;
+                        }
+                        if (p_out->y_right > (ym - half_min))
+                        {
+                            p_out->y_right = ym - half_min;
+                        }
+                        p_out->b_limited = true;
+                    }
+                    else if (w > (float)S5_OBJ_MAX_MM)
+                    {
+                        if (p_out->y_left > (ym + half_max))
+                        {
+                            p_out->y_left = ym + half_max;
+                        }
+                        if (p_out->y_right < (ym - half_max))
+                        {
+                            p_out->y_right = ym - half_max;
+                        }
+                        p_out->b_limited = true;
+                    }
+                    else
+                    {
+                        /* within the limits */
+                    }
+                }
             }
         }
 #endif
@@ -783,4 +875,36 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
         p_out->block_r_ddeg = (at_r >= 0) ? p_s[at_r].ddeg : 0;
         p_out->block_r_mm = (at_r >= 0) ? p_s[at_r].mm : 0U;
     }
+}
+
+/* Buddy 5, 2026-11-19: S5_AUTO_TRIM. A sweep taken with the car standing
+ * still and an object straight ahead: true and *p_corr (0.1 deg, to add to
+ * the trim) if it can be trusted for that: found, both edges inside the
+ * sweep, the face S5_AUTO_TRIM_NEAR_MM .. S5_AUTO_TRIM_FAR_MM away, the
+ * object S5_OBJ_MIN_MM .. S5_OBJ_MAX_MM wide by angle, the correction
+ * under S5_AUTO_TRIM_MAX_DDEG. */
+bool s5_scan_trim_from(const s5_profile_t *p_pr, int16_t *p_corr)
+{
+    int32_t c;
+    float w;
+
+    if (!p_pr->b_found || !p_pr->b_left_seen || !p_pr->b_right_seen ||
+        (p_pr->face_mm < (uint16_t)S5_AUTO_TRIM_NEAR_MM) ||
+        (p_pr->face_mm > (uint16_t)S5_AUTO_TRIM_FAR_MM))
+    {
+        return false;
+    }
+    c = ((int32_t)p_pr->left_ddeg + (int32_t)p_pr->right_ddeg) / 2;
+    if ((c > S5_AUTO_TRIM_MAX_DDEG) || (c < -S5_AUTO_TRIM_MAX_DDEG))
+    {
+        return false;
+    }
+    w = p_pr->ya_left - p_pr->ya_right;
+    if ((w < (0.5f * (float)S5_OBJ_MIN_MM)) ||
+        (w > (2.0f * (float)S5_OBJ_MAX_MM)))
+    {
+        return false; /* a wall, or nothing much: not an object to trim by */
+    }
+    *p_corr = (int16_t)c;
+    return true;
 }
