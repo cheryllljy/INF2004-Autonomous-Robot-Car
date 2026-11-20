@@ -36,6 +36,7 @@
 #include "s5_avoid.h"
 #include "s5_config.h"
 #include "s5_hw.h"
+#include "s5_odom.h"
 #include "s5_sensor.h"
 #include "s5_sim.h"
 
@@ -738,6 +739,7 @@ static res_t run(const scen_t *s, uint32_t seed)
     b3_line_init(&g_vc.line, sim_now_us());
     (void)s5_hw_init();
     s5_sensor_init();
+    s5_odom_lr_reset(); /* Buddy 5, 2026-11-20: each run its own encoders */
     s5_avoid_init();
 
     while (t < LIMIT_MS)

@@ -101,7 +101,15 @@
 #define S5_TWO_DIST (1)
 #endif
 #define S5_TWO_NEAR_MAX_MM  (190)
-#define S5_TWO_BACK_MM      (70)
+/* Buddy 5, 2026-11-20: 70 -> 110. The width comes from the difference of
+ * the two spans; further apart, each 1 deg of error in them is about 7 mm
+ * of width instead of 10 */
+/* v4.5: 110 -> 60. From a 17 cm stop, 110 put the second sweep at 28 cm,
+ * where the track gave echoes at 285..317 mm at every angle (people
+ * round it) and the second sweep saw no edge */
+#ifndef S5_TWO_BACK_MM
+#define S5_TWO_BACK_MM      (60)
+#endif
 #define S5_TWO_MIN_APART_MM (40)  /* the faces at least this far apart */
 #define S5_TWO_BEAM_MIN_DEG (0)   /* a solved beam outside these: not used */
 #define S5_TWO_BEAM_MAX_DEG (25)
@@ -179,7 +187,9 @@
 #define S5_SCAN_WHILE_STOPPING (1)
 #endif
 #ifndef S5_SCAN_FINE
+#ifndef S5_SCAN_FINE
 #define S5_SCAN_FINE (2U) /* halvings per edge: 10 -> 5 -> 2.5 deg */
+#endif
 #endif
 /* the fine probes come at the edge from the left, like the sweep, so the
  * servo's gear backlash is the same for every sample */
@@ -248,6 +258,14 @@
  * this far further in (0.1 deg) */
 #define S5_EDGE_PAIR_DDEG (50)
 #define S5_EDGE_MIN_MM (45)
+/* Buddy 5, 2026-11-20: the corner is where the ranges start growing over
+ * two steps in a row by more than S5_EDGE_GROW_MM + S5_EDGE_GROW_PER_DDEG
+ * / 100 per 0.1 deg (s5_scan.c). 0: off. */
+#ifndef S5_EDGE_KNEE
+#define S5_EDGE_KNEE (1)
+#endif
+#define S5_EDGE_GROW_MM       (3)
+#define S5_EDGE_GROW_PER_DDEG (12) /* 1.2 mm per deg */
 /* Buddy 5, 2026-11-19: the least half-width taken for a narrow object
  * placed by the middle of its echoes (s5_scan.c) */
 #define S5_NARROW_HALF_MIN_MM (S5_OBJ_MIN_MM / 2)
@@ -302,13 +320,15 @@
  * 0 also failed more runs coming back to a line that bends behind the
  * object (gap 30), so 1 is the default.
  *   0: 130 mm/s, 30 mm (tight; drive to the line about 6..9 s)
- *   1: 200 mm/s, 45 mm (fast; about 4..5 s)
+ *   1: 200 mm/s, 40 mm. Buddy 5, 2026-11-20 (v4.5, Darwin's pick): was
+ *      230 / 50 in v4.4. 40 mm at 230 came within 4 mm or hit in 10 of
+ *      54 simulator runs; at 200, 3 (one case that fails at any speed).
  * The side watch moves the pass in or out to hold the gap (S5_SIDE_*). */
 #ifndef S5_FAST
 #define S5_FAST (1)
 #endif
 #ifndef S5_CLEARANCE_MM
-#define S5_CLEARANCE_MM ((0 != S5_FAST) ? 45 : 30) /* car side to the object's edge */
+#define S5_CLEARANCE_MM ((0 != S5_FAST) ? 40 : 30) /* car side to the object's edge */
 #endif
 #define S5_MAX_OFFSET_MM   (400) /* never further from the line than this */
 #define S5_MAX_HEADING_DEG (40)  /* steepest point of a ramp */
@@ -326,8 +346,10 @@
 #define S5_OUT_PIVOT_STEP_DEG (15)
 /* the ramp back in, sharper than the ramp out (less for
  * the encoders to drift over; the IRs pick the line up) */
+/* Buddy 5, 2026-11-20: 50 -> 60 (as steep as the way out): back to the
+ * line sooner */
 #ifndef S5_IN_HEADING_DEG
-#define S5_IN_HEADING_DEG (50)
+#define S5_IN_HEADING_DEG (60)
 #endif
 #ifndef S5_IN_RADIUS_MM
 #define S5_IN_RADIUS_MM (130)
@@ -350,7 +372,16 @@
  * sensor heard something further on). Set it to the deepest object on the
  * course. Also how far another object found close behind the first is
  * taken to reach (the car then passes both). */
-#define S5_DEPTH_DEFAULT_MM (200)
+/* Buddy 5, 2026-11-20: 200 -> 150, the objects on the track are 8..25 cm
+ * (mostly 9..13): with the far corner not seen the car waited 70 mm too
+ * long to turn back in. In the simulator 170 hit a second box close behind
+ * more often (C33, C38, C39), 150 handed over 18 mm off the line with the
+ * encoders 1.5 % apart (C50; S5_ODOM_LEARN takes that out on the car). A
+ * box deeper than 15 cm whose far corner the side watch misses can be
+ * clipped (C7, 40 cm deep). */
+#ifndef S5_DEPTH_DEFAULT_MM
+#define S5_DEPTH_DEFAULT_MM (150)
+#endif
 #define S5_DEPTH_MIN_MM     (60)
 /* the deepest the far corner may be: one object, or two close together */
 #define S5_DEPTH_MAX_MM (1000)
@@ -379,8 +410,29 @@
 #define S5_MIN_WHEEL_MM_S (15)
 
 /* tracking: errors die out over about this distance (critically damped) */
-#define S5_TRACK_DIST_MM (80)
+/* Buddy 5, 2026-11-20: 150 in S5_FAST (was 80): at 230 mm/s 80 made the
+ * car weave and lose 10..20 mm of the gap in the simulator */
+#ifndef S5_TRACK_DIST_MM
+#define S5_TRACK_DIST_MM ((0 != S5_FAST) ? 150 : 80)
+#endif
 #define S5_ALIGN_DIST_MM (60)
+/* Buddy 5, 2026-11-20: encoder scale learning. The right wheel's mm per
+ * tick is taken as (1 + S5_ODOM_LR_PPM / 1e6) times the left's (start
+ * value); after each bypass the angle the two IRs met the line at says how
+ * far the encoders' heading drifted, and the ratio moves by
+ * S5_ODOM_LEARN_PCT of what that drift says (kept within
+ * S5_ODOM_LR_MAX_PPM). On the track the encoders said 2..11 deg less than
+ * the IRs, on every bypass, both sides (2026-11-20 logs). 0: no learning. */
+#ifndef S5_ODOM_LR_PPM
+#define S5_ODOM_LR_PPM (0)
+#endif
+#ifndef S5_ODOM_LEARN
+#define S5_ODOM_LEARN (1)
+#endif
+#define S5_ODOM_LEARN_PCT   (50)
+#define S5_ODOM_LR_MAX_PPM  (30000) /* 3 % */
+#define S5_ODOM_LEARN_MIN_MM (500)  /* only after a bypass this long */
+#define S5_ODOM_LEARN_MAX_DEG (15)  /* and a drift under this */
 #define S5_MAX_CURV_PPM  (10000) /* tightest command, 1e6 / radius mm */
 
 /* CALIBRATE step 4: how far the car really turns for 100 deg of encoder
@@ -426,6 +478,11 @@
  * still stays out (C56) */
 #ifndef S5_CAP_LINE_DEG
 #define S5_CAP_LINE_DEG (30)
+/* Buddy 5, 2026-11-20: a line the IRs meet within this of where the
+ * encoders put ours is ours, whatever direction the IRs make of it (at 200+
+ * mm/s the two IRs met the tape a few ms apart and it came out 83 deg: our
+ * line, turned down as a junction, the car drove on and lost it) */
+#define S5_CAP_OURS_MM (40)
 #endif
 /* ... and both IRs black at once is our line only with the car crossing
  * at least this steeply (25 mm between the IRs, 18 mm

@@ -39,5 +39,15 @@ void s5_odom_point(const s5_odom_t *p_o, float ahead, float left, float *p_x,
                    float *p_y);
 /* The wheel track the turn is worked out with, mm. */
 float s5_odom_track_mm(void);
+/* Buddy 5, 2026-11-20: the right/left wheel ratio in use, minus 1, and
+ * learning it after a bypass (S5_ODOM_LEARN): err = the IRs' heading minus
+ * the encoders' (rad) after dist mm. True if it was taken. */
+float s5_odom_lr(void);
+bool s5_odom_learn(float err, float dist);
+/* the learnt ratio is used from here on (called as a bypass begins, so it
+ * never changes in the middle of one) */
+void s5_odom_lr_commit(void);
+/* back to S5_ODOM_LR_PPM (the host tests, between runs) */
+void s5_odom_lr_reset(void);
 
 #endif /* S5_ODOM_H */

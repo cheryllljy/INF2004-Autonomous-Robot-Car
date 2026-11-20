@@ -467,6 +467,50 @@ static bool s5_range_edges(const s5_sample_t *p_s, uint32_t n,
                 uint32_t top = edge;
                 uint32_t next = edge;
                 int32_t k;
+#if (0 != S5_EDGE_KNEE)
+                /* Buddy 5, 2026-11-20: a box's echoes go face, then a
+                 * step to its corner, then flat. Ranges that go on
+                 * growing over two steps in a row past S5_EDGE_GROW_MM +
+                 * S5_EDGE_GROW_PER_DEG per degree are something sloping
+                 * away beside it (people round the track: 171 181 197 213
+                 * mm at -20..-45 deg for a 13 cm box from 167): the corner
+                 * is where that growth starts */
+                {
+                    int32_t prev = -1;
+                    int32_t prev2 = -1;
+                    bool b_grew = false;
+
+                    for (k = (int32_t)i0; k != (out + dir); k += dir)
+                    {
+                        if (!s5_scan_is_object(p_s[k].mm, face_mm))
+                        {
+                            continue;
+                        }
+                        if (prev >= 0)
+                        {
+                            int32_t da = (int32_t)p_s[k].ddeg -
+                                         (int32_t)p_s[prev].ddeg;
+                            const int32_t dr = (int32_t)p_s[k].mm -
+                                               (int32_t)p_s[prev].mm;
+                            bool b_grow;
+
+                            da = (da < 0) ? -da : da;
+                            b_grow = (dr > ((int32_t)S5_EDGE_GROW_MM +
+                                            (((int32_t)S5_EDGE_GROW_PER_DDEG *
+                                              da) /
+                                             100)));
+                            if (b_grow && b_grew && (prev2 >= 0))
+                            {
+                                out = prev2;
+                                break;
+                            }
+                            b_grew = b_grow;
+                        }
+                        prev2 = prev;
+                        prev = k;
+                    }
+                }
+#endif
 
                 for (k = (int32_t)i0; k != (out + dir); k += dir)
                 {

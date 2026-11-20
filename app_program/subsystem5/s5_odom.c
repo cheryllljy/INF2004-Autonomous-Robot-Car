@@ -24,6 +24,48 @@ void s5_odom_init(s5_odom_t *p_o)
     p_o->b_ticks = false;
 }
 
+/* Buddy 5, 2026-11-20: right wheel mm per tick relative to the left's,
+ * minus 1 (S5_ODOM_LR_PPM, then learnt) */
+static float g_lr = (float)S5_ODOM_LR_PPM * 1.0e-6f;
+static float g_lr_next = (float)S5_ODOM_LR_PPM * 1.0e-6f; /* learnt, for the next bypass */
+
+float s5_odom_lr(void)
+{
+    return g_lr_next;
+}
+
+void s5_odom_lr_commit(void)
+{
+    g_lr = g_lr_next;
+}
+
+void s5_odom_lr_reset(void)
+{
+    g_lr = (float)S5_ODOM_LR_PPM * 1.0e-6f;
+    g_lr_next = g_lr;
+}
+
+/* After a bypass of dist mm the encoders' heading was err (rad, the IRs'
+ * heading minus the encoders') off: move the ratio by S5_ODOM_LEARN_PCT of
+ * what that says. A wheel ratio 1 + e turns the heading by about
+ * e * dist / track over dist. False: not learnt from (too short, too big). */
+bool s5_odom_learn(float err, float dist)
+{
+    const float max_lr = (float)S5_ODOM_LR_MAX_PPM * 1.0e-6f;
+    float e;
+
+    if ((0 == S5_ODOM_LEARN) || (dist < (float)S5_ODOM_LEARN_MIN_MM) ||
+        (s5_absf(err) > ((float)S5_ODOM_LEARN_MAX_DEG * S5_DEG2RAD_F)))
+    {
+        return false;
+    }
+    e = (err * s5_odom_track_mm()) / dist;
+    g_lr_next += ((float)S5_ODOM_LEARN_PCT / 100.0f) * e;
+    g_lr_next = (g_lr_next > max_lr) ? max_lr : g_lr_next;
+    g_lr_next = (g_lr_next < -max_lr) ? -max_lr : g_lr_next;
+    return true;
+}
+
 float s5_odom_track_mm(void)
 {
     return (TRACK_WIDTH_MM * 100.0f) / (float)S5_TURN_PCT;
@@ -44,8 +86,9 @@ void s5_odom_update(s5_odom_t *p_o, int32_t ticks_l, int32_t ticks_r)
         p_o->b_ticks = true;
         return;
     }
-    dl = (float)(ticks_l - p_o->ticks_l) * MM_PER_TICK;
-    dr = (float)(ticks_r - p_o->ticks_r) * MM_PER_TICK;
+    /* Buddy 5, 2026-11-20: the learnt ratio, split over the two wheels */
+    dl = (float)(ticks_l - p_o->ticks_l) * MM_PER_TICK * (1.0f - (0.5f * g_lr));
+    dr = (float)(ticks_r - p_o->ticks_r) * MM_PER_TICK * (1.0f + (0.5f * g_lr));
     p_o->ticks_l = ticks_l;
     p_o->ticks_r = ticks_r;
     if ((s5_absf(dl) > S5_ODOM_JUMP_MM) || (s5_absf(dr) > S5_ODOM_JUMP_MM))

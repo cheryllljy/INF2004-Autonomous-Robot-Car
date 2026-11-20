@@ -110,7 +110,11 @@
  * line the car may be this far off its direction; with both IRs white an
  * IR must have seen our line within the last S5_FRESH_MM (the line may
  * bend after the object; dead reckoning alone cannot tell). */
-#define S5_HANDOVER_DEG (10.0f)
+/* Buddy 5, 2026-11-20: 10 -> 20, so the car does not stop to turn on the
+ * spot when it is already nearly along the line (Buddy 3 steers the rest) */
+#ifndef S5_HANDOVER_DEG
+#define S5_HANDOVER_DEG (20.0f)
+#endif
 #define S5_FRESH_MM     (200.0f)
 /* picking the line up with the IRs on the way back. Both
  * IRs black together, or one and then the other within this much driving
@@ -252,6 +256,7 @@ typedef struct
     float two_d1;      /* its face (mm) */
     float two_span1;   /* its echoes' span (rad) */
     float two_ym1;     /* the middle of its echoes, line frame (mm) */
+    s5_profile_t two_prof1; /* v4.5: the first sweep, used if the second is no good */
     uint32_t rescans;
     uint32_t scan_seq;
     bool b_scan_early; /* scan_seq started at detection, car braking */
@@ -882,6 +887,7 @@ void s5_avoid_begin(const motion_status_t *p_m)
     }
     g.h_n = 0U;
     g.ep_ms = 0U;
+    s5_odom_lr_commit(); /* Buddy 5, 2026-11-20: what the last bypass learnt */
     g.ep_dist = g.odo.dist;
     g.b_mag = false;
     g.b_mag_fixed = false;
@@ -1838,6 +1844,7 @@ static bool s5_two_dist(void)
                                          (float)S5_TWO_DEPTH_SPARE_MM));
         }
         g.b_two_have = true;
+        g.two_prof1 = g.prof;
         g.two_d1 = (float)p->face_q_mm;
         g.two_span1 = span;
         g.two_ym1 = s5_two_mid();
@@ -1852,8 +1859,12 @@ static bool s5_two_dist(void)
     s5_scan_set_depth(0U); /* this sweep's profile is taken already */
     if (!b_clean)
     {
+        /* Buddy 5, 2026-11-20: the first sweep (nearer, and it saw both
+         * edges), not this one (was: this one) */
         S5_LOG("[VC-S5] two-distance sweep: the second did not see both "
-               "edges: width from it alone\n");
+               "edges: the first sweep's width (%d mm)\n",
+               (int)s5_mm(g.two_prof1.y_left - g.two_prof1.y_right));
+        g.prof = g.two_prof1;
         return false;
     }
     {
@@ -1867,10 +1878,12 @@ static bool s5_two_dist(void)
                                span, yc, &w, &beam))
         {
             S5_LOG("[VC-S5] two sweeps: faces %d/%d mm, echoes %d/%d deg "
-                   "fit no width: %d mm from the second alone\n",
+                   "fit no width: the first's %d mm\n",
                    (int)s5_mm(g.two_d1), (int)p->face_q_mm,
                    (int)s5_deg(g.two_span1), (int)s5_deg(span),
-                   (int)s5_mm(w_one));
+                   (int)s5_mm(g.two_prof1.y_left - g.two_prof1.y_right));
+            (void)w_one;
+            g.prof = g.two_prof1; /* Buddy 5, 2026-11-20: was the second */
             return false;
         }
         w = s5_clampf(w, (float)S5_OBJ_MIN_MM, (float)S5_OBJ_MAX_MM);
@@ -2984,9 +2997,30 @@ static bool s5_cap_watch(bool b_ir_l, bool b_ir_r)
                  * is what has gone wrong by then, and this direction is
                  * worked out from it: on the track the car's own line was
                  * turned down here as a junction */
-                if (!g.b_seek_ours &&
-                    (s5_absf(g.cap_phi) >
-                     ((float)S5_CAP_LINE_DEG * S5_DEG2RAD_F)))
+                /* Buddy 5, 2026-11-20: where ours should be (within
+                 * S5_CAP_OURS_MM), it is ours; the direction from the two
+                 * IRs is not used then (it is what is off) */
+                if (s5_absf(yk[k] - g.cap_snap.line_y) <=
+                    (float)S5_CAP_OURS_MM)
+                {
+                    if (s5_absf(g.cap_phi) >
+                        ((float)S5_CAP_LINE_DEG * S5_DEG2RAD_F))
+                    {
+                        S5_LOG("[VC-S5] the IRs crossed a line %d mm from "
+                               "where ours should be, at %d deg by the IRs: "
+                               "ours (the angle is off)\n",
+                               (int)s5_mm(yk[k] - g.cap_snap.line_y),
+                               (int)s5_deg(g.cap_phi));
+                        g.line_y = yk[k] +
+                                   ((float)g.cap_dir * (float)S5_LINE_HALF_MM);
+                        g.cap_second = (int32_t)k;
+                        g.b_cap_phi = false;
+                        return true;
+                    }
+                }
+                else if (!g.b_seek_ours &&
+                         (s5_absf(g.cap_phi) >
+                          ((float)S5_CAP_LINE_DEG * S5_DEG2RAD_F)))
                 {
                     S5_LOG("[VC-S5] the IRs crossed a line %d mm from where "
                            "the encoders put ours, at %d deg to it: a "
@@ -3019,6 +3053,8 @@ static bool s5_cap_watch(bool b_ir_l, bool b_ir_r)
                 s5_odom_point(&g.odo, (float)S5_IR_AHEAD_MM, 0.0f, &xc, &yc);
                 /* Buddy 5, 2026-11-16: as above */
                 if (!g.b_seek_ours &&
+                    (s5_absf(yc - g.cap_snap.line_y) >
+                     (float)S5_CAP_OURS_MM) && /* Buddy 5, 2026-11-20 */
                     (s5_absf(psi) < ((float)S5_CAP_BOTH_DEG * S5_DEG2RAD_F)))
                 {
                     S5_LOG("[VC-S5] both IRs black at once %d mm from where "
@@ -3110,6 +3146,23 @@ static s5_avoid_result_t s5_cap_start(const motion_status_t *p_m, bool b_ir_l,
             S5_LOG("[VC-S5] by where the two IRs met it, the car is %d deg "
                    "to the line (the encoders said %d)\n",
                    (int)s5_deg(th), (int)s5_deg(g.odo.psi));
+        }
+        /* Buddy 5, 2026-11-20: S5_ODOM_LEARN. How far the encoders'
+         * heading drifted over this bypass tells the wheel ratio (not
+         * after a turn on the spot: the wheels slip there) */
+        if (!g.b_search && !g.b_out_pivot)
+        {
+            const float lr0 = s5_odom_lr();
+            const float d = g.odo.dist - g.ep_dist;
+
+            if (s5_odom_learn(th - g.odo.psi, d))
+            {
+                S5_LOG("[VC-S5] encoders %d deg off over %d mm: right/left "
+                       "wheel ratio %d -> %d ppm next (S5_ODOM_LR_PPM %d)\n",
+                       (int)s5_deg(th - g.odo.psi), (int)s5_mm(d),
+                       (int)(lr0 * 1.0e6f), (int)(s5_odom_lr() * 1.0e6f),
+                       (int)S5_ODOM_LR_PPM);
+            }
         }
         g.cap_dir = (th > 0.0f) ? 1 : -1;
         /* from here the IRs have the line; the compass
