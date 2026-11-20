@@ -91,6 +91,24 @@
  * from beside the object) is cut back to the most around that middle. Not
  * when an edge is past the sweep (then it is not known which echoes are
  * the object's). */
+/* Buddy 5, 2026-11-19: two-distance sweep. After the first sweep from the
+ * line (face nearer than S5_TWO_NEAR_MAX_MM, both edges in it) the car
+ * backs up S5_TWO_BACK_MM and sweeps again; the width comes from how much
+ * narrower the object looks from further, which leaves the beam out
+ * (s5_scan_two_width()). Both sweeps stay nearer than about 25 cm, under
+ * the 300+ mm echoes heard all round on the track. 0: off. */
+#ifndef S5_TWO_DIST
+#define S5_TWO_DIST (1)
+#endif
+#define S5_TWO_NEAR_MAX_MM  (190)
+#define S5_TWO_BACK_MM      (70)
+#define S5_TWO_MIN_APART_MM (40)  /* the faces at least this far apart */
+#define S5_TWO_BEAM_MIN_DEG (0)   /* a solved beam outside these: not used */
+#define S5_TWO_BEAM_MAX_DEG (25)
+/* the second sweep counts an echo as the object's only out to where its
+ * corners should be from there (from the first sweep's corners) plus this:
+ * from 22 cm the 300+ mm echoes around are within S5_EDGE_DEPTH_MM */
+#define S5_TWO_DEPTH_SPARE_MM (25)
 #define S5_OBJ_MIN_MM (80)
 #ifndef S5_OBJ_MAX_MM
 #define S5_OBJ_MAX_MM (250)
@@ -247,6 +265,13 @@
 
 /* Both sides within this of each other: pick one at random. */
 #define S5_TIE_MM (10)
+/* Buddy 5, 2026-11-19: 1: an echo beside the object, in the pass lane,
+ * marks that side blocked (or maybe blocked), as before. 0: no side is
+ * blocked by what the sweep saw beside the object (the side watch still
+ * looks while passing). */
+#ifndef S5_SIDE_BLOCK
+#define S5_SIDE_BLOCK (0)
+#endif
 
 /* Taken off the measured width, half at each edge: the sweep read
  * objects about 5 cm wider than they are on the track. Each pass is
@@ -270,7 +295,21 @@
  *  minimum-jerk ramps (no corner anywhere, curvature 0 where a ramp
  *  starts and ends) and tracked from the encoders.
  * --------------------------------------------------------------------- */
-#define S5_CLEARANCE_MM    (45)  /* car side to the object's edge */
+/* Buddy 5, 2026-11-19: S5_FAST picks the bypass speed and the gap to the
+ * object together. In the host simulator (path tracking, encoder errors,
+ * a 22 deg beam) the car drifts 15..25 mm towards the object at 200 mm/s,
+ * so a 30 mm gap needs about 130 mm/s, and 200 mm/s needs about 45 mm.
+ * 0 also failed more runs coming back to a line that bends behind the
+ * object (gap 30), so 1 is the default.
+ *   0: 130 mm/s, 30 mm (tight; drive to the line about 6..9 s)
+ *   1: 200 mm/s, 45 mm (fast; about 4..5 s)
+ * The side watch moves the pass in or out to hold the gap (S5_SIDE_*). */
+#ifndef S5_FAST
+#define S5_FAST (1)
+#endif
+#ifndef S5_CLEARANCE_MM
+#define S5_CLEARANCE_MM ((0 != S5_FAST) ? 45 : 30) /* car side to the object's edge */
+#endif
 #define S5_MAX_OFFSET_MM   (400) /* never further from the line than this */
 #define S5_MAX_HEADING_DEG (40)  /* steepest point of a ramp */
 #define S5_MIN_RADIUS_MM   (150) /* tightest point of a ramp */
@@ -297,6 +336,15 @@
  * closer to the object than this (checked on the planned path, corners
  * of the car included; the straight pass keeps S5_CLEARANCE_MM). */
 #define S5_RAMP_MARGIN_MM (30)
+/* Buddy 5, 2026-11-19: 1: no room for a ramp out where the car stopped,
+ * back up (at most S5_OUT_BACK_MAX_MM) for one, instead of turning out on
+ * the spot. 0: turn on the spot first, as before. */
+#ifndef S5_OUT_PREFER_BACK
+#define S5_OUT_PREFER_BACK (1)
+#endif
+/* a ramp out by 20 cm is about 36 cm long (S5_STEEP_HEADING_DEG): from an
+ * 18 cm stop the car needs about 45 cm of line behind it for one */
+#define S5_OUT_BACK_MAX_MM (450)
 /* object depth (front to back) when the look across cannot fix the far
  * corner: the car turns back in after this much object (or later, if the
  * sensor heard something further on). Set it to the deepest object on the
@@ -312,12 +360,19 @@
  * the host tests keep 110 / 80 (testing/subsystem5/host/Makefile). Square
  * boxes keep their clearance. */
 #ifndef S5_SPEED_MM_S
-#define S5_SPEED_MM_S (130) /* along the bypass */
+/* Buddy 5, 2026-11-19: S5_FAST above (was 130) */
+#ifndef S5_SPEED_MM_S
+#define S5_SPEED_MM_S ((0 != S5_FAST) ? 200 : 130) /* along the bypass */
+#endif
 #endif
 #ifndef S5_SLOW_MM_S
 #define S5_SLOW_MM_S (100) /* settling onto the line */
 #endif
-#define S5_REVERSE_SPEED_MM_S (60)
+/* Buddy 5, 2026-11-19: 60 -> 100, backing up straight along the line for
+ * room for one smooth ramp out (S5_OUT_PREFER_BACK) */
+#ifndef S5_REVERSE_SPEED_MM_S
+#define S5_REVERSE_SPEED_MM_S (100)
+#endif
 #define S5_REVERSE_MAX_MM     (500) /* never back up further, in total */
 /* Buddy 2 gives a wheel no drive at 5 mm/s or less and kicks one under
  * 10 mm/s, so a moving wheel is never asked for less than this */
@@ -348,6 +403,10 @@
 #define S5_WATCH_RANGE_MM (450)
 #define S5_SIDE_TOL_MM    (12) /* closer than planned by more: move out */
 #define S5_SIDE_MAX_MM    (60) /* moves out by at most this */
+/* Buddy 5, 2026-11-19: ... and back in by at most this (the side further
+ * away than the sweep said), and only for a change of more than this */
+#define S5_SIDE_IN_MAX_MM (30)
+#define S5_SIDE_STEP_MM   (4)
 
 /* ---------------------------------------------------------------------
  *  Back onto the line

@@ -1,0 +1,534 @@
+2026-11-20, Buddy 5 v4.3 on main cd8b108 (host tests; not run on the car)
+
+=== make unit ===
+S5 task polls every 10 ms
+[PASS] S5-H11  sin, cos, tan, atan2, sqrt, round, wrap without libm
+[PASS] S5-H12  real sweep, angle method on an ideal sensor: boxes 8..32 cm wide at 20..38 cm, width within 20 mm, each edge within 15 mm, under 4 s
+[PASS] S5-H12R edges by range, ideal sensor: no corner placed more than 30 mm inside the real one, each edge within 30 mm with the sonar between the corners, the shorter side is the shorter side
+[PASS] S5-H12S edges by range with the servo 2 deg off (after the auto trim) and the beam 15 deg for 22: the same limits hold (the angle method's errors are printed with -v)
+[PASS] S5-H25  auto trim: the servo 0..12 deg off, a 9 or 21 cm object straight ahead at 15..35 cm: the correction within 2 deg (or none, at most 1 in 3, when an edge is past the sweep); no object or a wall gives none
+[PASS] S5-H13  15 % missed echoes: the 21 cm box still reads 21 cm +- 32 mm
+[SKIP] S5-H14  side blocking is off (S5_SIDE_BLOCK 0)
+[PASS] S5-H15  ramps of 1..400 mm: no steeper than 40 deg, no tighter than R150, smooth, end where asked
+[PASS] S5-H16  footprint check agrees with a dense outline-to-box distance (30 mm margin, -3 / +6 mm)
+[PASS] S5-H17  steering: starts 12 mm / 5 deg off, follows a 215 mm bypass within 6 mm, ends on the line
+[PASS] S5-H18  dead reckoning: quarter circle R300 to the left ends at (300, 300), 90 deg
+[PASS] S5-H19  pings: 14+ per second, a box at 150 mm reads 150 +- 8 and is close (within S5_STOP_MM), a slow no-echo pulse is not a dead sensor, LOOK keeps pinging
+[PASS] S5-H20  no ECHO pulse at all: dead within 1 s (FR25); a working sensor is not
+
+subsystem 5 unit tests: 0 failed
+
+=== car sim at the car's own speeds, S5_FAST=1 (200 mm/s, gap 45) ===
+S5 task polls every 10 ms
+     scenario                                                    side wide  clear max y  hand  after  rev   time    ok
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  230     35   228     5    3.8  152  11.2s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  229     36   228     5    3.6  152  11.1s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  223     34   227     5    3.6  144  11.1s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  213     22   159     6    3.9   94   9.7s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  228     37   173     5    3.6  104  10.0s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  227     41   176     6    3.9  106  10.0s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  234     41   177    -5    3.6  104   9.7s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  212     22   159    -5    3.8   94   9.4s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  217     21   159    -6    3.6   96   9.4s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  230     41   209     5    3.8  136  10.8s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  226     39   207     5    3.8  134  10.9s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  220     33   202     5    3.7  130  10.8s PASS 
+C5   narrow 10x10 cm box                                        RIGHT  124     42   168    -5    3.6   90  12.0s PASS 
+C5   narrow 10x10 cm box                                        RIGHT  116     45   169    -5    3.8   90  12.0s PASS 
+C5   narrow 10x10 cm box                                         LEFT  121     42   168     5    3.6   90  12.0s PASS 
+C6   wide 30 cm box                                              LEFT  314     10   244     5    3.8  170  12.7s PASS 
+C6   wide 30 cm box                                              LEFT  314     11   241     5    3.7  170  12.7s PASS 
+C6   wide 30 cm box                                             RIGHT  312     11   244    -5    3.7  170  12.6s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  224     32   226     6    3.9  146  12.0s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  221     32   227     5    3.6  150  12.1s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  226     34   228     5    3.8  158  12.3s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  227     35   227     6    3.9  162  11.1s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  222     34   226     5    3.6  162  11.2s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  230     36   229     5    3.9  164  11.2s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  228     19   230    -5    3.8  218  13.4s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  228     19   228     5    3.9  218  13.4s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  228     19   228     5    3.9  218  13.4s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  227     -1   343     5    3.8  442  23.4s FAIL HIT the box
+C10  walls both sides: no way round, wait, left wall taken away RIGHT  227     -1   344    -5    3.8  440  23.2s FAIL HIT the box
+C10  walls both sides: no way round, wait, left wall taken away RIGHT  233     -1   344    -6    3.9  440  23.3s FAIL HIT the box
+C11  walls both sides: wait, then the box is taken away         RIGHT  226     85    83     5    3.8  340  14.5s FAIL never showed blocked
+C11  walls both sides: wait, then the box is taken away          LEFT  226     85    83    -5    3.8  340  14.1s FAIL never showed blocked
+C11  walls both sides: wait, then the box is taken away         RIGHT  230     85    83     5    3.8  340  14.1s FAIL never showed blocked
+C12  second box beside it on the left: goes right                LEFT  222     -1   324     5    3.8  278  17.9s FAIL HIT the box
+C12  second box beside it on the left: goes right                LEFT  227     -1   326     5    3.8  276  18.0s FAIL HIT the box
+C12  second box beside it on the left: goes right                LEFT  227     -1   326     5    3.6  278  18.0s FAIL HIT the box
+C13  lanes 250 mm either side: back onto OUR line                LEFT  229     35   227     5    3.9  158  11.2s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  229     39   232     5    3.6  162  11.3s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  230     40   232     5    3.9  156  11.4s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  224     27   213     5    3.8  148  11.1s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  222     25   211     5    3.6  146  11.0s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  228     29   216     5    3.8  152  11.1s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  225     60   254     6    3.9  158  11.6s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  226     57   251     5    3.9  154  11.5s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  227     56   251     6    3.9  156  11.5s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  227     34   226     5    3.6  150  11.1s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  227     36   228     5    3.6  152  11.1s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  231     37   229     6    3.8  154  11.2s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  232     48   230     5    3.7  170  12.9s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  227     48   230    -5    3.9  170  12.9s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  228     48   230    -5    3.9  170  12.9s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  234     38   218     5    3.6  170  12.7s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)        RIGHT  226     53   236    -6    3.7  170  12.8s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)        RIGHT  232     50   233    -6    3.8  170  12.9s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  228     37   229     5    3.6  148  11.6s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  216     31   223     5    3.6  152  11.4s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  224     33   226     6    3.8  148  11.5s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  235     41   234     6    3.7  158  11.4s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  233     37   229     6    3.8  154  11.2s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  223     34   227     5    3.7  150  11.1s PASS 
+C21  box right after a R500 left bend                            LEFT  224     43   693     5    3.6  140  11.1s PASS 
+C21  box right after a R500 left bend                            LEFT  229     47   696     6    3.9  146  11.3s PASS 
+C21  box right after a R500 left bend                            LEFT  230     46   695     6    3.8  144  11.3s PASS 
+C22  box turned 15 deg                                           LEFT  253     -1   198     5    3.7  120  10.6s FAIL HIT the box
+C22  box turned 15 deg                                           LEFT  257     -1   205     5    3.8  132  10.7s FAIL HIT the box
+C22  box turned 15 deg                                           LEFT  256     -1   199     6    3.9  124  10.6s FAIL HIT the box
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  223     36   227     6    3.8  148  11.1s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  223     38   229     5    3.8  144  11.2s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  222     36   228     6    3.6  148  11.2s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  224     26   218     5    3.6  136  10.9s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  229     27   220     5    3.6  150  11.1s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  228     25   218     6    3.9  144  11.0s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  232     35   229    -5    3.8  290  10.4s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  223     36   228    -5    3.7  278  10.4s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  216     30   248     5    3.6  306  11.4s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0    0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0    0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0    0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up        RIGHT    0     85    22     0    0.0  123   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up        RIGHT    0     85    22     0    0.0  123   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up        RIGHT    0     85    22     0    0.0  123   0.0s PASS 
+C28  box taken away while the car stands: line following again      -    0     86     0     0    0.0    0   0.9s PASS 
+C28  box taken away while the car stands: line following again      -    0     86     0     0    0.0    0   0.9s PASS 
+C28  box taken away while the car stands: line following again      -    0     86     0     0    0.0    0   0.9s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  211     34   225     6    3.8  142  11.0s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  241     43   236     6    3.8  168  11.3s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  241     41   233     5    3.6  148  11.1s PASS 
+C80  9 cm box on the line                                       RIGHT   80     56   178    -6    3.9   90  12.0s PASS 
+C80  9 cm box on the line                                        LEFT   80     37   153     5    3.6   90  11.5s PASS 
+C80  9 cm box on the line                                        LEFT   80     37   153     5    3.6   90  11.5s PASS 
+C81  9 cm box 20 mm right, beam 15                               LEFT  117     35   133     5    3.7   90  11.4s PASS 
+C81  9 cm box 20 mm right, beam 15                               LEFT  114     35   133     6    3.9   90  11.4s PASS 
+C81  9 cm box 20 mm right, beam 15                               LEFT  115     35   133     5    3.6   90  11.5s PASS 
+C82  9 cm box 20 mm left, beam 15                               RIGHT  115     35   133    -5    3.6   90  11.5s PASS 
+C82  9 cm box 20 mm left, beam 15                               RIGHT  113     35   133    -5    3.6   90  11.5s PASS 
+C82  9 cm box 20 mm left, beam 15                               RIGHT  121     47   144    -5    3.6   90  11.6s PASS 
+C83  9 cm box 30 mm right, beam 30                               LEFT  120     50   155     5    3.8   92   9.6s PASS 
+C83  9 cm box 30 mm right, beam 30                               LEFT  125     52   155     6    3.8   94   9.6s PASS 
+C83  9 cm box 30 mm right, beam 30                               LEFT  123     50   155     6    3.9   92   9.6s PASS 
+C84  9 cm box 30 mm left, beam 30                               RIGHT  127     59   162    -6    3.9   90  11.9s PASS 
+C84  9 cm box 30 mm left, beam 30                               RIGHT  125     63   164    -6    3.8   90  11.7s PASS 
+C84  9 cm box 30 mm left, beam 30                               RIGHT  124     59   163    -5    3.6   90  11.7s PASS 
+C85  9 cm box 40 mm right, beam 15, servo 4 deg off              LEFT  131     53   131     5    3.6   90  11.6s PASS 
+C85  9 cm box 40 mm right, beam 15, servo 4 deg off              LEFT  131     51   130     6    3.8   90  11.8s PASS 
+C85  9 cm box 40 mm right, beam 15, servo 4 deg off              LEFT  131     51   130     5    3.7   90  11.7s PASS 
+C86  9 cm box 40 mm left, beam 15, servo 4 deg off              RIGHT  134     37   118    -5    3.7   90  11.3s PASS 
+C86  9 cm box 40 mm left, beam 15, servo 4 deg off              RIGHT  137     38   118    -5    3.6   90  11.4s PASS 
+C86  9 cm box 40 mm left, beam 15, servo 4 deg off              RIGHT  142     39   119    -5    3.6   90  11.3s PASS 
+C87  9 cm box 30 mm right, beam 15, servo 10 deg off            RIGHT  123      5   151    -6    3.8   90  11.7s FAIL only 5 mm from the box
+C87  9 cm box 30 mm right, beam 15, servo 10 deg off            RIGHT  122      6   152    -5    3.6   90  11.7s FAIL only 6 mm from the box
+C87  9 cm box 30 mm right, beam 15, servo 10 deg off            RIGHT  122      7   153    -5    3.8   90  11.7s FAIL only 7 mm from the box
+C88  9 cm box 30 mm left, beam 15, servo 10 deg off             RIGHT  124     25   116    -5    3.6   90  11.4s PASS 
+C88  9 cm box 30 mm left, beam 15, servo 10 deg off             RIGHT  123     21   112    -6    3.7   90  11.5s PASS 
+C88  9 cm box 30 mm left, beam 15, servo 10 deg off             RIGHT  124     26   116    -5    3.6   90  11.5s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT   80     67   138     6    3.9   90  11.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT   80     67   138     5    3.8   90  11.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT   80     67   138     5    3.8   90  11.4s PASS 
+C31  second box 56 cm behind the first                           LEFT  220     30   225     5    3.8  186  21.1s PASS 
+C31  second box 56 cm behind the first                           LEFT  224     29   231     5    3.6  194  21.3s PASS 
+C31  second box 56 cm behind the first                           LEFT  223     31   223     6    3.8  180  21.1s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  230     36   229    -5    3.6  274  10.2s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  223     33   225    -6    3.8  266  10.2s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  230     28   231    -6    3.8  272  10.1s PASS 
+C33  second box 40 cm behind the first                           LEFT  224     -1   230    -5    3.7  374  30.8s FAIL HIT the box
+C33  second box 40 cm behind the first                           LEFT  225     -1   229    -5    3.8  368  30.8s FAIL HIT the box
+C33  second box 40 cm behind the first                           LEFT  224     -1   227    -5    3.8  372  30.7s FAIL HIT the box
+C34  second box 30 cm behind the first                           LEFT  228     38   230     6    3.9  152  13.2s PASS 
+C34  second box 30 cm behind the first                           LEFT  229     -1   229     5    3.6  152  17.3s FAIL HIT the box
+C34  second box 30 cm behind the first                           LEFT  227     39   231     5    3.9  154  13.2s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  227     16   288     5    3.7  152  16.3s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  178     21   298     5    3.6  178  17.1s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  223     16   288     5    3.8  150  16.3s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  228     37   229     6    3.8  160  13.5s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  223     33   225     5    3.7  148  19.0s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  224     34   226     5    3.8  150  19.1s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  228     -1   228    -5    3.8  342  28.9s FAIL HIT the box
+C37  second box 40 cm behind, 30 cm wide                         LEFT  235     -1   232    -5    3.8  344  29.4s FAIL HIT the box
+C37  second box 40 cm behind, 30 cm wide                         LEFT  224     -1   227     5    3.6  162  17.8s FAIL HIT the box
+C38  second box 40 cm behind, 40 cm deep                         LEFT  226     -1   246    -5    3.8  406  36.5s FAIL HIT the box
+C38  second box 40 cm behind, 40 cm deep                         LEFT  224     -1   247    -6    3.8  410  36.7s FAIL HIT the box
+C38  second box 40 cm behind, 40 cm deep                         LEFT  229     -1   246    -5    3.8  410  36.7s FAIL HIT the box
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  227     19   245     5    3.8  214  23.2s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  226     25   250     5    3.7  226  24.8s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  233     21   247     6    3.6  234  25.0s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  236     22   292     5    3.8  161  20.7s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  231     26   272     6    3.9  182  17.7s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  227     15   273     5    3.7  177  17.7s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  221     17   330     5    3.6  288  18.1s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  231     21   328     6    3.8  278  18.1s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  233     23   213     0    0.0  140   0.0s FAIL never back on the line
+C42  21x16 cm box, car stops 30 cm short: no backing up          LEFT  232     36   228     5    3.6  152  11.1s FAIL backed up 152 mm
+C42  21x16 cm box, car stops 30 cm short: no backing up          LEFT  222     34   226     5    3.6  162  11.2s FAIL backed up 162 mm
+C42  21x16 cm box, car stops 30 cm short: no backing up          LEFT  229     38   230     5    3.7  152  11.1s FAIL backed up 152 mm
+C43  16x21 cm box (16 cm face): no backing up                    LEFT  179     33   204     5    3.6  132  10.9s FAIL backed up 132 mm
+C43  16x21 cm box (16 cm face): no backing up                    LEFT  175     33   204     6    3.8  132  10.8s FAIL backed up 132 mm
+C43  16x21 cm box (16 cm face): no backing up                    LEFT  178     31   202     5    3.6  130  10.8s FAIL backed up 130 mm
+C44  real track 10 % narrower (turns 10 % more): IRs pick the l  LEFT  230     54   252     6    3.9  156  11.2s PASS 
+C44  real track 10 % narrower (turns 10 % more): IRs pick the l  LEFT  224     49   247     6    3.9  150  11.2s PASS 
+C44  real track 10 % narrower (turns 10 % more): IRs pick the l  LEFT  221     47   245     7    3.7  150  11.1s PASS 
+C45  real track 10 % wider (turns 10 % less): IRs pick the line  LEFT  222     36   219     4    3.6  150  11.5s PASS 
+C45  real track 10 % wider (turns 10 % less): IRs pick the line  LEFT  219     32   215     4    3.7  148  11.3s PASS 
+C45  real track 10 % wider (turns 10 % less): IRs pick the line  LEFT  224     34   217     5    3.8  150  11.4s PASS 
+C46  line 70 mm further left behind the box: IRs pick it up      LEFT  197     60   301     5    3.8   76  15.4s PASS 
+C46  line 70 mm further left behind the box: IRs pick it up      LEFT  230     79   329     5    3.6  104  16.2s PASS 
+C46  line 70 mm further left behind the box: IRs pick it up      LEFT  213     71   318     5    3.6   88  15.9s PASS 
+C47  line 70 mm further right behind the box: IRs pick it up    RIGHT  231     79   326    -6    3.9  104  16.1s PASS 
+C47  line 70 mm further right behind the box: IRs pick it up    RIGHT  224     77   325    -5    3.6  100  16.0s PASS 
+C47  line 70 mm further right behind the box: IRs pick it up    RIGHT  228     77   325    -5    3.6  100  16.0s PASS 
+C48  left encoder 0.5 % long, right 0.5 % short: ends ~6 cm lef  LEFT  227     54   242     6    3.9  146  11.3s PASS 
+C48  left encoder 0.5 % long, right 0.5 % short: ends ~6 cm lef  LEFT  233     52   241     5    3.7  152  11.3s PASS 
+C48  left encoder 0.5 % long, right 0.5 % short: ends ~6 cm lef  LEFT  230     55   243     5    3.8  152  11.3s PASS 
+C49  left encoder 0.5 % short, right 0.5 % long: ends ~6 cm rig  LEFT  225     22   222     5    3.7  154  11.1s PASS 
+C49  left encoder 0.5 % short, right 0.5 % long: ends ~6 cm rig  LEFT  226     21   222     5    3.6  162  11.0s PASS 
+C49  left encoder 0.5 % short, right 0.5 % long: ends ~6 cm rig  LEFT  224     20   221     5    3.6  152  11.0s PASS 
+C50  left encoder 0.75 % long, right 0.75 % short: ends ~10 cm   LEFT  228     62   252     5    3.6  150  13.2s PASS 
+C50  left encoder 0.75 % long, right 0.75 % short: ends ~10 cm   LEFT  226     61   250     6    3.6  148  13.3s PASS 
+C50  left encoder 0.75 % long, right 0.75 % short: ends ~10 cm   LEFT  229     62   252     6    3.8  150  13.2s PASS 
+C51  left encoder 0.75 % short, right 0.75 % long: ends ~10 cm   LEFT  229     16   220     6    3.8  150  11.0s PASS 
+C51  left encoder 0.75 % short, right 0.75 % long: ends ~10 cm   LEFT  222     11   216     5    3.6  152  10.9s PASS 
+C51  left encoder 0.75 % short, right 0.75 % long: ends ~10 cm   LEFT  223     10   214     5    3.6  150  10.9s PASS 
+C52  junction's branch across the way back (going left): the IR  LEFT  227     52   184     5    3.7  104  10.1s PASS 
+C52  junction's branch across the way back (going left): the IR  LEFT  210     32   164     6    3.9   90   9.7s PASS 
+C52  junction's branch across the way back (going left): the IR  LEFT  209     32   164     5    3.8   90   9.7s PASS 
+C53  junction where the car turns onto the line (going left): t  LEFT  125     31   165     5    3.9   92   9.7s PASS 
+C53  junction where the car turns onto the line (going left): t  LEFT  209     32   164     5    3.9   90   9.7s PASS 
+C53  junction where the car turns onto the line (going left): t  LEFT  206     32   165     6    3.9   90   9.8s PASS 
+C54  junction where the car turns onto the line (going right):  RIGHT  218     12   156     8    3.8   98   9.3s PASS 
+C54  junction where the car turns onto the line (going right):  RIGHT  216     12   157     8    3.6   96   9.2s PASS 
+C54  junction where the car turns onto the line (going right):  RIGHT  219     12   157    -5    3.6  100   9.4s PASS 
+C55  junction's branch on the side the car comes back from (goi RIGHT  160     13   158    -5    3.6  102   9.6s PASS 
+C55  junction's branch on the side the car comes back from (goi RIGHT  158     12   157    -5    3.7  102   9.4s PASS 
+C55  junction's branch on the side the car comes back from (goi RIGHT  229     22   167    -5    3.6  106   9.6s PASS 
+C56  junction's branch at 45 deg across the way back (going lef  LEFT  232     52   183     5    3.6  104  10.0s PASS 
+C56  junction's branch at 45 deg across the way back (going lef  LEFT  229     55   187     5    3.7  106  10.1s PASS 
+C56  junction's branch at 45 deg across the way back (going lef  LEFT  209     34   167     6    3.8   84   9.6s PASS 
+C57  encoders 2 % apart (left long): the compass keeps the head  LEFT  219     63   253     5    3.6  146  13.4s PASS 
+C57  encoders 2 % apart (left long): the compass keeps the head  LEFT  225     64   255     5    3.8  148  13.4s PASS 
+C57  encoders 2 % apart (left long): the compass keeps the head  LEFT  227     71   262     5    3.8  148  13.6s PASS 
+C58  no compass (IMU unplugged), encoders 1 % apart: encoders a  LEFT  228     50   238     5    3.6  148  11.3s PASS 
+C58  no compass (IMU unplugged), encoders 1 % apart: encoders a  LEFT  227     51   240     5    3.8  150  11.3s PASS 
+C58  no compass (IMU unplugged), encoders 1 % apart: encoders a  LEFT  229     55   244     6    3.6  148  11.4s PASS 
+C59  compass up to 6 deg off with heading (poor calibration), e  LEFT  223     63   252     5    3.8  148  11.3s PASS 
+C59  compass up to 6 deg off with heading (poor calibration), e  LEFT  229     65   254     5    3.8  152  11.4s PASS 
+C59  compass up to 6 deg off with heading (poor calibration), e  LEFT  230     65   254     5    3.8  154  11.4s PASS 
+C60  iron in the box pulls the field 30 % near it: the compass   LEFT  230     53   238     5    3.9  152  11.4s PASS 
+C60  iron in the box pulls the field 30 % near it: the compass   LEFT  199     52   237     6    3.8  148  11.2s PASS 
+C60  iron in the box pulls the field 30 % near it: the compass   LEFT  224     51   236     5    3.7  150  11.4s PASS 
+C61  line bends left R300 behind the box, car comes back from t  LEFT  232     41   176     5    3.7  108  10.7s PASS 
+C61  line bends left R300 behind the box, car comes back from t  LEFT  121     22   158     6    3.6   92  10.2s PASS 
+C61  line bends left R300 behind the box, car comes back from t  LEFT  228     37   173     5    3.9  104  10.7s PASS 
+C62  line bends right R300 behind the box, car comes back from   LEFT  214     22   159     5    3.9   92   9.1s PASS 
+C62  line bends right R300 behind the box, car comes back from   LEFT  212     22   159     5    3.9   92   9.1s PASS 
+C62  line bends right R300 behind the box, car comes back from   LEFT  215     22   159     6    3.6   94   9.1s PASS 
+C63  line bends left R300 behind the box, car comes back from t RIGHT  213     22   159    -5    3.8   94   8.9s PASS 
+C63  line bends left R300 behind the box, car comes back from t RIGHT  235     43   178    -5    3.6  114   9.3s PASS 
+C63  line bends left R300 behind the box, car comes back from t RIGHT  216     22   159    -6    3.6   94   8.9s PASS 
+C64  line bends right R300 behind the box, car comes back from  RIGHT  217     21   158    -6    3.6   94  10.2s PASS 
+C64  line bends right R300 behind the box, car comes back from  RIGHT  212     21   158    -6    3.6   94  10.2s PASS 
+C64  line bends right R300 behind the box, car comes back from  RIGHT  229     38   173    -5    3.9  104  10.4s PASS 
+C65  line bends left R200 behind the box, car comes back from t  LEFT  224     37   173     5    3.6  104  11.1s PASS 
+C65  line bends left R200 behind the box, car comes back from t  LEFT  227     37   173    -3    3.6  104  10.9s PASS 
+C65  line bends left R200 behind the box, car comes back from t  LEFT  215     22   159     5    3.6   94  10.7s PASS 
+C66  line bends left R500 from the box's back, car comes back f  LEFT  203     32   164     6    3.8   90  10.5s PASS 
+C66  line bends left R500 from the box's back, car comes back f  LEFT  210     32   164     5    3.7   90  10.4s PASS 
+C66  line bends left R500 from the box's back, car comes back f  LEFT  208     32   165     5    3.7   88  10.3s PASS 
+C67  line bends right R500 from the box's back, car comes back   LEFT  222     14   158     5    3.8   94   8.9s PASS 
+C67  line bends right R500 from the box's back, car comes back   LEFT  121     10   157     5    3.7  104   9.0s PASS 
+C67  line bends right R500 from the box's back, car comes back   LEFT  225     22   167    25  527.6  106   9.3s FAIL handed over 25 mm off the line
+C68  box put down 150 mm in front: turns out on the spot, no ba  LEFT  225     36   228     5    3.6  152  11.2s FAIL backed up 152 mm
+C68  box put down 150 mm in front: turns out on the spot, no ba  LEFT  226     36   228     5    3.6  150  11.1s FAIL backed up 150 mm
+C68  box put down 150 mm in front: turns out on the spot, no ba  LEFT  226     38   230     5    3.7  152  11.1s FAIL backed up 152 mm
+C69  box put down 150 mm in front, 40 mm left: no backing up    RIGHT  231     38   192    -5    3.8  120  10.2s FAIL backed up 120 mm
+C69  box put down 150 mm in front, 40 mm left: no backing up    RIGHT  230     38   192    -5    3.8  120  10.2s FAIL backed up 120 mm
+C69  box put down 150 mm in front, 40 mm left: no backing up    RIGHT  230     35   190    -6    3.9  120  10.2s FAIL backed up 120 mm
+C70  25 cm wide box put down 200 mm in front, encoders 1 % apar  LEFT  268     53   256     5    3.7  170  12.9s FAIL backed up 170 mm
+C70  25 cm wide box put down 200 mm in front, encoders 1 % apar  LEFT  269     52   254     6    3.8  170  13.0s FAIL backed up 170 mm
+C70  25 cm wide box put down 200 mm in front, encoders 1 % apar  LEFT  266     53   254     5    3.9  170  13.0s FAIL backed up 170 mm
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  227     36   228     5    3.6  152  11.2s PASS 
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  227     38   229     5    3.8  152  11.3s PASS 
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  231     38   230     5    3.7  152  11.2s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  234     50   233     6    3.8  170  12.8s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  227     44   226     5    3.8  170  12.7s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  230     40   221    -5    3.8  170  12.3s PASS 
+L3   LIMIT: crossing right where a junction's branch meets our  RIGHT  221     11   156    -6    3.8   98   9.4s PASS 
+L3   LIMIT: crossing right where a junction's branch meets our  RIGHT  243     31   644     0    0.0  108   0.0s LIMIT fault 2
+L3   LIMIT: crossing right where a junction's branch meets our  RIGHT  220     12   158    -8    3.6   94   9.3s PASS 
+L4   LIMIT: line bends right R200 behind the box, car comes bac  LEFT  211     22   158   103 1076.3   92  10.0s LIMIT handed over 103 mm off the line
+L4   LIMIT: line bends right R200 behind the box, car comes bac  LEFT  231     41   176   156 1121.1  106   8.4s LIMIT handed over 156 mm off the line
+L4   LIMIT: line bends right R200 behind the box, car comes bac  LEFT  212     22   158   103 1076.3   92  10.0s LIMIT handed over 103 mm off the line
+
+249 runs, 42 failed
+
+=== car sim, S5_FAST=0 (130 mm/s, gap 30) ===
+S5 task polls every 10 ms
+     scenario                                                    side wide  clear max y  hand  after  rev   time    ok
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  230     33   211     5    3.6  336  17.2s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  229     33   211     5    3.8  336  17.2s PASS 
+C1   21x16 cm box on the line (track), 2 m ahead                 LEFT  223     32   210     5    3.7  328  17.2s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  213     23   143     5    3.6  268  14.9s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  228     34   157     5    3.8  282  15.2s PASS 
+C2   box 60 mm right of the line: left is shorter                LEFT  227     39   160     5    3.7  286  15.4s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  234     39   161    -5    3.9  148  12.5s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  212     23   143    -5    3.7  268  14.7s PASS 
+C3   box 60 mm left of the line: right is shorter               RIGHT  217     23   142    -5    3.8  268  14.8s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  230     36   193     5    3.8  184  14.2s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  226     37   191     6    3.6  318  16.8s PASS 
+C4   box 25 mm right: left is shorter by 50 mm                   LEFT  220     32   186     5    3.8  312  16.5s PASS 
+C5   narrow 10x10 cm box                                        RIGHT  124     28   153    -5    3.6  284  18.4s PASS 
+C5   narrow 10x10 cm box                                        RIGHT  116     27   154    -5    3.8  144  15.7s PASS 
+C5   narrow 10x10 cm box                                         LEFT  121     28   153     5    3.6  284  18.3s PASS 
+C6   wide 30 cm box                                              LEFT  314     -1   238     5    3.8  348  19.4s FAIL HIT the box
+C6   wide 30 cm box                                              LEFT  314     -1   240     5    3.8  346  19.5s FAIL HIT the box
+C6   wide 30 cm box                                             RIGHT  312     -1   238    -5    3.6  346  19.4s FAIL HIT the box
+C7   deep box, 21 x 40 cm                                        LEFT  224     32   210     6    3.9  330  19.1s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  221     23   210     5    3.9  336  18.9s PASS 
+C7   deep box, 21 x 40 cm                                        LEFT  226     18   212     6    3.9  342  18.5s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  227     32   211     5    3.8  348  17.3s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  222     27   210     5    3.7  346  16.6s PASS 
+C8   box put down 100 mm in front of the car                     LEFT  230     34   212     5    3.7  350  17.3s PASS 
+C9   box put down 50 mm in front of the car                     RIGHT  228     19   214    -6    3.9  404  19.4s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  228     19   211     6    3.8  402  19.6s PASS 
+C9   box put down 50 mm in front of the car                      LEFT  228     19   211     6    3.8  402  19.5s PASS 
+C10  walls both sides: no way round, wait, left wall taken away  LEFT  227     -1   186     5    3.8  340  22.6s FAIL HIT the box
+C10  walls both sides: no way round, wait, left wall taken away RIGHT  227     -1   176     0    0.0  340   0.0s FAIL HIT the box
+C10  walls both sides: no way round, wait, left wall taken away RIGHT  233     -1   174     0    0.0  340   0.0s FAIL HIT the box
+C11  walls both sides: wait, then the box is taken away         RIGHT  226     85    83     5    3.8  340  14.5s FAIL never showed blocked
+C11  walls both sides: wait, then the box is taken away          LEFT  226     85    83    -5    3.8  340  14.1s FAIL never showed blocked
+C11  walls both sides: wait, then the box is taken away         RIGHT  230     85    83     5    3.8  340  14.1s FAIL never showed blocked
+C12  second box beside it on the left: goes right                LEFT  222     33   197     0    0.0  366   0.0s FAIL never back on the line
+C12  second box beside it on the left: goes right                LEFT  227     38   202     0    0.0  368   0.0s FAIL never back on the line
+C12  second box beside it on the left: goes right                LEFT  227     35   198     0    0.0  368   0.0s FAIL never back on the line
+C13  lanes 250 mm either side: back onto OUR line                LEFT  229     32   211     5    3.8  342  17.2s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  229     33   215     5    3.8  348  17.2s PASS 
+C13  lanes 250 mm either side: back onto OUR line                LEFT  230     34   216     5    3.8  342  17.3s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  224     26   202     5    3.8  328  16.9s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  222     24   208     4    3.8  326  17.0s PASS 
+C14  encoders 3 % long, real track 5 % wider                     LEFT  228     29   205     5    3.8  332  17.0s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  225     45   236     6    3.9  348  17.7s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  226     40   233     7    3.9  344  17.5s PASS 
+C15  encoders 3 % short, real track 5 % narrower, lanes 250      LEFT  227     37   233     7    3.9  346  17.5s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  227     31   210     5    3.6  336  17.2s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  227     33   211     5    3.7  336  17.2s PASS 
+C16  real beam 19 deg (calibration says 22)                      LEFT  231     29   213     5    3.7  338  17.1s PASS 
+C17  real beam 25 deg (calibration says 22)                      LEFT  232     33   215     6    3.9  340  19.2s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  227     34   215    -5    3.9  340  19.1s PASS 
+C17  real beam 25 deg (calibration says 22)                     RIGHT  228     33   215    -5    3.8  340  19.1s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)         LEFT  234     25   203     5    3.9  328  18.8s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)        RIGHT  226     34   220    -5    3.8  344  19.1s PASS 
+C18  servo 4 deg off to the left, slow servo (250 deg/s)        RIGHT  232     37   218    -6    3.8  344  19.1s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  228     35   213     5    3.8  334  17.8s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  216     28   207     5    3.6  336  17.3s PASS 
+C19  no-echo pulse 150 ms (slow HC-SR04P variant)                LEFT  224     28   209     5    3.7  332  17.3s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  235     37   217     5    3.9  344  17.3s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  233     34   213     5    3.8  338  17.3s PASS 
+C20  track at 37 deg to the odometry frame                       LEFT  223     32   210     5    3.8  336  17.3s PASS 
+C21  box right after a R500 left bend                            LEFT  224     37   728     6    3.9  322  17.2s PASS 
+C21  box right after a R500 left bend                            LEFT  229     39   727     5    3.8  328  17.2s PASS 
+C21  box right after a R500 left bend                            LEFT  230     40   728     5    3.6  328  17.2s PASS 
+C22  box turned 15 deg                                           LEFT  253     -1   181     5    3.8  168  13.8s FAIL HIT the box
+C22  box turned 15 deg                                           LEFT  257     -1   209     5    3.8  314  16.6s FAIL HIT the box
+C22  box turned 15 deg                                           LEFT  256     -1   211     5    3.9  306  16.6s FAIL HIT the box
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  223     32   210     5    3.8  334  17.1s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  223     30   212     5    3.6  328  17.0s PASS 
+C23  car starts 10 mm off the line, 8 deg to it                  LEFT  222     31   210     5    3.6  332  17.0s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  224     21   202     5    3.6  322  16.7s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  229     25   203     5    3.6  336  17.1s PASS 
+C24  sensor mounted 10 mm left of the centre                     LEFT  228     23   202     5    3.6  328  17.0s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  232     30   212    -5    3.7  662  16.3s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  223     33   212    -6    3.8  648  16.4s PASS 
+C25  two boxes 1.4 m apart                                       LEFT  216     27   231     5    3.8  676  17.7s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0    0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0    0   0.0s PASS 
+C26  no sensor (ECHO never rises): FR25 fault                       -    0    829     0     0    0.0    0   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up        RIGHT    0     85    22     0    0.0  123   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up        RIGHT    0     85    22     0    0.0  123   0.0s PASS 
+C27  right encoder dies at the obstacle: bypass gives up        RIGHT    0     85    22     0    0.0  123   0.0s PASS 
+C28  box taken away while the car stands: line following again      -    0     86     0     0    0.0    0   0.9s PASS 
+C28  box taken away while the car stands: line following again      -    0     86     0     0    0.0    0   0.9s PASS 
+C28  box taken away while the car stands: line following again      -    0     86     0     0    0.0    0   0.9s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  211     29   220     5    3.9  326  16.9s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  241     37   219     5    3.6  352  17.4s PASS 
+C29  noisy sensor: 5 mm noise, 10 % dropouts                     LEFT  241     38   217     5    3.7  334  17.4s PASS 
+C80  9 cm box on the line                                       RIGHT   80     43   163    -6    3.8  284  18.5s PASS 
+C80  9 cm box on the line                                        LEFT   80     19   139     5    3.6  264  17.5s PASS 
+C80  9 cm box on the line                                        LEFT   80     19   138     5    3.6  262  17.6s PASS 
+C81  9 cm box 20 mm right, beam 15                               LEFT  117     19   118     5    3.8  242  16.9s PASS 
+C81  9 cm box 20 mm right, beam 15                               LEFT  114     18   118     5    3.6  240  16.9s PASS 
+C81  9 cm box 20 mm right, beam 15                               LEFT  115     18   118     5    3.6   90  13.4s PASS 
+C82  9 cm box 20 mm left, beam 15                               RIGHT  115     18   118    -5    3.8  240  17.0s PASS 
+C82  9 cm box 20 mm left, beam 15                               RIGHT  113     18   118    -5    3.8  240  17.0s PASS 
+C82  9 cm box 20 mm left, beam 15                               RIGHT  121     29   130    -5    3.7  246  17.2s PASS 
+C83  9 cm box 30 mm right, beam 30                               LEFT  120     49   139     6    3.8  264  15.2s PASS 
+C83  9 cm box 30 mm right, beam 30                               LEFT  125     49   138     5    3.6  266  15.2s PASS 
+C83  9 cm box 30 mm right, beam 30                               LEFT  123     49   139     5    3.8  264  15.1s PASS 
+C84  9 cm box 30 mm left, beam 30                               RIGHT  127     57   147    -6    3.6  276  18.0s PASS 
+C84  9 cm box 30 mm left, beam 30                               RIGHT  125     59   148    -6    3.8  270  17.9s PASS 
+C84  9 cm box 30 mm left, beam 30                               RIGHT  124     58   148    -5    3.6  274  18.0s PASS 
+C85  9 cm box 40 mm right, beam 15, servo 4 deg off              LEFT  131     36   116     6    3.7  244  17.1s PASS 
+C85  9 cm box 40 mm right, beam 15, servo 4 deg off              LEFT  131     35   115     6    3.8  238  17.0s PASS 
+C85  9 cm box 40 mm right, beam 15, servo 4 deg off              LEFT  131     35   115     5    3.8   90  13.7s PASS 
+C86  9 cm box 40 mm left, beam 15, servo 4 deg off              RIGHT  134     23   103    -5    3.7  224  16.4s PASS 
+C86  9 cm box 40 mm left, beam 15, servo 4 deg off              RIGHT  137     24   104    -6    3.8  224  16.3s PASS 
+C86  9 cm box 40 mm left, beam 15, servo 4 deg off              RIGHT  142     25   104    -5    3.6   90  13.1s PASS 
+C87  9 cm box 30 mm right, beam 15, servo 10 deg off            RIGHT  123     -1   136    -6    3.9  262  17.8s FAIL HIT the box
+C87  9 cm box 30 mm right, beam 15, servo 10 deg off            RIGHT  122     -1   137    -5    3.8  264  17.8s FAIL HIT the box
+C87  9 cm box 30 mm right, beam 15, servo 10 deg off            RIGHT  122     -1   138    -5    3.8  264  17.7s FAIL HIT the box
+C88  9 cm box 30 mm left, beam 15, servo 10 deg off             RIGHT  124     12   100    -6    3.6   90  13.2s PASS 
+C88  9 cm box 30 mm left, beam 15, servo 10 deg off             RIGHT  123      7    97    -5    3.9  214  16.3s FAIL only 7 mm from the box
+C88  9 cm box 30 mm left, beam 15, servo 10 deg off             RIGHT  124     12   101    -5    3.6   90  13.2s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT   80     52   123     5    3.6   90  12.9s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT   80     49   123     5    3.9  248  16.4s PASS 
+C30  box 120 mm right: line clear of it on the left              LEFT   80     61   123     5    3.8   90  13.4s PASS 
+C31  second box 56 cm behind the first                           LEFT  220     27   209     5    3.9  520  31.6s PASS 
+C31  second box 56 cm behind the first                           LEFT  224     22   215     5    3.6  526  31.7s PASS 
+C31  second box 56 cm behind the first                           LEFT  223     19   207     5    3.8  518  31.3s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  230     29   213    -5    3.8  640  15.4s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  223     30   208    -5    3.8  640  15.9s PASS 
+C32  second box 75 cm behind the first, 30 mm left               LEFT  230     16   215    -5    3.8  508  14.4s PASS 
+C33  second box 40 cm behind the first                           LEFT  224     35   213     5    3.8  336  22.9s PASS 
+C33  second box 40 cm behind the first                           LEFT  225     34   212     5    3.8  330  22.8s PASS 
+C33  second box 40 cm behind the first                           LEFT  224     -1   210     0    0.0  336   0.0s FAIL HIT the box
+C34  second box 30 cm behind the first                           LEFT  228     35   213     5    3.8  336  21.1s PASS 
+C34  second box 30 cm behind the first                           LEFT  229     35   213     5    3.8  338  22.1s PASS 
+C34  second box 30 cm behind the first                           LEFT  227     33   215     5    3.8  338  22.3s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  227     27   268     5    3.8  438  25.5s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  178     20   261     5    3.8  326  22.6s PASS 
+C35  second box 30 cm behind, 60 mm left: in the left pass lane  LEFT  223     14   275     6    3.7  336  27.0s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  228     32   213     5    3.7  344  21.6s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  223     30   208     5    3.9  334  22.0s PASS 
+C36  second box 40 cm behind, 100 mm right                       LEFT  224     31   210     5    3.8  336  22.1s PASS 
+C37  second box 40 cm behind, 30 cm wide                         LEFT  228     -1   212     0    0.0  530   0.0s FAIL HIT the box
+C37  second box 40 cm behind, 30 cm wide                         LEFT  235     -1   216     0    0.0  342   0.0s FAIL HIT the box
+C37  second box 40 cm behind, 30 cm wide                         LEFT  224     -1   211     0    0.0  348   0.0s FAIL HIT the box
+C38  second box 40 cm behind, 40 cm deep                         LEFT  226     32   210     5    3.8  336  24.8s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  224     31   210     5    3.7  336  24.8s PASS 
+C38  second box 40 cm behind, 40 cm deep                         LEFT  229     -1   211     0    0.0  336   0.0s FAIL HIT the box
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  227     21   230     6    3.6  360  32.2s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  226     22   232     6    3.9  361  32.1s PASS 
+C39  three boxes, gaps 50 and 30 cm, 30 mm left / right          LEFT  233     20   230     5    3.7  378  32.5s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  236     18   270     5    3.9  326  25.7s PASS 
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  231      4   267     5    3.6  324  26.1s FAIL only 4 mm from the box
+C40  second box 15 cm behind, 50 mm into the left pass lane      LEFT  227     31   193     0    0.0  184   0.0s FAIL never back on the line
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  221     15   327     6    3.6  322  26.0s PASS 
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  231     10   324     6    3.8  324  26.3s FAIL only 10 mm from the box
+C41  3 cm post put down in the left pass lane as the car turns   LEFT  233     10   324     5    3.9  324  26.3s FAIL only 10 mm from the box
+C42  21x16 cm box, car stops 30 cm short: no backing up          LEFT  232     33   211     5    3.6  336  17.3s FAIL backed up 336 mm
+C42  21x16 cm box, car stops 30 cm short: no backing up          LEFT  222     31   210     5    3.8  346  17.2s FAIL backed up 346 mm
+C42  21x16 cm box, car stops 30 cm short: no backing up          LEFT  229     32   213     5    3.9  336  17.1s FAIL backed up 336 mm
+C43  16x21 cm box (16 cm face): no backing up                    LEFT  179     31   188     5    3.8  176  14.1s FAIL backed up 176 mm
+C43  16x21 cm box (16 cm face): no backing up                    LEFT  175     33   187     6    3.8  314  17.0s FAIL backed up 314 mm
+C43  16x21 cm box (16 cm face): no backing up                    LEFT  178     29   185     6    3.8  178  14.1s FAIL backed up 178 mm
+C44  real track 10 % narrower (turns 10 % more): IRs pick the l  LEFT  230     34   235     6    3.8  340  17.1s PASS 
+C44  real track 10 % narrower (turns 10 % more): IRs pick the l  LEFT  224     31   230     6    3.9  336  17.0s PASS 
+C44  real track 10 % narrower (turns 10 % more): IRs pick the l  LEFT  221     35   228     6    3.9  336  16.6s PASS 
+C45  real track 10 % wider (turns 10 % less): IRs pick the line  LEFT  222     33   211     4    3.7  336  17.6s PASS 
+C45  real track 10 % wider (turns 10 % less): IRs pick the line  LEFT  219     29   216     5    3.8  334  17.5s PASS 
+C45  real track 10 % wider (turns 10 % less): IRs pick the line  LEFT  224     31   207     4    3.6  336  17.5s PASS 
+C46  line 70 mm further left behind the box: IRs pick it up      LEFT  197     59   274     5    3.6  246  20.5s PASS 
+C46  line 70 mm further left behind the box: IRs pick it up      LEFT  230     79   347     5    3.9  284  22.9s PASS 
+C46  line 70 mm further left behind the box: IRs pick it up      LEFT  213     76   336     5    3.7  264  22.4s PASS 
+C47  line 70 mm further right behind the box: IRs pick it up    RIGHT  231     79   344    -5    3.8  282  22.7s PASS 
+C47  line 70 mm further right behind the box: IRs pick it up    RIGHT  224     79   343    -5    3.6  280  22.7s PASS 
+C47  line 70 mm further right behind the box: IRs pick it up    RIGHT  228     79   343    -5    3.6  280  22.7s PASS 
+C48  left encoder 0.5 % long, right 0.5 % short: ends ~6 cm lef  LEFT  227     42   220     6    3.8  330  17.5s PASS 
+C48  left encoder 0.5 % long, right 0.5 % short: ends ~6 cm lef  LEFT  233     40   218     5    3.8  336  17.4s PASS 
+C48  left encoder 0.5 % long, right 0.5 % short: ends ~6 cm lef  LEFT  230     43   220     5    3.6  336  17.5s PASS 
+C49  left encoder 0.5 % short, right 0.5 % long: ends ~6 cm rig  LEFT  225     22   214     5    3.8  340  17.0s PASS 
+C49  left encoder 0.5 % short, right 0.5 % long: ends ~6 cm rig  LEFT  226     23   213     5    3.8  346  17.1s PASS 
+C49  left encoder 0.5 % short, right 0.5 % long: ends ~6 cm rig  LEFT  224     21   212     5    3.8  336  16.8s PASS 
+C50  left encoder 0.75 % long, right 0.75 % short: ends ~10 cm   LEFT  228     47   225     6    3.6  336  19.3s PASS 
+C50  left encoder 0.75 % long, right 0.75 % short: ends ~10 cm   LEFT  226     45   223     5    3.8  334  18.8s PASS 
+C50  left encoder 0.75 % long, right 0.75 % short: ends ~10 cm   LEFT  229     47   225     5    3.8  336  19.3s PASS 
+C51  left encoder 0.75 % short, right 0.75 % long: ends ~10 cm   LEFT  229     16   215     5    3.8  336  16.9s PASS 
+C51  left encoder 0.75 % short, right 0.75 % long: ends ~10 cm   LEFT  222     13   211     6    3.8  336  17.0s PASS 
+C51  left encoder 0.75 % short, right 0.75 % long: ends ~10 cm   LEFT  223     11   209     5    3.7  336  16.8s PASS 
+C52  junction's branch across the way back (going left): the IR  LEFT  227     40   161     5    3.7  280  15.4s PASS 
+C52  junction's branch across the way back (going left): the IR  LEFT  210     24   158     5    3.8  260  15.1s PASS 
+C52  junction's branch across the way back (going left): the IR  LEFT  209     25   146     5    3.6  262  15.0s PASS 
+C53  junction where the car turns onto the line (going left): t  LEFT  125     25   146     5    3.9  264  15.0s PASS 
+C53  junction where the car turns onto the line (going left): t  LEFT  209     25   146     5    3.8  262  15.0s PASS 
+C53  junction where the car turns onto the line (going left): t  LEFT  206     25   147     6    3.9  262  15.0s PASS 
+C54  junction where the car turns onto the line (going right):  RIGHT  218     18   148    -5    3.7  274  14.3s PASS 
+C54  junction where the car turns onto the line (going right):  RIGHT  216     19   148    -5    3.6  272  14.6s PASS 
+C54  junction where the car turns onto the line (going right):  RIGHT  219     17   148    -5    3.7  276  14.5s PASS 
+C55  junction's branch on the side the car comes back from (goi RIGHT  160     20   149    -6    3.8  278  14.8s PASS 
+C55  junction's branch on the side the car comes back from (goi RIGHT  158     19   148    -6    3.9  278  14.5s PASS 
+C55  junction's branch on the side the car comes back from (goi RIGHT  229     27   158    -5    3.6  284  14.9s PASS 
+C56  junction's branch at 45 deg across the way back (going lef  LEFT  232     39   161    75  659.0  282  16.0s FAIL handed over 75 mm off the line
+C56  junction's branch at 45 deg across the way back (going lef  LEFT  229     43   164     5    3.6  286  16.9s PASS 
+C56  junction's branch at 45 deg across the way back (going lef  LEFT  209     27   148     6    3.7  256  15.8s PASS 
+C57  encoders 2 % apart (left long): the compass keeps the head  LEFT  219     46   229     6    3.8  330  19.5s PASS 
+C57  encoders 2 % apart (left long): the compass keeps the head  LEFT  225     48   230     6    3.8  332  19.4s PASS 
+C57  encoders 2 % apart (left long): the compass keeps the head  LEFT  227     55   238     6    3.8  332  19.7s PASS 
+C58  no compass (IMU unplugged), encoders 1 % apart: encoders a  LEFT  228     39   216     6    3.8  334  17.1s PASS 
+C58  no compass (IMU unplugged), encoders 1 % apart: encoders a  LEFT  227     36   217     5    3.7  336  17.4s PASS 
+C58  no compass (IMU unplugged), encoders 1 % apart: encoders a  LEFT  229     40   221     5    3.8  332  17.5s PASS 
+C59  compass up to 6 deg off with heading (poor calibration), e  LEFT  223     61   239     5    3.6  334  18.5s PASS 
+C59  compass up to 6 deg off with heading (poor calibration), e  LEFT  229     63   241     6    3.8  336  19.1s PASS 
+C59  compass up to 6 deg off with heading (poor calibration), e  LEFT  230     64   241     5    3.6  338  19.1s PASS 
+C60  iron in the box pulls the field 30 % near it: the compass   LEFT  230     38   218     5    3.8  336  17.0s PASS 
+C60  iron in the box pulls the field 30 % near it: the compass   LEFT  199     38   217     5    3.8  334  17.2s PASS 
+C60  iron in the box pulls the field 30 % near it: the compass   LEFT  224     40   217     6    3.8  336  16.7s PASS 
+C61  line bends left R300 behind the box, car comes back from t  LEFT  232     38   160     5    3.6  150  13.2s PASS 
+C61  line bends left R300 behind the box, car comes back from t  LEFT  121     22   142     6    3.9  266  15.8s PASS 
+C61  line bends left R300 behind the box, car comes back from t  LEFT  228     37   157     5    3.9  282  16.3s PASS 
+C62  line bends right R300 behind the box, car comes back from   LEFT  214     23   143     5    3.6  266  14.3s PASS 
+C62  line bends right R300 behind the box, car comes back from   LEFT  212     23   143     5    3.6  266  14.2s PASS 
+C62  line bends right R300 behind the box, car comes back from   LEFT  215     23   142     5    3.6  268  14.3s PASS 
+C63  line bends left R300 behind the box, car comes back from t RIGHT  213     23   143    -5    3.9  266  14.1s PASS 
+C63  line bends left R300 behind the box, car comes back from t RIGHT  235     38   162    -5    3.9  294  14.7s PASS 
+C63  line bends left R300 behind the box, car comes back from t RIGHT  216     23   142    -5    3.6  268  14.1s PASS 
+C64  line bends right R300 behind the box, car comes back from  RIGHT  217     23   142    -5    3.8  268  15.6s PASS 
+C64  line bends right R300 behind the box, car comes back from  RIGHT  212     23   142    -5    3.9  268  15.7s PASS 
+C64  line bends right R300 behind the box, car comes back from  RIGHT  229     29   157    -5    3.6  282  15.8s PASS 
+C65  line bends left R200 behind the box, car comes back from t  LEFT  224     37   527     0    0.0  282   0.0s FAIL fault 2
+C65  line bends left R200 behind the box, car comes back from t  LEFT  227     33   528     0    0.0  284   0.0s FAIL fault 2
+C65  line bends left R200 behind the box, car comes back from t  LEFT  215     23   528     0    0.0  268   0.0s FAIL fault 2
+C66  line bends left R500 from the box's back, car comes back f  LEFT  203     24   146     6    3.7  260  15.2s PASS 
+C66  line bends left R500 from the box's back, car comes back f  LEFT  210     24   158     5    3.7  260  15.4s PASS 
+C66  line bends left R500 from the box's back, car comes back f  LEFT  208     25   145     5    3.6  260  15.2s PASS 
+C67  line bends right R500 from the box's back, car comes back   LEFT  222     19   647     0    0.0  270   0.0s FAIL fault 2
+C67  line bends right R500 from the box's back, car comes back   LEFT  121     18   648     0    0.0  280   0.0s FAIL fault 2
+C67  line bends right R500 from the box's back, car comes back   LEFT  225     27   647     0    0.0  284   0.0s FAIL fault 2
+C68  box put down 150 mm in front: turns out on the spot, no ba  LEFT  225     28   211     5    3.8  336  17.0s FAIL backed up 336 mm
+C68  box put down 150 mm in front: turns out on the spot, no ba  LEFT  226     33   212     5    3.8  336  17.2s FAIL backed up 336 mm
+C68  box put down 150 mm in front: turns out on the spot, no ba  LEFT  226     35   213     5    3.8  336  17.3s FAIL backed up 336 mm
+C69  box put down 150 mm in front, 40 mm left: no backing up    RIGHT  231     36   176    -5    3.7  302  15.7s FAIL backed up 302 mm
+C69  box put down 150 mm in front, 40 mm left: no backing up    RIGHT  230     36   176    -5    3.6  302  15.9s FAIL backed up 302 mm
+C69  box put down 150 mm in front, 40 mm left: no backing up    RIGHT  230     34   173    -5    3.6  302  15.8s FAIL backed up 302 mm
+C70  25 cm wide box put down 200 mm in front, encoders 1 % apar  LEFT  268     35   232     6    3.6  358  19.1s FAIL backed up 358 mm
+C70  25 cm wide box put down 200 mm in front, encoders 1 % apar  LEFT  269     34   236     5    3.6  344  19.6s FAIL backed up 344 mm
+C70  25 cm wide box put down 200 mm in front, encoders 1 % apar  LEFT  266     34   233     5    3.8  344  19.5s FAIL backed up 344 mm
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  227     33   211     5    3.8  336  17.3s PASS 
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  227     35   213     6    3.8  338  17.4s PASS 
+L1   LIMIT: real beam 16 deg (calibration says 22)               LEFT  231     35   213     5    3.7  336  17.3s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  234     35   218     5    3.8  344  18.9s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)               LEFT  227     33   211     5    3.6  342  19.0s PASS 
+L2   LIMIT: real beam 28 deg (calibration says 22)              RIGHT  230     28   206    -5    3.6  332  18.7s PASS 
+L3   LIMIT: crossing right where a junction's branch meets our  RIGHT  221     19   642     0    0.0  274   0.0s LIMIT fault 2
+L3   LIMIT: crossing right where a junction's branch meets our  RIGHT  243     35   166    -5    3.8  290  15.1s PASS 
+L3   LIMIT: crossing right where a junction's branch meets our  RIGHT  220     18   149    -6    3.8  270  14.5s PASS 
+L4   LIMIT: line bends right R200 behind the box, car comes bac  LEFT  211     22   527     0    0.0  266   0.0s LIMIT fault 2
+L4   LIMIT: line bends right R200 behind the box, car comes bac  LEFT  231     38   528     0    0.0  150   0.0s LIMIT fault 2
+L4   LIMIT: line bends right R200 behind the box, car comes bac  LEFT  212     22   528     0    0.0  266   0.0s LIMIT fault 2
+
+249 runs, 50 failed
+
+=== make search / turn ===
+All 245 line search runs passed.
+J29 RIGHT, branch bends right R250 after 100 mm    FAIL  turn  2.7 s, slowest  30.0 mm/s, IR   0.5 mm off at handover, then axle 280.5 mm / 65.4 deg off, IRs OFF the line
+1 junction turn scenario(s) FAILED

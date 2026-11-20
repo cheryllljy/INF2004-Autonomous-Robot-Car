@@ -43,6 +43,17 @@ typedef struct
 } s4_hump_state_t;
 
 static s4_hump_state_t s4_hump_state;
+
+/* Buddy 5, 2026-11-19 (asked by Darwin): while Buddy 5 drives a bypass
+ * (VehicleController OBSTACLE state) a jolt alone is not a pick-up: the
+ * turn out and back in shake the car (on the track a 141 % jolt E-stopped
+ * it as it came back onto the line). Tilt still is. */
+static volatile bool s4_jolt_hold = false;
+
+void subsystem4_hold_jolt(bool b_hold)
+{
+    s4_jolt_hold = b_hold;
+}
 static volatile uint8_t s4_lift_now_mm;
 /* tilt from the start-up level in any direction, 0.1 deg, smoothed */
 static volatile uint16_t s4_tilt_ddeg;
@@ -114,7 +125,8 @@ static void s4_lift_step(const imu_vector_t *p_raw, uint32_t total)
                         ((int64_t)s4_hump_state.base_y * p_raw->y) +
                         ((int64_t)s4_hump_state.base_z * p_raw->z);
     const bool b_jolt =
-        ((uint64_t)dev * 100U) > ((uint64_t)base * S4_LIFT_JOLT_PCT);
+        !s4_jolt_hold && /* Buddy 5, 2026-11-19 */
+        (((uint64_t)dev * 100U) > ((uint64_t)base * S4_LIFT_JOLT_PCT));
     const bool b_tilt =
         (0U != total) &&
         ((dot * 100) < ((int64_t)S4_LIFT_TILT_COS_PCT * (int64_t)total *

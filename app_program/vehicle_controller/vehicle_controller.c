@@ -262,6 +262,9 @@ static void enter(vc_state_t next)
         {
             s5_avoid_abort();
         }
+        /* Buddy 5, 2026-11-19 (asked by Darwin): no pick-up E-stop on a
+         * jolt alone while the bypass drives (subsystem4_hold_jolt()) */
+        subsystem4_hold_jolt(VC_STATE_OBSTACLE == next);
         tm_printf((UB *)"[VC] state %d -> %d\n", vc.state, next);
         vc.state = next;
         vc.state_ms = 0;
@@ -1216,6 +1219,17 @@ static void exchange_line(void)
     }
 
     flat_update();
+    if ((vc.line.junction_sequence != vc.junctions) &&
+        (VC_STATE_OBSTACLE == vc.state))
+    {
+        /* Buddy 5, 2026-11-19 (asked by Darwin): the bypass coming back
+         * across its own line at an angle puts all three IRs on black.
+         * Not a junction: not counted, and the turn waiting for the real
+         * junction stays as it is (it was set to STRAIGHT before). */
+        vc.junctions = vc.line.junction_sequence;
+        tm_printf((UB *)"[VC] line crossed during the bypass: not a "
+                        "junction\n");
+    }
     if (vc.line.junction_sequence != vc.junctions)
     {
         b3_nav_command_t turn = vc.pending_turn;

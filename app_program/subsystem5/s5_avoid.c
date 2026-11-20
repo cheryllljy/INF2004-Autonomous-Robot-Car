@@ -246,6 +246,12 @@ typedef struct
     float back_from;
     s5_then_t back_then;
     float reversed;
+    /* Buddy 5, 2026-11-19: S5_TWO_DIST, the first of the two sweeps */
+    bool b_two_have;   /* taken: backing up for the second */
+    bool b_two_done;   /* both taken (or not to be): not again */
+    float two_d1;      /* its face (mm) */
+    float two_span1;   /* its echoes' span (rad) */
+    float two_ym1;     /* the middle of its echoes, line frame (mm) */
     uint32_t rescans;
     uint32_t scan_seq;
     bool b_scan_early; /* scan_seq started at detection, car braking */
@@ -887,6 +893,9 @@ void s5_avoid_begin(const motion_status_t *p_m)
     g.mag_err = 0.0f;
     g.mag_skip = 0U;
     g.reversed = 0.0f;
+    g.b_two_have = false; /* Buddy 5, 2026-11-19 */
+    g.b_two_done = false;
+    s5_scan_set_depth(0U);
     g.rescans = 0U;
     g.b_blocked = false;
     g.b_block_said = false;
@@ -1224,6 +1233,52 @@ static bool s5_plan(int32_t side)
         }
     }
     g.b_out_pivot = false;
+#if (0 != S5_OUT_PREFER_BACK)
+    /* Buddy 5, 2026-11-19: no room for a ramp out from here (stopped at
+     * 18 cm, S5_STOP_MM): back up as little as lets one smooth ramp out
+     * and back in fit, rather than turn on the spot next to the object.
+     * The spot turn throws the car wide (axle 240..290 mm off the line for
+     * 14 cm objects on the track) and stops it twice. Backing up stays on
+     * the line, where the encoders are still right. */
+    if (!s5_out_clear(x_here))
+    {
+        const float room = (budget < (float)S5_OUT_BACK_MAX_MM)
+                               ? budget
+                               : (float)S5_OUT_BACK_MAX_MM;
+        float lo = x_here - room; /* clear, if anything is */
+        float hi = x_here;        /* not clear */
+        uint32_t i;
+
+        /* the gentle ramp if that much backing up makes room for it, else
+         * the steepest (S5_STEEP_HEADING_DEG) */
+        if (!s5_out_clear(lo))
+        {
+            g.path.l_out = s5_path_ramp_len_steep(g.path.a - g.path.y0);
+        }
+        if ((room > 0.0f) && s5_out_clear(lo))
+        {
+            for (i = 0U; i < S5_BISECT; i++)
+            {
+                const float mid = 0.5f * (lo + hi);
+
+                if (s5_out_clear(mid))
+                {
+                    lo = mid;
+                }
+                else
+                {
+                    hi = mid;
+                }
+            }
+            x0 = lo - 5.0f; /* a little spare for the stop */
+            g.path.x0 = x0;
+            s5_plan_back(x0);
+            return !g.b_passed ||
+                   s5_path_clear(&g.path, &g.passed, S5_PIVOT_MARGIN_MM, x0,
+                                 s5_path_end(&g.path));
+        }
+    }
+#endif
     if (!s5_out_clear(x_here))
     {
         /* no backing up for room to turn out: turn out
@@ -1728,6 +1783,110 @@ static bool s5_turn_room(void)
     return true;
 }
 
+#if (0 != S5_TWO_DIST)
+static float s5_two_rad(int32_t ddeg)
+{
+    return (float)ddeg * (0.1f * S5_DEG2RAD_F);
+}
+
+/* Buddy 5, 2026-11-19: S5_TWO_DIST. The middle of the sweep's echoes,
+ * line frame (mm) */
+static float s5_two_mid(void)
+{
+    const float mid = g.odo.psi +
+                      (0.5f * s5_two_rad((int32_t)g.prof.left_ddeg +
+                                             (int32_t)g.prof.right_ddeg));
+    const float sy = g.odo.y + ((float)S5_SONAR_AHEAD_MM * s5_sinf(g.odo.psi));
+
+    return sy + ((float)g.prof.face_q_mm * s5_tanf(mid));
+}
+
+/* First sweep: keep it and back up for the second (true: backing up).
+ * Second: the width from the two, into g.prof (false: go on and plan). */
+static bool s5_two_dist(void)
+{
+    const s5_profile_t *p = &g.prof;
+    const bool b_clean = p->b_by_range && p->b_left_seen && p->b_right_seen;
+    const float span = s5_two_rad((int32_t)p->left_ddeg -
+                                      (int32_t)p->right_ddeg);
+
+    if (g.b_two_done || g.b_rejoin)
+    {
+        return false;
+    }
+    if (!g.b_two_have)
+    {
+        if (!b_clean || (p->face_q_mm > (uint16_t)S5_TWO_NEAR_MAX_MM) ||
+            (s5_back_room() < (float)S5_TWO_BACK_MM))
+        {
+            g.b_two_done = true;
+            return false; /* one sweep it is */
+        }
+        {
+            /* where its corners should be from the second sweep: echoes
+             * further than that (plus S5_TWO_DEPTH_SPARE_MM) are not it */
+            const float sy = g.odo.y +
+                             ((float)S5_SONAR_AHEAD_MM * s5_sinf(g.odo.psi));
+            const float d2 = (float)p->face_q_mm + (float)S5_TWO_BACK_MM;
+            const float yl = p->y_left - sy;
+            const float yr = p->y_right - sy;
+            const float rl = s5_sqrtf((d2 * d2) + (yl * yl));
+            const float rr = s5_sqrtf((d2 * d2) + (yr * yr));
+            const float rmax = (rl > rr) ? rl : rr;
+
+            s5_scan_set_depth((uint16_t)((rmax - d2) +
+                                         (float)S5_TWO_DEPTH_SPARE_MM));
+        }
+        g.b_two_have = true;
+        g.two_d1 = (float)p->face_q_mm;
+        g.two_span1 = span;
+        g.two_ym1 = s5_two_mid();
+        S5_LOG("[VC-S5] two-distance sweep: first from %d mm (echoes over %d "
+               "deg); backing up %d mm for the second\n",
+               (int)p->face_q_mm, (int)s5_deg(span), (int)S5_TWO_BACK_MM);
+        s5_back_by((float)S5_TWO_BACK_MM, S5_THEN_SCAN);
+        return true;
+    }
+    g.b_two_have = false;
+    g.b_two_done = true;
+    s5_scan_set_depth(0U); /* this sweep's profile is taken already */
+    if (!b_clean)
+    {
+        S5_LOG("[VC-S5] two-distance sweep: the second did not see both "
+               "edges: width from it alone\n");
+        return false;
+    }
+    {
+        const float ym = 0.5f * (g.two_ym1 + s5_two_mid());
+        const float yc = ym - g.odo.y; /* from the sonar, on the line */
+        const float w_one = p->y_left - p->y_right;
+        float w = 0.0f;
+        float beam = 0.0f;
+
+        if (!s5_scan_two_width(g.two_d1, g.two_span1, (float)p->face_q_mm,
+                               span, yc, &w, &beam))
+        {
+            S5_LOG("[VC-S5] two sweeps: faces %d/%d mm, echoes %d/%d deg "
+                   "fit no width: %d mm from the second alone\n",
+                   (int)s5_mm(g.two_d1), (int)p->face_q_mm,
+                   (int)s5_deg(g.two_span1), (int)s5_deg(span),
+                   (int)s5_mm(w_one));
+            return false;
+        }
+        w = s5_clampf(w, (float)S5_OBJ_MIN_MM, (float)S5_OBJ_MAX_MM);
+        g.prof.y_left = ym + (0.5f * w);
+        g.prof.y_right = ym - (0.5f * w);
+        S5_LOG("[VC-S5] two sweeps: faces %d/%d mm, echoes %d/%d deg, "
+               "beam %d deg: %d mm wide, %d left %d right (one said %d)\n",
+               (int)s5_mm(g.two_d1), (int)p->face_q_mm,
+               (int)s5_deg(g.two_span1), (int)s5_deg(span),
+               (int)s5_deg(beam), (int)s5_mm(w), (int)s5_mm(g.prof.y_left),
+               (int)s5_mm(-g.prof.y_right), (int)s5_mm(w_one));
+    }
+    return false;
+}
+#endif
+
 /* The sweep is in: what is it, which way round, is there room. */
 static s5_avoid_result_t s5_decide(void)
 {
@@ -1765,6 +1924,12 @@ static s5_avoid_result_t s5_decide(void)
         return s5_end_here("nothing in front after all");
     }
     s5_say_sweep();
+#if (0 != S5_TWO_DIST)
+    if (s5_two_dist())
+    {
+        return S5_AVOID_RUNNING; /* backing up for the second sweep */
+    }
+#endif
     if (s5_absf(g.odo.psi) > (S5_PLAN_DEG * S5_DEG2RAD_F))
     {
         /* only after another object on the way back, when backing up
@@ -1855,7 +2020,7 @@ static s5_avoid_result_t s5_decide(void)
            (int)s5_mm(g.path.l_in), (int)s5_mm(g.path.x_back - g.box.x_near));
     if (g.path.x0 < (g.odo.x - 5.0f))
     {
-        S5_LOG("[VC-S5] no room to turn out even on the spot: backing up "
+        S5_LOG("[VC-S5] no room for the ramp out from here: backing up "
                "%d mm first\n",
                (int)s5_mm(g.odo.x - g.path.x0));
         g.back_then = S5_THEN_BYPASS;
@@ -1933,15 +2098,19 @@ static void s5_reverse_step(void)
     s5_wheels(v, rate / v);
 }
 
-/* Move the pass further out: the side is d closer than the sweep said
- * (never back in). */
+/* Move the pass out (d > 0: the side is d closer than the sweep said) or,
+ * Buddy 5 2026-11-19, back in (d < 0: further away, at most
+ * S5_SIDE_IN_MAX_MM), so the gap stays S5_CLEARANCE_MM both ways. d is
+ * from the sweep's edge; the pass moves only when the change is more than
+ * S5_SIDE_STEP_MM, so two fits a few mm apart do not make it weave. */
 static void s5_move_out(float d, const char *p_what)
 {
-    const float dd = (d > (float)S5_SIDE_MAX_MM) ? (float)S5_SIDE_MAX_MM : d;
+    const float dd = s5_clampf(d, -(float)S5_SIDE_IN_MAX_MM,
+                               (float)S5_SIDE_MAX_MM);
+    const float extra = dd - g.side_moved;
 
-    if (dd > (g.side_moved + 2.0f))
+    if ((extra > (float)S5_SIDE_STEP_MM) || (extra < -(float)S5_SIDE_STEP_MM))
     {
-        const float extra = dd - g.side_moved;
         const float s = (float)g.side;
 
         g.side_moved = dd;
@@ -1959,9 +2128,10 @@ static void s5_move_out(float d, const char *p_what)
         {
             s5_plan_back(g.odo.x);
         }
-        S5_LOG("[VC-S5] %s %d mm closer than planned: %d mm further "
-               "out\n",
-               p_what, (int)s5_mm(d), (int)s5_mm(extra));
+        S5_LOG("[VC-S5] %s %d mm %s than planned: %d mm further %s\n",
+               p_what, (int)s5_mm(s5_absf(d)),
+               (d >= 0.0f) ? "closer" : "further away",
+               (int)s5_mm(s5_absf(extra)), (extra >= 0.0f) ? "out" : "in");
     }
 }
 
@@ -2214,6 +2384,18 @@ static void s5_far_ping(float xf, float yf, float r)
             (g.far_d > (float)S5_SIDE_TOL_MM))
         {
             s5_move_out((d < g.far_d) ? d : g.far_d, "side (far corner)");
+        }
+        /* Buddy 5, 2026-11-19: and back in when two fits in a row say the
+         * side is further away than the sweep said */
+        else if ((d < -(float)S5_SIDE_TOL_MM) &&
+                 (g.far_d < -(float)S5_SIDE_TOL_MM) &&
+                 (d > -(float)S5_FAR_SANE_MM))
+        {
+            s5_move_out((d > g.far_d) ? d : g.far_d, "side (far corner)");
+        }
+        else
+        {
+            /* within S5_SIDE_TOL_MM of the sweep: as planned */
         }
         if (g.b_far_fit && !g.b_behind && (x_far > (g.far_x + S5_FAR_JUMP_MM)))
         {
@@ -3487,6 +3669,9 @@ void s5_search_begin(const motion_status_t *p_m)
     g.mag_err = 0.0f;
     g.mag_skip = 0U;
     g.reversed = 0.0f;
+    g.b_two_have = false; /* Buddy 5, 2026-11-19 */
+    g.b_two_done = false;
+    s5_scan_set_depth(0U);
     g.rescans = 0U;
     g.b_blocked = false;
     g.b_block_said = false;
