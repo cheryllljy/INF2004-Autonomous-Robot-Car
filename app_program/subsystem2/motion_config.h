@@ -54,6 +54,19 @@
 #define MOTOR_FF_TICKS_PER_PM (5.0f)
 /* duty that reliably starts a stopped wheel */
 #define MOTOR_BREAKAWAY_PM (120)
+/* Buddy 5, 2026-11-20: optional lowest duty for a wheel that is meant to be
+ * moving, wheel-speed (SET_SPEED) mode only. 0 = off (old behaviour).
+ * Why it exists: a wheel asked for 20-30 mm/s gets about 75 pm of
+ * feed-forward, and the dead-zone test (logs/v6-Tests.txt) has a forward
+ * wheel stopping below 60-80 pm on the stand (more on the floor), so a slow
+ * inner wheel can stall and restart. The cost: this duty is also the slowest
+ * the wheel can go (85 pm is about 28 mm/s, 100 pm about 40 mm/s), and
+ * Buddy 3 asks for 20 mm/s in tight curves, so a floor widens those curves.
+ * Only turn it on if a slow wheel visibly stutters on the floor, set to just
+ * above the "stop" duty the dead-zone test gives ON THE FLOOR. */
+#ifndef MOTOR_MIN_RUN_PM
+#define MOTOR_MIN_RUN_PM (0)
+#endif
 /* cap on the duty the controller may use: full power is far above
  * the 300 mm/s cruise, so a broken encoder cannot make the car race */
 #define MOTION_DUTY_MAX_PM (600)
@@ -66,8 +79,16 @@
 /* ---------- Control loop ---------- */
 /* NFR5: 20 ms, jitter within +/-2 ms   */
 #define MOTION_CONTROL_PERIOD_MS (20U)
-/* speed averaged over 4 x 20 ms = 80 ms */
-#define SPEED_WINDOW_PERIODS         (4U)
+/* speed averaged over 2 x 20 ms = 40 ms.
+ * Buddy 5, 2026-11-20: was 4 (80 ms). With the faster steering ramp the
+ * wheel reaches its new speed in about 60 ms, but an 80 ms average still read
+ * the old speed, so the controller kept cutting power and the inner wheel
+ * dipped to 17 mm/s for a 40 mm/s ask (host test). At 2 the dip is 27 mm/s
+ * and the duty noise at 100 mm/s goes from 1.5 to 3.2 pm sd. Set back to 4U
+ * if the wheels sound rough on the car. */
+#ifndef SPEED_WINDOW_PERIODS
+#define SPEED_WINDOW_PERIODS         (2U)
+#endif
 #define MOTION_MAX_SPEED_MMPS        (300)
 #define MOTION_DEFAULT_SPEED_MMPS    (200)
 #define MOTION_DEFAULT_TURN_RATE_DPS (90)
@@ -75,6 +96,15 @@
 #define MOTION_MIN_SPEED_MMPS (40)
 /* trapezoid ramp up and down           */
 #define MOTION_ACCEL_MMPS2 (400)
+/* Buddy 5, 2026-11-20: wheel-speed (SET_SPEED) mode. The car's mean speed
+ * still ramps at MOTION_ACCEL_MMPS2, but the curve (the left/right split)
+ * changes this fast, as mm/s^2 of difference between the wheels. Before,
+ * every wheel ramped at 400 mm/s^2, so a steering change from Buddy 3 took
+ * 160-280 ms to show up and the car fell behind in S-bends.
+ * 0 = off (old per-wheel ramp). */
+#ifndef MOTION_STEER_ACCEL_MMPS2
+#define MOTION_STEER_ACCEL_MMPS2 (2000)
+#endif
 /* below this a wheel counts as stopped */
 #define MOTION_STOPPED_SPEED_MMPS (10)
 /* start braking this much earlier: speed estimate and motor lag */
@@ -116,6 +146,12 @@
 #define MOTION_TASK_STACK_BYTES (2048U)
 /* messages the motion_cmd buffer holds */
 #define MOTION_CMD_QUEUE_DEPTH (4U)
+/* Buddy 5, 2026-11-20: motion_get_status() waits at most this long for the
+ * status lock (it waited forever before, so one stuck holder froze every
+ * caller). The control task never waits for it at all. */
+#ifndef MOTION_STATUS_WAIT_MS
+#define MOTION_STATUS_WAIT_MS (5)
+#endif
 
 // /* 1 = this module installs its own GPIO interrupt for the encoder pins.
 //  * Set 0 once the team's shared GPIO dispatcher calls motion_encoder_isr(). */

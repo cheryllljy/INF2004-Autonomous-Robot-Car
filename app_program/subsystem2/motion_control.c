@@ -78,6 +78,10 @@ static int32_t s_duty[MC_SIDES]; /* last duty written, permille */
 static uint32_t s_stall_ms[MC_SIDES];
 static uint32_t s_runaway_ms[MC_SIDES];
 static uint32_t s_still;
+/* Buddy 5, 2026-11-20: wheel-speed mode ramp state, see mc_ramp_velocity() */
+static bool s_curve_on;
+static float s_curve_mean; /* ramped mean speed of the two wheels, mm/s */
+static float s_curve_ratio; /* (right - left) / (2 * mean): the curve shape */
 
 /* MOVE: distance. TURN: arc per wheel (+ = left turn) */
 static float s_target_mm;
@@ -405,6 +409,16 @@ static int32_t mc_speed_control(uint32_t side)
         /* hold the integrator while saturated */
         s_integ[side] = integ;
     }
+    /* Buddy 5, 2026-11-20: optional lowest duty for a wheel that is meant to
+     * move, in wheel-speed mode only (MOVE / TURN / stopping are untouched).
+     * Off by default, see MOTOR_MIN_RUN_PM in motion_config.h. */
+    if ((MOTOR_MIN_RUN_PM > 0) && s_vel_mode &&
+        (MOTION_STATE_DRIVING == s_state) &&
+        (mc_absf(s_goal[side]) >= MC_ZERO_SPEED) &&
+        (u < (float)MOTOR_MIN_RUN_PM))
+    {
+        u = (float)MOTOR_MIN_RUN_PM;
+    }
     if ((mc_absf(s_speed[side]) < (float)MOTION_STOPPED_SPEED_MMPS) &&
         (u < (float)MOTOR_BREAKAWAY_PM))
     {
@@ -589,6 +603,75 @@ static void mc_plan_turn(void)
     s_goal[1] = (sgn * v) - trim;
 }
 
+/* Buddy 5, 2026-11-20: ramp for wheel-speed (SET_SPEED) mode.
+ * The car's mean speed ramps at MOTION_ACCEL_MMPS2 as before, but the curve
+ * shape, ratio = (right - left) / (2 * mean), changes at about
+ * MOTION_STEER_ACCEL_MMPS2. So a steering change from Buddy 3 shows up within
+ * a cycle or two, while a start from rest into a curve stays soft (the outer
+ * wheel gets at most 2x the normal ramp).
+ * Each wheel then takes whichever is closer to its goal: this value or the old
+ * per-wheel ramp, so no wheel is ever slower than before and none ever
+ * moves away from its goal.
+ * Not used (returns false, the old per-wheel ramp runs) for MOVE / TURN,
+ * stopping, a near-zero mean, or wheels asked to go opposite ways (the
+ * vc_turn spins keep exactly the old behaviour). */
+#define MC_CURVE_MIN_MEAN (50.0f)
+
+static bool mc_ramp_velocity(float step)
+{
+    const float mean_goal = 0.5f * (s_goal[0] + s_goal[1]);
+    const float mean_now = 0.5f * (s_set[0] + s_set[1]);
+    float ratio_goal;
+    float ratio_step;
+    float denom;
+    uint32_t side;
+
+    if ((0 == MOTION_STEER_ACCEL_MMPS2) ||
+        (MOTION_STATE_DRIVING != s_state) || !s_vel_mode ||
+        (mc_absf(mean_goal) < MC_ZERO_SPEED) ||
+        ((s_goal[0] * s_goal[1]) < 0.0f) ||
+        ((s_set[0] * s_goal[0]) < 0.0f) || ((s_set[1] * s_goal[1]) < 0.0f))
+    {
+        s_curve_on = false;
+        return false;
+    }
+
+    ratio_goal = (s_goal[1] - s_goal[0]) / (2.0f * mean_goal);
+    if (!s_curve_on)
+    {
+        s_curve_mean = mean_now;
+        s_curve_ratio = (mc_absf(mean_now) >= MC_ZERO_SPEED)
+                            ? ((s_set[1] - s_set[0]) / (2.0f * mean_now))
+                            : ratio_goal;
+        s_curve_on = true;
+    }
+
+    denom = mc_absf(s_curve_mean);
+    if (denom < MC_CURVE_MIN_MEAN)
+    {
+        denom = MC_CURVE_MIN_MEAN;
+    }
+    ratio_step = ((float)MOTION_STEER_ACCEL_MMPS2 * s_dt_s) / denom;
+    s_curve_mean = mc_ramp(s_curve_mean, mean_goal, step);
+    s_curve_ratio = mc_ramp(s_curve_ratio, ratio_goal, ratio_step);
+
+    for (side = 0U; side < MC_SIDES; side++)
+    {
+        const float old = s_set[side];
+        const float goal = s_goal[side];
+        const float lo = (old < goal) ? old : goal;
+        const float hi = (old < goal) ? goal : old;
+        const float plain = mc_ramp(old, goal, step);
+        float curve = s_curve_mean * ((0U == side) ? (1.0f - s_curve_ratio)
+                                                    : (1.0f + s_curve_ratio));
+
+        curve = mc_clampf(curve, lo, hi);
+        s_set[side] = (mc_absf(goal - curve) < mc_absf(goal - plain)) ? curve
+                                                                       : plain;
+    }
+    return true;
+}
+
 static void mc_run_state(void)
 {
     const float step = (float)MOTION_ACCEL_MMPS2 * s_dt_s;
@@ -634,12 +717,20 @@ static void mc_run_state(void)
             break;
     }
 
-    if (!mc_latched())
+    if (mc_latched())
+    {
+        s_curve_on = false;
+    }
+    else if (!mc_ramp_velocity(step))
     {
         for (side = 0U; side < MC_SIDES; side++)
         {
             s_set[side] = mc_ramp(s_set[side], s_goal[side], step);
         }
+    }
+    else
+    {
+        /* wheel-speed mode: mc_ramp_velocity() set s_set */
     }
 }
 
@@ -718,10 +809,26 @@ static void mc_handle_cmd(const motion_cmd_msg_t *m)
             }
             break;
         case MOTION_CMD_SET_SPEED:
+            /* Buddy 5, 2026-11-20: also accepted while STOPPING. Before, a
+             * "go" right after a stop was refused, but motion_set_wheel_speeds()
+             * had already returned OK, so the car sat still until the VC's
+             * next refresh (up to 100 ms). STOPPING is only ever a normal stop
+             * or the end of a MOVE/TURN; faults and E-stop are separate
+             * latched states and still refuse it. The new speeds ramp on from
+             * where the wheels are, like a SET_SPEED while DRIVING. */
             if ((MOTION_STATE_IDLE == s_state) ||
-                (MOTION_STATE_DRIVING == s_state))
+                (MOTION_STATE_DRIVING == s_state) ||
+                (MOTION_STATE_STOPPING == s_state))
             {
-                mc_start_velocity(m->p1, m->p2);
+                if ((MOTION_STATE_STOPPING == s_state) && (0 == m->p1) &&
+                    (0 == m->p2))
+                {
+                    /* already stopping: keep its result (DONE stays DONE) */
+                }
+                else
+                {
+                    mc_start_velocity(m->p1, m->p2);
+                }
             }
             else
             {
@@ -806,7 +913,9 @@ static void mc_publish(void)
 
 void motion_get_status(motion_status_t *out)
 {
-    if ((s_status_mtx > 0) && (tk_loc_mtx(s_status_mtx, TMO_FEVR) == E_OK))
+    /* Buddy 5, 2026-11-20: bounded wait (was TMO_FEVR) */
+    if ((s_status_mtx > 0) &&
+        (tk_loc_mtx(s_status_mtx, (TMO)MOTION_STATUS_WAIT_MS) == E_OK))
     {
         *out = s_shared;
         (void)tk_unl_mtx(s_status_mtx);

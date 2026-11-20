@@ -26,6 +26,19 @@
 
 #define MM_PI           (3.14159265358979323846)
 #define MM_ACCEL        (400.0)     /* mm/s^2, MOTION_ACCEL_MMPS2 */
+/* Buddy 5, 2026-11-20: Buddy 2's fix (subsystem2 v4.7). 1 = model it:
+ * in wheel-speed mode the mean ramps at MM_ACCEL but the curve shape at
+ * MM_STEER_ACCEL; SET_SPEED is taken while STOPPING; speed over 40 ms.
+ * 0 = Buddy 2 before the fix. */
+#ifndef MM_S2_V2
+#define MM_S2_V2 1
+#endif
+#define MM_STEER_ACCEL  (2000.0)    /* MOTION_STEER_ACCEL_MMPS2 */
+#if MM_S2_V2
+#define MM_WIN 2                    /* SPEED_WINDOW_PERIODS */
+#else
+#define MM_WIN 4
+#endif
 #define MM_CUT_DECEL    (3000.0)    /* e-stop: PWM off, the car coasts */
 #define MM_MIN_SPEED    (40.0)      /* MOTION_MIN_SPEED_MMPS */
 #define MM_MIN_RATE     (20.0)      /* deg/s at the end of a turn */
@@ -196,8 +209,9 @@ static void m_control(void)
     for (s = 0; s < 2; s++)
     {
         const double mag = fabs(set[s]);
-        const double meas = (g_m_n >= 5)
-                                ? ((g_m_hist[s][0] - g_m_hist[s][4]) / 0.08)
+        const double meas = (g_m_n >= (MM_WIN + 1))
+                                ? ((g_m_hist[s][0] - g_m_hist[s][MM_WIN]) /
+                                   (0.02 * MM_WIN))
                                 : *v[s];
         double err, integ, u;
 
@@ -333,6 +347,55 @@ static double ramp(double v, double goal, double step)
     return goal;
 }
 
+/* Buddy 5, 2026-11-20: Buddy 2's mc_ramp_velocity() (MM_S2_V2). Returns 0
+ * when it does not apply and the per-wheel ramp should run. */
+static int g_c_on;
+static double g_c_mean, g_c_ratio;
+static int curve_ramp(double *pl, double *pr, double gl, double gr,
+                      double step, double dt)
+{
+    const double mg = 0.5 * (gl + gr);
+    const double mn = 0.5 * (*pl + *pr);
+    double rg, rs, den;
+    double *p[2];
+    double gg[2];
+    int s;
+
+    if (!MM_S2_V2 || (g.mode != MD_VEL) ||
+        (g.state != MOTION_STATE_DRIVING) || (fabs(mg) < 5.0) ||
+        (gl * gr < 0.0) || (*pl * gl < 0.0) || (*pr * gr < 0.0))
+    {
+        g_c_on = 0;
+        return 0;
+    }
+    rg = (gr - gl) / (2.0 * mg);
+    if (!g_c_on)
+    {
+        g_c_mean = mn;
+        g_c_ratio = (fabs(mn) >= 5.0) ? ((*pr - *pl) / (2.0 * mn)) : rg;
+        g_c_on = 1;
+    }
+    den = fabs(g_c_mean);
+    if (den < 50.0) { den = 50.0; }
+    rs = MM_STEER_ACCEL * dt / den;
+    g_c_mean = ramp(g_c_mean, mg, step);
+    g_c_ratio = ramp(g_c_ratio, rg, rs);
+    p[0] = pl; p[1] = pr; gg[0] = gl; gg[1] = gr;
+    for (s = 0; s < 2; s++)
+    {
+        const double old = *p[s];
+        const double lo = (old < gg[s]) ? old : gg[s];
+        const double hi = (old < gg[s]) ? gg[s] : old;
+        const double plain = ramp(old, gg[s], step);
+        double c = g_c_mean * ((0 == s) ? (1.0 - g_c_ratio) : (1.0 + g_c_ratio));
+
+        if (c < lo) { c = lo; }
+        if (c > hi) { c = hi; }
+        *p[s] = (fabs(gg[s] - c) < fabs(gg[s] - plain)) ? c : plain;
+    }
+    return 1;
+}
+
 static void finish(motion_result_t r)
 {
     g.goal_l = 0.0;
@@ -440,8 +503,11 @@ void mm_step_1ms(void)
             g_take_l = g.goal_l;
             g_take_r = g.goal_r;
         }
-        g_set_l = ramp(g_set_l, g_take_l, step);
-        g_set_r = ramp(g_set_r, g_take_r, step);
+        if (!curve_ramp(&g_set_l, &g_set_r, g_take_l, g_take_r, step, dt))
+        {
+            g_set_l = ramp(g_set_l, g_take_l, step);
+            g_set_r = ramp(g_set_r, g_take_r, step);
+        }
         {
             const int drive_l = fabs(g_set_l) > 5.0;
             const int drive_r = fabs(g_set_r) > 5.0;
@@ -496,8 +562,11 @@ void mm_step_1ms(void)
     }
     else
     {
-        g.vl = ramp(g.vl, g.goal_l, step);
-        g.vr = ramp(g.vr, g.goal_r, step);
+        if (!curve_ramp(&g.vl, &g.vr, g.goal_l, g.goal_r, step, dt))
+        {
+            g.vl = ramp(g.vl, g.goal_l, step);
+            g.vr = ramp(g.vr, g.goal_r, step);
+        }
     }
 
     /* ---- truth ---- */
@@ -515,7 +584,7 @@ void mm_step_1ms(void)
     g.dl += g.vl * dt * (1.0 + g.scale + (g.lr / 2.0));
     if (!g.dead_r) { g.dr += g.vr * dt * (1.0 + g.scale - (g.lr / 2.0)); }
 
-    /* Buddy 2's 80 ms speed window, every 20 ms */
+    /* Buddy 2's speed window (MM_WIN x 20 ms), every 20 ms */
     if (++g_ms_tick >= 20)
     {
         int k;
@@ -528,8 +597,8 @@ void mm_step_1ms(void)
         }
         g_ms_hist[0][0] = g.dl;
         g_ms_hist[1][0] = g.dr;
-        g_ms_v[0] = (g_ms_hist[0][0] - g_ms_hist[0][4]) / 0.08;
-        g_ms_v[1] = (g_ms_hist[1][0] - g_ms_hist[1][4]) / 0.08;
+        g_ms_v[0] = (g_ms_hist[0][0] - g_ms_hist[0][MM_WIN]) / (0.02 * MM_WIN);
+        g_ms_v[1] = (g_ms_hist[1][0] - g_ms_hist[1][MM_WIN]) / (0.02 * MM_WIN);
     }
 }
 
@@ -578,9 +647,15 @@ motion_err_t motion_turn(int32_t angle_deg, int32_t rate_dps)
 motion_err_t motion_set_wheel_speeds(int32_t l, int32_t r)
 {
     if ((g.state != MOTION_STATE_IDLE) &&
-        !((g.state == MOTION_STATE_DRIVING) && (g.mode == MD_VEL)))
+        !((g.state == MOTION_STATE_DRIVING) && (g.mode == MD_VEL)) &&
+        !(MM_S2_V2 && (g.state == MOTION_STATE_STOPPING)))
     {
         return refuse();
+    }
+    /* Buddy 2 v4.7: (0, 0) while already stopping changes nothing */
+    if (MM_S2_V2 && (g.state == MOTION_STATE_STOPPING) && (0 == l) && (0 == r))
+    {
+        return MOTION_OK;
     }
     /* like Buddy 2's mc_start_velocity, (0, 0) is a stop,
      * and further speeds are refused until it is IDLE again */
