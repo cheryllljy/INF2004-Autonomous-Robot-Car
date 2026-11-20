@@ -320,15 +320,15 @@
  * 0 also failed more runs coming back to a line that bends behind the
  * object (gap 30), so 1 is the default.
  *   0: 130 mm/s, 30 mm (tight; drive to the line about 6..9 s)
- *   1: 200 mm/s, 40 mm. Buddy 5, 2026-11-20 (v4.5, Darwin's pick): was
- *      230 / 50 in v4.4. 40 mm at 230 came within 4 mm or hit in 10 of
- *      54 simulator runs; at 200, 3 (one case that fails at any speed).
+ *   1: 230 mm/s, 50 mm. Buddy 5, 2026-11-20 (v4.6, Darwin's pick): v4.5
+ *      was 200 / 40. 40 mm at 230 came within 4 mm or hit in 10 of 54
+ *      simulator runs, so the gap goes back to 50 with the speed.
  * The side watch moves the pass in or out to hold the gap (S5_SIDE_*). */
 #ifndef S5_FAST
 #define S5_FAST (1)
 #endif
 #ifndef S5_CLEARANCE_MM
-#define S5_CLEARANCE_MM ((0 != S5_FAST) ? 40 : 30) /* car side to the object's edge */
+#define S5_CLEARANCE_MM ((0 != S5_FAST) ? 50 : 30) /* car side to the object's edge */
 #endif
 #define S5_MAX_OFFSET_MM   (400) /* never further from the line than this */
 #define S5_MAX_HEADING_DEG (40)  /* steepest point of a ramp */
@@ -393,7 +393,7 @@
 #ifndef S5_SPEED_MM_S
 /* Buddy 5, 2026-11-19: S5_FAST above (was 130) */
 #ifndef S5_SPEED_MM_S
-#define S5_SPEED_MM_S ((0 != S5_FAST) ? 200 : 130) /* along the bypass */
+#define S5_SPEED_MM_S ((0 != S5_FAST) ? 230 : 130) /* along the bypass */
 #endif
 #endif
 #ifndef S5_SLOW_MM_S
