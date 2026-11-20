@@ -49,6 +49,17 @@
 #ifndef VC_BAR_WAIT_MM
 #define VC_BAR_WAIT_MM 130
 #endif
+/* In a bend (Buddy 3 asks VC_BAR_BEND_MM_S or less on average while the
+ * line speed is the fast one: it has slowed for a curve it learnt, from
+ * about R1300, and not for a nudge) and for VC_BAR_AFTER_BEND_MS after
+ * it, barcode scanning is off: IR_B crosses the line in bends, and that
+ * was taken for a barcode (stop and back-up) and blocked a junction. */
+#ifndef VC_BAR_BEND_MM_S
+#define VC_BAR_BEND_MM_S 70
+#endif
+#ifndef VC_BAR_AFTER_BEND_MS
+#define VC_BAR_AFTER_BEND_MS 2000
+#endif
 
 /* Line following starts again (START, after a turn or a bypass). */
 void vc_bar_reset(const motion_status_t *p_motion);
@@ -62,13 +73,20 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
 
 /* For Buddy 3's context. */
 int16_t vc_bar_speed_mm_s(void); /* line speed now */
-bool vc_bar_scan_allowed(void);  /* false while stopping / backing up
-                                  * and on the hump */
+bool vc_bar_scan_allowed(void);  /* false while stopping / backing up,
+                                  * on the hump and in a bend */
 bool vc_bar_busy(void);          /* stopping / backing up */
 /* barcode seen, driving on VC_BAR_WAIT_MM before stopping */
 bool vc_bar_waiting(void);
 /* a junction came first: stop and back up for the barcode now */
 void vc_bar_back_now(const motion_status_t *p_motion);
+/* Temporary switch. 1: the IMU neither steers nor stops the car: no
+ * hump (wheels, hump speed, heading hold, junctions and barcodes as on
+ * flat ground) and no jolt pick-up E-stop. Buddy 4's tilt E-stops and its
+ * hump log lines stay. 0: as before. */
+#ifndef VC_IMU_OFF
+#define VC_IMU_OFF 0
+#endif
 /* on a hump going straight (vehicle_controller.c) */
 bool vc_on_hump(void);
 /* on the ramp or within VC_HUMP_END_MM after it (vehicle_controller.c) */
