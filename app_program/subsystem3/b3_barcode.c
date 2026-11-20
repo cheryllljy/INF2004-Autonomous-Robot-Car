@@ -365,6 +365,35 @@ static b3_edge_t white_start(const b3_barcode_t *p_scan, b3_edge_t current)
 }
 
 
+/* A bar much shorter than every bar measured so far in this scan
+ * (B3_SPECK_PCT): a dark speck in a gap, not a bar. Checked when the speck
+ * ends, so the gap it split carries on from where it began, however short
+ * the piece of gap before it was. Needs two bars first. Element 0 is a bar,
+ * so bars have even numbers. */
+static bool is_speck(const b3_barcode_t *p_scan, uint32_t width)
+{
+    uint32_t narrowest = UINT32_MAX;
+    uint32_t seen = 0U;
+    uint32_t k;
+
+    if ((0U == B3_SPECK_PCT) || p_scan->pending ||
+        (p_scan->count >= B3_BARCODE_RUNS) || (0U != (p_scan->count & 1U)))
+    {
+        return false;
+    }
+    for (k = 0U; k < p_scan->count; k += 2U)
+    {
+        if (p_scan->time_widths[k] < narrowest)
+        {
+            narrowest = p_scan->time_widths[k];
+        }
+        ++seen;
+    }
+    return (seen >= 2U) &&
+           (((uint64_t)width * 100U) < ((uint64_t)narrowest * B3_SPECK_PCT));
+}
+
+
 static bool too_long_for_scan(const b3_barcode_t *p_scan, uint32_t elapsed)
 {
     return !p_scan->positions_valid && (p_scan->count >= 2U) &&
@@ -429,7 +458,9 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
         elapsed = edge.time_us - p_scan->last.time_us;
     }
 
-    if (p_scan->collecting && (elapsed < B3_MIN_EDGE_US))
+    if (p_scan->collecting &&
+        ((elapsed < B3_MIN_EDGE_US) ||
+         is_speck(p_scan, at_base_speed(elapsed, edge.speed_mm_s))))
     {
         size_t k;
 

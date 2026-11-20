@@ -152,6 +152,9 @@ uint16_t s5_scan_face(const s5_sample_t *p_s, uint32_t n);
 
 /* Is a return of mm part of the object whose face is face_mm away? */
 bool s5_scan_is_object(uint16_t mm, uint16_t face_mm);
+/* Buddy 5, 2026-11-19: echoes up to mm behind the face count as the
+ * object's (at most S5_EDGE_DEPTH_MM; 0: S5_EDGE_DEPTH_MM again) */
+void s5_scan_set_depth(uint16_t mm);
 
 /* Where the object's echoes stop on each side. *p_*_obj: outermost angle
  * that still answered; *p_*_clr: next angle out that did not (only valid
@@ -172,6 +175,13 @@ void s5_scan_sort(s5_sample_t *p_s, uint32_t n);
  * the servo trim) if this sweep, taken standing with an object straight
  * ahead, is one to trim by */
 bool s5_scan_trim_from(const s5_profile_t *p_pr, int16_t *p_corr);
+
+/* Buddy 5, 2026-11-19: S5_TWO_DIST. Width (mm) and half beam (rad) from two
+ * sweeps d1 < d2 from the face, echoes spanning span1, span2 (rad), the
+ * object's middle yc to the side of the sonar (mm). False: no sensible
+ * answer. */
+bool s5_scan_two_width(float d1, float span1, float d2, float span2,
+                       float yc, float *p_w, float *p_beam);
 
 void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
                      const s5_view_t *p_view, s5_profile_t *p_out);

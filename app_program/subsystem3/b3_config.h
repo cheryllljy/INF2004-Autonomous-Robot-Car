@@ -168,7 +168,7 @@
  * stays near R120 (R122; was R112). Needs that KP: with Buddy 2's old KP
  * 0.5 these two speeds lost more lines than 30 / 15 (go back to those). */
 #ifndef B3_CURVE_SPEED_MM_S
-#define B3_CURVE_SPEED_MM_S 30 /* 35 turned left too weakly */
+#define B3_CURVE_SPEED_MM_S 40 /* 30 -> 40 with the floor 15 -> 20 */
 #endif
 /* the steering moves towards what the sensors ask by at most this much
  * per mm driven, so a sensor touching the line is a nudge, not a jerk */
@@ -187,8 +187,14 @@
  * smooth curve is nearly unchanged (R122, was R112). Host sim, 35 mm/s
  * with IR spots that read black at the tape edge (-s 9): floor 15 lost
  * 10 runs, floor 19 lost 1 (F17, lost at 30/15 too). */
+/* 20 with 40 mm/s bends (was 15 with 30): the inner wheel stayed at
+ * 10-20 mm/s in slow right bends and stalled, and the IMU read a hump
+ * there. Half the bend speed keeps the tightest smooth curve at R112.
+ * Host sim, wheels fitted to the car's curve log: same 10 pivots, kicks
+ * 67 -> 61, 15 % faster, no line lost; 35 / 20 (R131) pivoted in 16.
+ * On the car 35 / 19 turned left too weakly, so watch the left bends. */
 #ifndef B3_MIN_WHEEL_MM_S
-#define B3_MIN_WHEEL_MM_S 15 /* with 30 mm/s bends; 19 went with 35 */
+#define B3_MIN_WHEEL_MM_S 20 /* half of B3_CURVE_SPEED_MM_S */
 #endif
 /* both IRs black in a bend. Following a bend of radius
  * R, the tape crosses the IR pair at asin(125 / R) to the car (39 deg at
@@ -241,6 +247,15 @@
 /* * + gap + char + gap + * */ /* 9 + 1 + 9 + 1 + 9 */
 #define B3_BARCODE_RUNS 29U
 #define B3_MIN_EDGE_US  200U
+/* a dark speck in a gap of a barcode: a bar shorter than this % of the
+ * narrowest bar so far in the scan is joined to the gap around it, like a
+ * blip under B3_MIN_EDGE_US. On the car a 0.6 mm speck in a narrow gap
+ * (18.6 ms black at 30 mm/s) counted as two elements and the read stopped
+ * two short. Real narrow bars read down to about 55 % of each other.
+ * 0: off. */
+#ifndef B3_SPECK_PCT
+#define B3_SPECK_PCT 20U
+#endif
 /* cap: a 200 mm element at 100 mm/s */
 #define B3_MAX_ELEMENT_US 2000000U
 /* time mode: element > 12x the shortest so far aborts.

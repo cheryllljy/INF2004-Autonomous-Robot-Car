@@ -46,10 +46,21 @@ uint16_t s5_scan_face(const s5_sample_t *p_s, uint32_t n)
     return face;
 }
 
+/* Buddy 5, 2026-11-19: how far behind the face an echo is still the
+ * object's: S5_EDGE_DEPTH_MM, or less for one sweep (s5_scan_set_depth()) */
+static uint16_t g_depth_mm = (uint16_t)S5_EDGE_DEPTH_MM;
+
+void s5_scan_set_depth(uint16_t mm)
+{
+    g_depth_mm = ((0U == mm) || (mm > (uint16_t)S5_EDGE_DEPTH_MM))
+                     ? (uint16_t)S5_EDGE_DEPTH_MM
+                     : mm;
+}
+
 bool s5_scan_is_object(uint16_t mm, uint16_t face_mm)
 {
     return (0U != mm) && (S5_MM_UNKNOWN != mm) &&
-           ((uint32_t)mm <= ((uint32_t)face_mm + (uint32_t)S5_EDGE_DEPTH_MM));
+           ((uint32_t)mm <= ((uint32_t)face_mm + (uint32_t)g_depth_mm));
 }
 
 /* index of the face sample: the nearest return in the cone, the one
@@ -866,10 +877,18 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
         lev_r = s5_side_blocked(p_s, (int32_t)n, first_r, -1, (int16_t)beam,
                                 p_view, p_out->y_right, y_own_r, p_out->x_face,
                                 &at_r);
+#if (0 != S5_SIDE_BLOCK)
         p_out->b_left_blocked = (2 == lev_l);
         p_out->b_right_blocked = (2 == lev_r);
         p_out->b_left_maybe = (1 == lev_l);
         p_out->b_right_maybe = (1 == lev_r);
+#else
+        /* Buddy 5, 2026-11-19: S5_SIDE_BLOCK 0, nothing beside the object
+         * blocks a side (on the track the echoes 30..37 cm away were not
+         * objects, and the car backed up and measured worse) */
+        (void)lev_l;
+        (void)lev_r;
+#endif
         p_out->block_l_ddeg = (at_l >= 0) ? p_s[at_l].ddeg : 0;
         p_out->block_l_mm = (at_l >= 0) ? p_s[at_l].mm : 0U;
         p_out->block_r_ddeg = (at_r >= 0) ? p_s[at_r].ddeg : 0;
@@ -906,5 +925,66 @@ bool s5_scan_trim_from(const s5_profile_t *p_pr, int16_t *p_corr)
         return false; /* a wall, or nothing much: not an object to trim by */
     }
     *p_corr = (int16_t)c;
+    return true;
+}
+
+/* Buddy 5, 2026-11-19: S5_TWO_DIST. The angle a face of width w subtends,
+ * its middle yc to the side, from d away. */
+static float s5_two_span(float d, float yc, float w)
+{
+    return s5_atanf((yc + (0.5f * w)) / d) - s5_atanf((yc - (0.5f * w)) / d);
+}
+
+/* Width from two sweeps of the same object, d1 and d2 from its face (d1
+ * the nearer), the echoes spanning span1 and span2 (rad). The echoes go on
+ * past each corner by the same beam angle at both, so the beam drops out of
+ * span1 - span2 and only w is left. True: *p_w (mm) and *p_beam (rad, half,
+ * per side) if they make sense (the beam S5_TWO_BEAM_MIN_DEG ..
+ * S5_TWO_BEAM_MAX_DEG, the width up to 2 sqrt(d1 d2), past which the
+ * difference no longer grows with it). */
+bool s5_scan_two_width(float d1, float span1, float d2, float span2,
+                       float yc, float *p_w, float *p_beam)
+{
+    const float want = span1 - span2;
+    float lo = 0.0f;
+    float hi;
+    float beam;
+    uint32_t i;
+
+    if ((d1 < 50.0f) || ((d2 - d1) < (float)S5_TWO_MIN_APART_MM))
+    {
+        return false;
+    }
+    hi = 2.0f * s5_sqrtf(d1 * d2);
+    if (hi > 600.0f)
+    {
+        hi = 600.0f;
+    }
+    if ((want <= 0.0f) ||
+        (want >= (s5_two_span(d1, yc, hi) - s5_two_span(d2, yc, hi))))
+    {
+        return false; /* no width gives that difference */
+    }
+    for (i = 0U; i < 30U; i++)
+    {
+        const float mid = 0.5f * (lo + hi);
+
+        if ((s5_two_span(d1, yc, mid) - s5_two_span(d2, yc, mid)) < want)
+        {
+            lo = mid;
+        }
+        else
+        {
+            hi = mid;
+        }
+    }
+    beam = 0.5f * (span1 - s5_two_span(d1, yc, lo));
+    if ((beam < ((float)S5_TWO_BEAM_MIN_DEG * S5_DEG2RAD_F)) ||
+        (beam > ((float)S5_TWO_BEAM_MAX_DEG * S5_DEG2RAD_F)))
+    {
+        return false;
+    }
+    *p_w = lo;
+    *p_beam = beam;
     return true;
 }

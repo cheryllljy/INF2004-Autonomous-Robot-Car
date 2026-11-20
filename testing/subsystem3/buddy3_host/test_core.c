@@ -640,6 +640,72 @@ static void test_encoder_fallback_to_time(void)
                "time widths ('Z', reason 6 on 2026-11-09)");
 }
 
+/* the car's reason-6 reject of '*F*' at 30 mm/s: a
+ * speck in the first '*' (16.5 ms white, 18.6 ms black, 56.6 ms white
+ * where one ~92 ms gap was) counted as two elements, so the scan stopped
+ * at the last wide bar, two elements short. The speck is now joined to the
+ * gap around it and the scan decodes 'F' at its real end. */
+static void test_speck_in_gap(void)
+{
+    static const uint32_t car[] = {
+        254900U, 543600U, 280300U, 127800U, 655100U, 99400U, 666500U,
+        16500U, 18600U, 56600U, 315700U, 94100U, 298200U, 109100U,
+        682900U, 116500U, 661400U, 532100U, 275000U, 108300U, 265700U,
+        118600U, 273700U, 522100U, 263200U, 128000U, 634000U, 159700U,
+        646800U, 110000U, 270000U };
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge = {0};
+    size_t i;
+    bool got = false;
+
+    edge.time_us = 1000000U;
+    b3_barcode_init(&scan, edge);
+    edge.time_us = 5000000U;
+    edge.black = true;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    for (i = 0U; i < (sizeof car / sizeof car[0]); ++i)
+    {
+        edge.time_us += car[i];
+        edge.black = !edge.black;
+        got = got || b3_barcode_edge(&scan, edge, &result);
+    }
+    CHECK(0U == scan.rejected);
+    CHECK(1U == scan.glitches); /* the speck */
+    if (!got)
+    {
+        edge.time_us += 3000000U;
+        got = b3_barcode_poll(&scan, edge, &result);
+    }
+    CHECK(got);
+    CHECK('F' == result.symbol);
+    (void)puts("PASS: a speck in a gap of the car's '*F*' scan is joined to "
+               "the gap and the scan decodes 'F' (reason 6 on 2026-11-20)");
+}
+
+/* real narrow bars read down to ~55 % of each other
+ * (the 'Z' captures): none is taken for a speck */
+static void test_thin_narrow_kept(void)
+{
+    static const uint32_t car[B3_BARCODE_RUNS] = {
+        84500U, 153700U, 361500U, 122700U, 340400U, 132300U, 104200U,
+        341000U, 198700U, 44000U, 143600U, 107200U, 121400U, 122500U,
+        345600U, 133900U, 328200U, 372000U, 108200U, 130400U, 110200U,
+        133900U, 331300U, 120900U, 395300U, 44500U, 137300U, 377200U,
+        92100U };
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge;
+
+    edge = feed_frame(&scan, 3000000U, car, NULL, 3000000U);
+    CHECK(0U == scan.glitches);
+    edge.time_us += 3000000U;
+    CHECK(b3_barcode_poll(&scan, edge, &result));
+    CHECK('Z' == result.symbol);
+    (void)puts("PASS: thin real narrow bars and gaps are not taken for "
+               "specks");
+}
+
 static void test_trim_outer_bars(void)
 {
     static const uint32_t car[B3_BARCODE_RUNS] = {
@@ -909,6 +975,8 @@ int main(void)
     test_mark_before_barcode();
     test_trim_outer_bars();
     test_encoder_fallback_to_time();
+    test_speck_in_gap();
+    test_thin_narrow_kept();
     test_line_logic();
     test_bend_both_black();
     (void)printf("All %u checks passed. Host logic tests; no hardware timing claim.\n", g_checks);

@@ -421,9 +421,16 @@ static void h04(void)
         (void)printf("        alone %d, box left %d, wall right %d, far box %d\n",
                      r1, r2, r3, r4);
     }
+#if (0 != S5_SIDE_BLOCK)
     check("S5-H14", ok,
           "another box or a wall where the car would pass rules that side "
           "out, and only that side; one well out of the way does not");
+#else
+    /* Buddy 5, 2026-11-19: S5_SIDE_BLOCK 0, nothing the sweep hears beside
+     * the object blocks a side (the side watch looks while passing) */
+    (void)ok;
+    (void)printf("[SKIP] S5-H14  side blocking is off (S5_SIDE_BLOCK 0)\n");
+#endif
 }
 
 /*=====================================================================*/
