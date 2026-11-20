@@ -34,15 +34,25 @@
 #include "../../../../app_program/subsystem1/buddy1_mapping.h"
 #include "../../../../app_program/subsystem1/buddy1_fr2.h"
 
+/* Application-to-network bridge: primitive types only.
+ * Implementations live in app_program/subsystem1/subsystem1.c,
+ * where micro T-Kernel subsystem headers can be included safely. */
+extern int32_t b1_export_controller_status(uint32_t *output);
+extern int32_t b1_export_sensor_payload(uint8_t *output, uint32_t capacity);
+
 #define MQTT_RETRY_MS    10000u
 #define MQTT_KEEPALIVE_S 60u
 #define MQTT_HEARTBEAT_MS 5000u
+#define MQTT_SENSOR_MS 200u
+#define MQTT_SENSOR_BYTES 42u
 
 #define COMMAND_TOPIC "inf2004/robot/command"
 #define MAPPING_TOPIC "inf2004/robot/mapping"
 #define CONNECTION_TOPIC "inf2004/robot/connection"
 #define HEARTBEAT_TOPIC "inf2004/robot/heartbeat"
 #define HEARTBEAT_PAYLOAD "alive"
+#define CONTROLLER_TOPIC "inf2004/robot/controller"
+#define SENSORS_TOPIC "inf2004/robot/sensors"
 #define RUN_TOPIC "inf2004/robot/run"
 #define RUN_PERIOD_MS 200u
 #define CONNECTION_ONLINE "online"
@@ -154,6 +164,7 @@ static uint8_t fr3_reported_reason = B1_FR3_REASON_NONE;
 
 static void test_log_timeout(void *arg);
 static void heartbeat_timeout(void *arg);
+static void sensors_timeout(void *arg);
 static void run_timeout(void *arg);
 static void retry_timeout(void *arg);
 static void fr3_monitor_timeout(void *arg);
@@ -995,6 +1006,33 @@ static void heartbeat_timeout(void *arg)
                       (int32_t)result);
         }
 
+        /* Publish the real, atomic VehicleController status word unchanged.
+         * 4 bytes, little-endian; no placeholder sensor metric is needed.
+         * The VehicleController must be initialized in this build.
+         */
+        {
+            uint32_t status = 0u;
+            uint8_t status_payload[4];
+            uint32_t i;
+
+            if (0 == b1_export_controller_status(&status))
+            {
+                for (i = 0u; i < 4u; i++)
+                {
+                    status_payload[i] = (uint8_t)(status >> (8u * i));
+                }
+
+                result = mqtt_publish(client, CONTROLLER_TOPIC, status_payload,
+                                      (u16_t)sizeof(status_payload), 0u, 0u,
+                                      NULL, NULL);
+                if (ERR_OK != result)
+                {
+                    tm_printf((UB *)"[BUDDY1] Controller status queue failed: %d\n",
+                              (int32_t)result);
+                }
+            }
+        }
+
         /* Controller values are published only after a real snapshot exists. */
         if (0 == b1_mqtt_get_robot_status(&telemetry))
         {
@@ -1092,6 +1130,50 @@ static void run_timeout(void *arg)
     }
 
     sys_timeout(RUN_PERIOD_MS, run_timeout, NULL);
+}
+
+/* --------------------------------------------------------
+ * Read-only real sensor snapshots: 5 Hz, no motor commands.
+ * Payload protocol v1 (42 bytes, little endian):
+ *   [0] version; [1] valid bits: line=1, motion=2, imu=4, hump=8
+ *   [2] line state; [3] signed line error
+ *   [4] flags: left black=1, right black=2, control=4,
+ *       scanning=8, stop_required=16, on_hump=32
+ *   [5] motion state; [6] motion fault; [7] sampled hump event counter (mod 256)
+ *   [8..11] requested left/right wheel speeds, signed 16 bit
+ *   [12..15] measured left/right wheel speeds, signed 16 bit
+ *   [16..19] total distance mm, signed 32 bit
+ *   [20..23] trip distance mm, signed 32 bit
+ *   [24..31] encoder ticks left/right, signed 32 bit
+ *   [32..37] IMU acceleration x/y/z (raw LSB), signed 16 bit
+ *   [38..41] encoder-derived heading degrees, signed 32 bit
+ * Hump is a sampled boolean plus an observed rising-edge event count;
+ * no physical hump height is exposed by the current public API.
+ * IMU, hump, line and motion values have separate validity bits.
+ * This interval reduces missed brief humps but cannot eliminate them.
+ * -------------------------------------------------------- */
+static void sensors_timeout(void *arg)
+{
+    (void)arg;
+
+    if ((NULL != client) && mqtt_client_is_connected(client))
+    {
+        uint8_t data[MQTT_SENSOR_BYTES] = { 0 };
+        err_t result;
+
+        if (0 == b1_export_sensor_payload(data, (uint32_t)sizeof(data)))
+        {
+            result = mqtt_publish(client, SENSORS_TOPIC, data,
+                                  (u16_t)sizeof(data), 0u, 0u, NULL, NULL);
+            if (ERR_OK != result)
+            {
+                tm_printf((UB *)"[BUDDY1] Sensors queue failed: %d\n",
+                          (int32_t)result);
+            }
+        }
+    }
+
+    sys_timeout(MQTT_SENSOR_MS, sensors_timeout, NULL);
 }
 
 /* --------------------------------------------------------
@@ -1445,6 +1527,15 @@ void mqtt_utk_start(void)
     err_t result;
 
     fr3_monitor_start();
+
+    {
+        static u8_t sensors_started = 0u;
+        if (!sensors_started)
+        {
+            sensors_started = 1u;
+            sys_timeout(MQTT_SENSOR_MS, sensors_timeout, NULL);
+        }
+    }
 
     {
         static u8_t heartbeat_started = 0u;
