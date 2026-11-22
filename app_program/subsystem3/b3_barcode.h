@@ -40,6 +40,21 @@ typedef enum
     B3_REJECT_TRAILING_QUIET
 } b3_reject_reason_t;
 
+/* Why a scan under way ended without a reject (printed by the VC). */
+typedef enum
+{
+    B3_DROP_NONE = 0,
+    /* a flick that could not be undone: restarted from it */
+    B3_DROP_FLICKER,
+    B3_DROP_SCAN_OFF, /* the VehicleController turned scanning off */
+    /* the VehicleController's context was older than
+     * B3_FEEDBACK_MAX_AGE_US */
+    B3_DROP_LATE,
+    B3_DROP_STOP,     /* stop requested */
+    B3_DROP_TERRAIN,  /* uneven ground reported by the IMU */
+    B3_DROP_OVERFLOW  /* the edge queue was full, edges were lost */
+} b3_drop_reason_t;
+
 typedef struct
 {
     uint32_t time_widths[B3_BARCODE_RUNS];
@@ -73,8 +88,15 @@ typedef struct
     uint8_t reject_reason; /* b3_reject_reason_t of the last reject */
     /* elements measured (of B3_BARCODE_RUNS) at the last reject */
     uint8_t reject_count;
-    /* widths (us) of the last DECODE reject */
+    /* widths (us) of the elements measured at the last reject, 0 after */
     uint32_t reject_widths[B3_BARCODE_RUNS];
+    /* scans dropped without a reject, why the last one was (a
+     * b3_drop_reason_t), its elements and, for B3_DROP_LATE, the age of
+     * the context in ms */
+    uint32_t dropped;
+    uint8_t drop_reason;
+    uint8_t drop_count;
+    uint32_t drop_info;
     /* last LEADING_QUIET reject: white measured before the
      * first bar and the white needed (B3_QUIET_NARROW_MULTIPLE x narrow), in
      * encoder ticks if reject_encoder, else in us. */
@@ -91,6 +113,9 @@ typedef struct
 /* Reset after lost edges, manoeuvres or a scan interrupted by stopping. */
 void b3_barcode_init(b3_barcode_t *p_scan, b3_edge_t initial);
 void b3_barcode_abort(b3_barcode_t *p_scan, b3_edge_t initial);
+/* Abort, and count it as a dropped scan when one was under way. */
+void b3_barcode_drop(b3_barcode_t *p_scan, b3_edge_t initial,
+                     b3_drop_reason_t reason, uint32_t info);
 bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
                      b3_barcode_result_t *p_result);
 bool b3_barcode_poll(b3_barcode_t *p_scan, b3_edge_t current,

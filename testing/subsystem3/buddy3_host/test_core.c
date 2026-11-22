@@ -683,6 +683,101 @@ static void test_speck_in_gap(void)
                "the gap and the scan decodes 'F' (reason 6 on 2026-11-20)");
 }
 
+/* The same colour twice: before a scan it is ignored, inside a scan it is
+ * a flick within B3_MIN_EDGE_US and a missed edge after that. A reject
+ * keeps the widths measured so far, and a scan ended by b3_barcode_drop()
+ * is counted with its reason. */
+static void test_same_colour(void)
+{
+    uint32_t times[B3_BARCODE_RUNS];
+    b3_barcode_t scan;
+    b3_barcode_result_t result;
+    b3_edge_t edge = {0};
+    size_t i;
+    bool got = false;
+
+    make_frame('A', 10000U, 30000U, times);
+
+    /* not scanning: white again 46 us after a reset from a pin read */
+    edge.time_us = 100000U;
+    b3_barcode_init(&scan, edge);
+    edge.time_us = 100046U;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    CHECK(0U == scan.rejected);
+    CHECK(100000U == scan.last.time_us);
+
+    /* scanning: black twice 40 us apart at element 7 */
+    edge.time_us = 500000U;
+    edge.black = true;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+    {
+        edge.time_us += times[i];
+        edge.black = !edge.black;
+        got = got || b3_barcode_edge(&scan, edge, &result);
+        if (7U == i)
+        {
+            b3_edge_t again = edge;
+            again.time_us += 40U;
+            got = got || b3_barcode_edge(&scan, again, &result);
+        }
+    }
+    CHECK(0U == scan.rejected);
+    if (!got)
+    {
+        edge.time_us += 1000000U;
+        got = b3_barcode_poll(&scan, edge, &result);
+    }
+    CHECK(got);
+    CHECK('A' == result.symbol);
+
+    /* scanning: black twice 5 ms apart is a missed edge, with the widths
+       measured so far kept for the log */
+    edge.time_us += 1000000U;
+    edge.black = false;
+    b3_barcode_init(&scan, edge);
+    edge.time_us += 200000U;
+    edge.black = true;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    for (i = 0U; i < 5U; ++i)
+    {
+        edge.time_us += times[i];
+        edge.black = !edge.black;
+        CHECK(!b3_barcode_edge(&scan, edge, &result));
+    }
+    edge.time_us += 5000U;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    CHECK(1U == scan.rejected);
+    CHECK(B3_REJECT_SAME_LEVEL == scan.reject_reason);
+    CHECK(5U == scan.reject_count);
+    for (i = 0U; i < B3_BARCODE_RUNS; ++i)
+    {
+        CHECK(scan.reject_widths[i] == ((i < 5U) ? times[i] : 0U));
+    }
+
+    /* a drop counts only when a scan was under way */
+    CHECK(!b3_barcode_active(&scan));
+    b3_barcode_drop(&scan, edge, B3_DROP_SCAN_OFF, 0U);
+    CHECK(0U == scan.dropped);
+    edge.black = false;
+    b3_barcode_init(&scan, edge);
+    edge.time_us += 200000U;
+    edge.black = true;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    edge.time_us += times[0];
+    edge.black = false;
+    CHECK(!b3_barcode_edge(&scan, edge, &result));
+    b3_barcode_drop(&scan, edge, B3_DROP_LATE, 140U);
+    CHECK(1U == scan.dropped);
+    CHECK(B3_DROP_LATE == scan.drop_reason);
+    CHECK(1U == scan.drop_count);
+    CHECK(140U == scan.drop_info);
+    CHECK(!b3_barcode_active(&scan));
+    (void)puts("PASS: the same colour twice is ignored before a scan, a "
+               "flick inside one and a missed edge after 5 ms; rejects keep "
+               "their widths and drops their reason");
+}
+
 /* real narrow bars read down to ~55 % of each other
  * (the 'Z' captures): none is taken for a speck */
 static void test_thin_narrow_kept(void)
@@ -977,6 +1072,7 @@ int main(void)
     test_encoder_fallback_to_time();
     test_speck_in_gap();
     test_thin_narrow_kept();
+    test_same_colour();
     test_line_logic();
     test_bend_both_black();
     (void)printf("All %u checks passed. Host logic tests; no hardware timing claim.\n", g_checks);

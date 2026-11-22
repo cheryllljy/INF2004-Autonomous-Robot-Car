@@ -75,6 +75,28 @@ bool b3_barcode_active(const b3_barcode_t *p_scan)
 
 
 /*
+ * Abort the scan, noting why for the VC's log when one was under way.
+ */
+void b3_barcode_drop(b3_barcode_t *p_scan, b3_edge_t initial,
+                     b3_drop_reason_t reason, uint32_t info)
+{
+    if (b3_barcode_active(p_scan))
+    {
+        ++p_scan->dropped;
+
+        p_scan->drop_reason = (uint8_t)reason;
+
+        p_scan->drop_count = p_scan->count;
+
+        p_scan->drop_info = info;
+    }
+
+
+    b3_barcode_abort(p_scan, initial);
+}
+
+
+/*
  * Reject the current barcode attempt.
  */
 static void note_reject(b3_barcode_t *p_scan, b3_reject_reason_t reason,
@@ -88,13 +110,14 @@ static void note_reject(b3_barcode_t *p_scan, b3_reject_reason_t reason,
 
     p_scan->reject_element_us = element_us;
 
-    if (B3_REJECT_DECODE == reason)
+    /* the elements measured so far, for the VC's log */
     {
         size_t k;
 
         for (k = 0U; k < B3_BARCODE_RUNS; ++k)
         {
-            p_scan->reject_widths[k] = p_scan->time_widths[k];
+            p_scan->reject_widths[k] =
+                (k < p_scan->count) ? p_scan->time_widths[k] : 0U;
         }
     }
 }
@@ -458,6 +481,30 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
         elapsed = edge.time_us - p_scan->last.time_us;
     }
 
+    /*
+     * Same colour as the last edge. The interrupt queues only changes of
+     * level, so this comes from the decoder being reset from a pin read
+     * just as an edge came in, or from a flick whose other edge was lost.
+     * Not scanning: the level was already known, so the older edge is
+     * kept (a white started there). Scanning: within B3_MIN_EDGE_US it is
+     * a flick and the element carries on; later it is a missed edge and
+     * the scan is rejected below.
+     */
+    if (edge.black == p_scan->last.black)
+    {
+        if (!b3_barcode_active(p_scan))
+        {
+            return false;
+        }
+
+        if (p_scan->collecting && (elapsed < B3_MIN_EDGE_US))
+        {
+            ++p_scan->glitches;
+
+            return false;
+        }
+    }
+
     if (p_scan->collecting &&
         ((elapsed < B3_MIN_EDGE_US) ||
          is_speck(p_scan, at_base_speed(elapsed, edge.speed_mm_s))))
@@ -481,8 +528,8 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
         if ((0U == p_scan->count) || !p_scan->prev_valid ||
             (edge.black != p_scan->prev.black))
         {
-            /* Blip on the first bar: start again from this edge. */
-            b3_barcode_abort(p_scan, edge);
+            /* A blip that cannot be undone: start again from this edge. */
+            b3_barcode_drop(p_scan, edge, B3_DROP_FLICKER, 0U);
 
             return false;
         }

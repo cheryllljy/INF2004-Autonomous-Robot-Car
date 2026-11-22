@@ -757,7 +757,35 @@ static void service_once(void)
             from = g_scan.last;
         }
 
-        b3_barcode_abort(&g_scan, from);
+        /* why, for the VC's log when a scan was under way */
+        {
+            b3_drop_reason_t why = B3_DROP_TERRAIN;
+
+            uint32_t info = 0U;
+
+
+            if (!fresh)
+            {
+                why = B3_DROP_LATE;
+
+                info = (now - context.time_us) / 1000U;
+            }
+            else if (!context.scan_enabled)
+            {
+                why = B3_DROP_SCAN_OFF;
+            }
+            else if (context.stop_requested)
+            {
+                why = B3_DROP_STOP;
+            }
+            else
+            {
+                /* terrain unstable */
+            }
+
+
+            b3_barcode_drop(&g_scan, from, why, info);
+        }
     }
     else
     {
@@ -787,7 +815,8 @@ static void service_once(void)
                 sample = b3_ir_read();
 
 
-                b3_barcode_abort(&g_scan, sample.barcode);
+                b3_barcode_drop(&g_scan, sample.barcode, B3_DROP_OVERFLOW,
+                                0U);
 
 
                 break;
@@ -919,6 +948,8 @@ static void service_once(void)
 
     output.edge_faults = b3_ir_fault_count();
 
+    output.ir_b_flicks = b3_ir_glitch_count();
+
 
     output.rejected_scans = g_scan.rejected;
 
@@ -938,6 +969,14 @@ static void service_once(void)
     {
         output.reject_widths[i] = g_scan.reject_widths[i];
     }
+
+    output.scan_drops = g_scan.dropped;
+
+    output.scan_drop_reason = g_scan.drop_reason;
+
+    output.scan_drop_edges = g_scan.drop_count;
+
+    output.scan_drop_info = g_scan.drop_info;
 
 
     output.dropped_events = g_dropped_events;

@@ -134,6 +134,7 @@ typedef struct
     uint32_t last_seq;
     uint32_t junctions; /* Buddy 3 junction_sequence seen */
     uint32_t rejected;  /* Buddy 3 rejected_scans seen */
+    uint32_t drops;     /* Buddy 3 scan_drops seen */
     bool scanning;      /* Buddy 3 scan_active seen */
     INT state_ms;       /* time in the current state */
     INT since_send_ms;
@@ -1139,15 +1140,18 @@ static void exchange_line(void)
                           (uint32_t)B3_QUIET_NARROW_MULTIPLE);
             }
         }
-        /* not Code 39: show the widths, B = bar, w = gap */
-        if (6U == why)
+        /* the widths measured before the reject, B = bar, w = gap */
         {
-            for (uint32_t c = 0U; c < 3U; ++c)
+            const uint32_t edges = (vc.line.reject_edges < B3_BARCODE_RUNS)
+                                       ? vc.line.reject_edges
+                                       : B3_BARCODE_RUNS;
+
+            for (uint32_t c = 0U; (c < 3U) && (c * 10U < edges); ++c)
             {
                 char line[120];
                 uint32_t n = 0U;
                 for (uint32_t k = c * 10U;
-                     (k < (c + 1U) * 10U) && (k < B3_BARCODE_RUNS); ++k)
+                     (k < (c + 1U) * 10U) && (k < edges); ++k)
                 {
                     uint32_t ms10 =
                         (uint32_t)((vc.line.reject_widths[k] + 50U) / 100U);
@@ -1179,11 +1183,75 @@ static void exchange_line(void)
                 }
                 line[n] = '\0';
                 tm_printf((UB *)"[VC]   widths ms %u-%u:%s\n", c * 10U,
-                          (c * 10U + 9U < B3_BARCODE_RUNS)
-                              ? c * 10U + 9U
-                              : B3_BARCODE_RUNS - 1U,
+                          (c * 10U + 9U < edges) ? c * 10U + 9U : edges - 1U,
                           line);
             }
+        }
+    }
+
+    /* IR_B flicks and lost edges, at most once a second */
+    {
+        static uint32_t flicks;
+        static uint32_t faults;
+        static INT since_ms;
+
+        since_ms += vc.dt_ms;
+        if ((since_ms >= 1000) && ((vc.line.ir_b_flicks != flicks) ||
+                                   (vc.line.edge_faults != faults)))
+        {
+            tm_printf((UB *)"[VC] IR_B last %d ms: %u flicks dropped, %u "
+                            "edge queue overflows\n",
+                      (INT)since_ms, vc.line.ir_b_flicks - flicks,
+                      vc.line.edge_faults - faults);
+            flicks = vc.line.ir_b_flicks;
+            faults = vc.line.edge_faults;
+            since_ms = 0;
+        }
+        else if (since_ms >= 1000)
+        {
+            since_ms = 0;
+        }
+        else
+        {
+            /* counting */
+        }
+    }
+
+    /* a scan under way ended without a reject: say why */
+    if (vc.line.scan_drops != vc.drops)
+    {
+        static const char *const drop_names[] = {
+            "none",
+            "flicker that could not be undone, restarted",
+            "scanning turned off by the VehicleController",
+            "Buddy 3 got no fresh VehicleController context",
+            "stop requested",
+            "uneven ground (IMU)",
+            "edge queue full, edges lost",
+        };
+        const uint32_t why = vc.line.scan_drop_reason;
+
+        vc.drops = vc.line.scan_drops;
+        if ((uint32_t)B3_DROP_LATE == why)
+        {
+            tm_printf((UB *)"[VC] barcode scan dropped (total %u): %u/%u "
+                            "elements, %s (%u ms old, limit %u ms)\n",
+                      (uint32_t)vc.drops,
+                      (uint32_t)vc.line.scan_drop_edges,
+                      (uint32_t)B3_BARCODE_RUNS, drop_names[why],
+                      (uint32_t)vc.line.scan_drop_info,
+                      (uint32_t)(B3_FEEDBACK_MAX_AGE_US / 1000U));
+        }
+        else
+        {
+            tm_printf((UB *)"[VC] barcode scan dropped (total %u): %u/%u "
+                            "elements, %s\n",
+                      (uint32_t)vc.drops,
+                      (uint32_t)vc.line.scan_drop_edges,
+                      (uint32_t)B3_BARCODE_RUNS,
+                      (why < sizeof drop_names / sizeof drop_names[0])
+                          ? drop_names[why]
+                          : "?");
         }
     }
 

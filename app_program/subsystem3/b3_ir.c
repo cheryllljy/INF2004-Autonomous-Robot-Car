@@ -14,11 +14,11 @@ static volatile uint32_t g_fault_count;
 
 static volatile bool g_discontinuity;
 
-/* DO mode: level of the last barcode edge queued (or the level at init).
- * Lets a coalesced rise+fall interrupt be resolved from the pin level. */
+/* Level of the last barcode edge queued (or the level at init). An
+ * interrupt that finds the pin at this level was a flick and is dropped. */
 static bool g_b_black;
 
-/* Coalesced interrupts that were glitches (pin back at the same level). */
+/* Interrupts dropped as flicks (pin back at the level last queued). */
 static uint32_t g_glitch_count;
 
 static b3_position_reader_t g_position_reader;
@@ -269,83 +269,49 @@ void b3_ir_gpio_irq(uint32_t gpio, uint32_t events)
 
 
     /*
-     * Rise and fall both pending: the comparator chattered at a transition,
-     * or a glitch pulse came and went before the ISR ran. Either way it was
-     * only microseconds, far shorter than any bar, so resolve it from the
-     * pin level now. A changed level is one real transition; an unchanged
-     * level is a glitch and is dropped.
-     * (Previously this was FAULT TYPE 1 and aborted the scan; changed
-     * 2026-10-30 after chatter at the tuned threshold broke every scan.)
+     * Rise, fall or both pending: take the level from the pin. The
+     * dispatcher cleared the pending flags before calling here, so an
+     * edge after this read raises a new interrupt and the last edge queued
+     * always ends at the pin's real level. The comparator can flick for
+     * tens of microseconds as a bar edge passes; a flick that is already
+     * over leaves the pin at the level last queued and is dropped. Taking
+     * the level from the edge type instead could queue the same colour
+     * twice: a flick's last edge is lost when it comes just before the
+     * flag of an earlier edge of the same type is cleared.
      */
-    if (B3_GPIO_EDGE_BOTH == edge_events)
+    edge = sample_barcode(b3_port_gpio_get_all());
+
+
+    if (edge.black == g_b_black)
     {
-        edge = sample_barcode(b3_port_gpio_get_all());
+        ++g_glitch_count;
+    }
+    else
+    {
+        uint32_t last = (g_head + B3_EDGE_QUEUE_SIZE - 1U) %
+                        B3_EDGE_QUEUE_SIZE;
 
 
-        if (edge.black == g_b_black)
+        /*
+         * The level went back within B3_MIN_EDGE_US of the edge still
+         * waiting at the end of the queue: that edge was a flick, so it is
+         * taken back instead of queuing a second one. Fast chatter then
+         * cannot fill the queue between two task passes.
+         */
+        if ((g_head != g_tail) &&
+            ((edge.time_us - g_edges[last].time_us) < B3_MIN_EDGE_US))
         {
+            g_head = last;
+
             ++g_glitch_count;
         }
         else
         {
-            g_b_black = edge.black;
-
             push_edge_locked(&edge);
-        }
-    }
-
-
-    /*
-     * Normal single rising OR falling edge.
-     */
-    else
-    {
-        edge = (b3_edge_t){ 0 };
-
-
-        /*
-         * Timestamp this edge.
-         */
-        edge.time_us = b3_port_time_us();
-
-
-        /*
-         * Determine black/white directly from the
-         * interrupt edge.
-         *
-         * Do NOT read GPIO again here because the
-         * physical pin may already have changed.
-         */
-        if (B3_GPIO_EDGE_RISE == edge_events)
-        {
-            /*
-             * Rising:
-             * LOW -> HIGH
-             */
-            edge.black = (B3_IR_B_BLACK_LEVEL != 0U);
-        }
-        else
-        {
-            /*
-             * Falling:
-             * HIGH -> LOW
-             */
-            edge.black = (B3_IR_B_BLACK_LEVEL == 0U);
-        }
-
-
-        /*
-         * Optional encoder position.
-         */
-        if (0 != g_position_reader)
-        {
-            edge.position_valid = g_position_reader(&edge.position_ticks);
         }
 
 
         g_b_black = edge.black;
-
-        push_edge_locked(&edge);
     }
 
 

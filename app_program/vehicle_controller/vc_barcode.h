@@ -4,9 +4,9 @@
  *.
  *
  *      The car line-follows at B3_BASE_SPEED_MM_S (100 mm/s). When IR_B
- *      starts reading a barcode (VC_BAR_DETECT_ELEMENTS elements: a bar, a
- *      gap and the next bar, so a crossing line, which is one black element,
- *      does not count), the VehicleController:
+ *      starts reading a barcode (VC_BAR_DETECT_ELEMENTS elements: bars and
+ *      gaps, so a crossing line, which is one black element, does not
+ *      count), the VehicleController:
  *
  *        1. stops (Buddy 2 brakes),
  *        2. backs up straight past where the barcode started, plus
@@ -31,9 +31,9 @@
 #include "../subsystem2/motion_control.h"
 #include "../subsystem3/buddy3.h"
 
-#define VC_BAR_DETECT_ELEMENTS 2   /* bar + gap measured: a barcode */
-#define VC_BAR_BACK_MM         100 /* white past its start; was 100 */
-#define VC_BAR_BACK_SPEED_MM_S 100
+#define VC_BAR_DETECT_ELEMENTS 4   /* 4 widths (5 edges) measured: a barcode */
+#define VC_BAR_BACK_MM         150 /* white past its start; was 100 */
+#define VC_BAR_BACK_SPEED_MM_S 150
 #define VC_BAR_SLOW_MAX_MM     400  /* slow pass gives up after this */
 /* the slow pass drives at least this far after the back-up, even when a
  * scan is rejected before (1.5 x an A4 page, 297 mm); a letter read still
@@ -49,17 +49,6 @@
 #ifndef VC_BAR_WAIT_MM
 #define VC_BAR_WAIT_MM 130
 #endif
-/* In a bend (Buddy 3 asks VC_BAR_BEND_MM_S or less on average while the
- * line speed is the fast one: it has slowed for a curve it learnt, from
- * about R1300, and not for a nudge) and for VC_BAR_AFTER_BEND_MS after
- * it, barcode scanning is off: IR_B crosses the line in bends, and that
- * was taken for a barcode (stop and back-up) and blocked a junction. */
-#ifndef VC_BAR_BEND_MM_S
-#define VC_BAR_BEND_MM_S 70
-#endif
-#ifndef VC_BAR_AFTER_BEND_MS
-#define VC_BAR_AFTER_BEND_MS 2000
-#endif
 
 /* Line following starts again (START, after a turn or a bypass). */
 void vc_bar_reset(const motion_status_t *p_motion);
@@ -74,7 +63,7 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
 /* For Buddy 3's context. */
 int16_t vc_bar_speed_mm_s(void); /* line speed now */
 bool vc_bar_scan_allowed(void);  /* false while stopping / backing up,
-                                  * on the hump and in a bend */
+                                  * and on the hump */
 bool vc_bar_busy(void);          /* stopping / backing up */
 /* barcode seen, driving on VC_BAR_WAIT_MM before stopping */
 bool vc_bar_waiting(void);
