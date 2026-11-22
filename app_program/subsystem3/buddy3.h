@@ -86,8 +86,17 @@ typedef struct
     uint8_t reject_reason; /* b3_reject_reason_t of the last reject */
     /* elements measured (of B3_BARCODE_RUNS) at the last reject */
     uint8_t reject_edges;
-    /* widths (us) of the last "not Code 39" reject */
+    /* widths (us) of the elements measured at the last reject */
     uint32_t reject_widths[B3_BARCODE_RUNS];
+    /* scans dropped without a reject: count, why the last one was (a
+     * b3_drop_reason_t), its elements and, when the context was late, its
+     * age in ms */
+    uint32_t scan_drops;
+    uint8_t scan_drop_reason;
+    uint8_t scan_drop_edges;
+    uint32_t scan_drop_info;
+    /* IR_B interrupts dropped as flicks (count since start) */
+    uint32_t ir_b_flicks;
     /* last "white before barcode too short" reject: the
      * white measured and the white needed, in encoder ticks (the mean of
      * both wheels) if reject_encoder, else in us. */

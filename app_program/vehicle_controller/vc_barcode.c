@@ -36,8 +36,6 @@ typedef struct
     bool busy_seen; /* Buddy 2 started it */
     bool waiting;   /* barcode seen, driving on VC_BAR_WAIT_MM first */
     bool scan_off;  /* on the hump: Buddy 3's scanning off */
-    bool bend_off;  /* in a bend or just after: scanning off */
-    int32_t bend_ms; /* scanning stays off this much longer */
     bool kept_slow; /* rejected before VC_BAR_SLOW_MIN_MM: still slow */
 } vb_t;
 
@@ -95,44 +93,6 @@ static void vb_start_slow(const motion_status_t *p_motion, const char *why)
     vb_goto(VB_SLOW);
 }
 
-/* in a bend at the fast line speed, and VC_BAR_AFTER_BEND_MS after it */
-static void vb_bend_step(const b3_snapshot_t *p_line, int32_t dt_ms)
-{
-    const int32_t asked =
-        ((int32_t)p_line->line.left_mm_s + p_line->line.right_mm_s) / 2;
-    const bool b_bend = ((VB_ARMED == vb.phase) || (VB_REARM == vb.phase)) &&
-                        (asked > 0) && (asked <= VC_BAR_BEND_MM_S);
-
-    if (b_bend)
-    {
-        vb.bend_ms = VC_BAR_AFTER_BEND_MS;
-    }
-    else if (vb.bend_ms > 0)
-    {
-        vb.bend_ms -= dt_ms;
-    }
-    else
-    {
-        /* no bend lately */
-    }
-    if ((vb.bend_ms > 0) != vb.bend_off)
-    {
-        vb.bend_off = (vb.bend_ms > 0);
-        if (vb.bend_off)
-        {
-            tm_printf((UB *)"[VC] in a bend (%d mm/s): barcode scanning "
-                            "off\n",
-                      (INT)asked);
-        }
-        else
-        {
-            tm_printf((UB *)"[VC] %d ms after the bend: barcode scanning "
-                            "on again\n",
-                      (INT)VC_BAR_AFTER_BEND_MS);
-        }
-    }
-}
-
 bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
                  bool decoded, bool rejected, int32_t dt_ms)
 {
@@ -148,22 +108,13 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
         tm_printf((UB *)"[VC] %s the hump: barcode scanning %s\n",
                   b_hump ? "on" : "off", b_hump ? "off" : "on again");
     }
-    vb_bend_step(p_line, dt_ms);
 
     switch (vb.phase)
     {
         case VB_ARMED:
             if (vb.waiting)
             {
-                if (vb.bend_off)
-                {
-                    vb.waiting = false;
-                    tm_printf((UB *)"[VC] the black under the barcode "
-                                    "sensor %d mm back was in a bend: not "
-                                    "backing up\n",
-                              (INT)vb_abs(at - vb.detect_mm));
-                }
-                else if (b_hump)
+                if (b_hump)
                 {
                     vb.waiting = false;
                     tm_printf((UB *)"[VC] the black under the barcode "
@@ -192,7 +143,6 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
                 }
             }
             else if (vb_enabled() && p_line->scan_active && !b_hump &&
-                     !vb.bend_off &&
                      (p_line->scan_elements >= VC_BAR_DETECT_ELEMENTS) &&
                      !(p_line->line.left_black && p_line->line.right_black))
             {
@@ -354,7 +304,7 @@ int16_t vc_bar_speed_mm_s(void)
 
 bool vc_bar_scan_allowed(void)
 {
-    return !vc_bar_busy() && !vb.scan_off && !vb.bend_off;
+    return !vc_bar_busy() && !vb.scan_off;
 }
 
 bool vc_bar_waiting(void)

@@ -154,11 +154,19 @@ static void emit(bool black)
     CHECK(!g_debug_high);
 }
 
+/* IR_B reads white, as it must before a black edge */
+static void ir_b_white(void)
+{
+    g_pins = (B3_IR_B_BLACK_LEVEL != 0U) ? (g_pins & ~(1U << B3_IR_B_GPIO))
+                                         : (g_pins | (1U << B3_IR_B_GPIO));
+}
+
 static void test_driver(void)
 {
     unsigned int i;
     b3_edge_t edge;
     b3_ir_sample_t sample;
+    ir_b_white();
     CHECK(E_OK == b3_ir_init(NULL));
     CHECK(g_irq_installed == (B3_INSTALL_IO_BANK0_HANDLER != 0U));
     CHECK((g_initialised & (1U << B3_IR_L_GPIO)) != 0U);
@@ -189,6 +197,51 @@ static void test_driver(void)
     CHECK(B3_IR_EDGE == b3_ir_pop(&edge));
     CHECK(!edge.black && (g_now == edge.time_us));
     CHECK(0U == b3_ir_fault_count());
+    /* a rise flag left by a flick that is already over: the pin is white
+       again, so nothing is queued (the edge type said black) */
+    g_now += 1000U;
+    b3_ir_gpio_irq(B3_IR_B_GPIO, B3_GPIO_EDGE_RISE);
+    CHECK(B3_IR_EMPTY == b3_ir_pop(&edge));
+    CHECK(2U == b3_ir_glitch_count());
+    /* the real black edge after it is queued once */
+    g_now += 1000U;
+    g_pins = (B3_IR_B_BLACK_LEVEL != 0U) ? (g_pins | (1U << B3_IR_B_GPIO))
+                                         : (g_pins & ~(1U << B3_IR_B_GPIO));
+    b3_ir_gpio_irq(B3_IR_B_GPIO, B3_GPIO_EDGE_RISE);
+    CHECK(B3_IR_EDGE == b3_ir_pop(&edge));
+    CHECK(edge.black && (g_now == edge.time_us));
+    /* a fall flag while the pin is still black: dropped, so the queue
+       never holds the same colour twice */
+    g_now += 40U;
+    b3_ir_gpio_irq(B3_IR_B_GPIO, B3_GPIO_EDGE_FALL);
+    CHECK(B3_IR_EMPTY == b3_ir_pop(&edge));
+    CHECK(3U == b3_ir_glitch_count());
+    /* fast chatter, 10 us per flick, then settled white: the flicks are
+       taken back as they come, so the queue holds one white edge and
+       never overflows */
+    for (i = 0U; i < (3U * B3_EDGE_QUEUE_SIZE); ++i)
+    {
+        g_now += 10U;
+        if (0U == (i % 2U))
+        {
+            ir_b_white();
+        }
+        else
+        {
+            g_pins = (B3_IR_B_BLACK_LEVEL != 0U)
+                         ? (g_pins | (1U << B3_IR_B_GPIO))
+                         : (g_pins & ~(1U << B3_IR_B_GPIO));
+        }
+        b3_ir_gpio_irq(B3_IR_B_GPIO, B3_GPIO_EDGE_BOTH);
+    }
+    ir_b_white();
+    g_now += 10U;
+    b3_ir_gpio_irq(B3_IR_B_GPIO, B3_GPIO_EDGE_FALL);
+    CHECK(0U == b3_ir_fault_count());
+    CHECK(B3_IR_EDGE == b3_ir_pop(&edge));
+    CHECK(!edge.black);
+    CHECK(B3_IR_EMPTY == b3_ir_pop(&edge));
+    ir_b_white();
     CHECK(E_OK == b3_ir_init(NULL));
     for (i = 0U; i <= B3_EDGE_QUEUE_SIZE; ++i)
     {
@@ -197,7 +250,8 @@ static void test_driver(void)
     CHECK(b3_ir_fault_count() > 0U);
     CHECK(B3_IR_DISCONTINUITY == b3_ir_pop(&edge));
     CHECK(B3_IR_EMPTY == b3_ir_pop(&edge));
-    (void)puts("PASS: ISR filtering, queue overflow, coalesced edges and quiet-zone race guard");
+    (void)puts("PASS: ISR filtering, queue overflow, coalesced edges, "
+               "level from the pin and quiet-zone race guard");
 }
 
 
