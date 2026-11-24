@@ -27,9 +27,6 @@
  * Bits 20..23 Reserved, must be zero
  *
  * Total wire size: 3 bytes.
- *
- * These field definitions are provisional until
- * the team's final telemetry specification is agreed.
  */
 
 int32_t b1_telemetry_pack(const B1_Telemetry *input,
@@ -128,8 +125,6 @@ int32_t b1_command_unpack(uint8_t input, uint8_t *command)
 }
 
 /*
- * Moved from buddy1_mqtt.c.
- *
  * Prepare a three-byte CR1 payload for MQTT.
  * The MQTT network task performs the publish.
  */

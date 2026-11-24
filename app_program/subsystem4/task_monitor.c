@@ -46,7 +46,7 @@ typedef struct
 static s4_hump_state_t s4_hump_state;
 
 /* Intentional obstacle and barcode stop/reverse maneuvers can jolt the car;
- * those phases hold off only the jolt-based pick-up check. Tilt still is. */
+ * those phases hold off only the jolt-based pick-up check, not tilt. */
 static volatile bool s4_jolt_hold = false;
 
 void subsystem4_hold_jolt(bool b_hold)
@@ -81,10 +81,6 @@ static int32_t s4_axis_value(const imu_vector_t *p, uint32_t ax)
 
 static uint32_t s4_abs_i32(int32_t v) { return (uint32_t)((v < 0) ? -v : v); }
 
-/* Pick-up check on one raw sample: a jolt away from 1 g for
- * S4_LIFT_JOLT_SAMPLES, or a tilt in any direction past
- * S4_LIFT_TILT_COS_PCT for S4_LIFT_TILT_SAMPLES, requests the E-stop.
- * It runs on every sample, before the hump code drops the noisy ones. */
 /* Angle between gravity now and at start-up, from |base x now| =
  * |base| |now| sin(angle); small-angle degrees, averaged over ~4
  * samples. Pitch on a ramp shows here; the hump height only sees roll. */
@@ -116,6 +112,10 @@ static void s4_tilt_update(const imu_vector_t *p_raw, uint32_t total)
                               4U);
 }
 
+/* Pick-up check on one raw sample: a jolt away from 1 g for
+ * S4_LIFT_JOLT_SAMPLES, or a tilt in any direction past
+ * S4_LIFT_TILT_COS_PCT for S4_LIFT_TILT_SAMPLES, requests the E-stop.
+ * It runs on every sample, before the hump code drops the noisy ones. */
 static void s4_lift_step(const imu_vector_t *p_raw, uint32_t total)
 {
     const uint32_t base = s4_hump_state.base_total;
@@ -124,7 +124,7 @@ static void s4_lift_step(const imu_vector_t *p_raw, uint32_t total)
                         ((int64_t)s4_hump_state.base_y * p_raw->y) +
                         ((int64_t)s4_hump_state.base_z * p_raw->z);
     const bool b_jolt =
-        !s4_jolt_hold && /* Buddy 5, 2026-11-19 */
+        !s4_jolt_hold &&
         (((uint64_t)dev * 100U) > ((uint64_t)base * S4_LIFT_JOLT_PCT));
     const bool b_tilt =
         (0U != total) &&
@@ -169,8 +169,7 @@ static void s4_lift_step(const imu_vector_t *p_raw, uint32_t total)
                           : "tilted",
                       (UINT)((0U != base) ? ((total * 100U) / base) : 0U));
         }
-        /* again each sample, so a RESET while still lifted does not free
-         * it */
+        /* again each sample, so a RESET while still lifted does not free it */
         motion_estop_request(MOTION_ESTOP_IMU);
     }
     else if ((0U == s4_hump_state.jolt_samples) &&

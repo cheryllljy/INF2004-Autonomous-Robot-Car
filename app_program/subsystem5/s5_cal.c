@@ -464,8 +464,7 @@ void s5_cal_run(void)
     }
     else
     {
-        /* make S5CAL=2: the circle only (turn and
-         * compass) */
+        /* make S5CAL=2: the circle only (turn and compass) */
         S5_LOG("[VC-S5] CAL step 4 only (make S5CAL=2)\n");
     }
     s5_cal_turn();

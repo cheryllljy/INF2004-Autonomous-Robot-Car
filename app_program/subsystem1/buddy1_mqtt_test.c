@@ -34,7 +34,6 @@ void buddy1_mqtt_test(void)
 
     tm_printf((UB *)"\n[BUDDY1] MQTT binary payload tests\n");
 
-    /* B1-M01: Encode binary telemetry */
     pack_result = buddy1_mqtt_prepare_telemetry(&original, payload);
 
     TEST_CHECK("B1-M01",
@@ -42,11 +41,9 @@ void buddy1_mqtt_test(void)
                    payload[2] == 0x00u,
                "MQTT binary payload prepared");
 
-    /* B1-M02: Payload must be 3 bytes */
     TEST_CHECK("B1-M02", sizeof(payload) == 3u && B1_TELEMETRY_BYTES == 3u,
                "MQTT binary payload size is 3 bytes");
 
-    /* B1-M03: Decode and compare telemetry */
     unpack_result = b1_telemetry_unpack(payload, &decoded);
 
     TEST_CHECK("B1-M03",

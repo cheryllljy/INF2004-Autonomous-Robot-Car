@@ -1,11 +1,10 @@
 /*
- * motion_demo.c - mock VehicleController for bench-testing MotionControl (v2).
+ * motion_demo.c - mock VehicleController for bench-testing MotionControl.
  *
  * Compiled to NOTHING unless MOTION_DEMO is 1 (see motion_control.h).
- * After 8 s it runs a slow, short scripted sequence and prints named states:
- *   forward 300 mm @100, turn left 90, forward 200, turn right 90,
- *   backward 200, then an E-stop test (E-stop 1 s into a 500 mm move).
- * It STOPS at the first step that does not finish with DONE.
+ * After 8 s it runs a short scripted sequence and prints named states
+ * (forward 300 mm @100; the longer sequence and the E-stop test are
+ * commented out in demo_task). It STOPS at the first step not ending DONE.
  *
  * SAFETY: first run with the wheels lifted. Press GP20 at any time = E-stop.
  * Needs about 1 m of clear floor.
@@ -197,7 +196,6 @@ static void demo_task(INT stacd, void *exinf)
         (void)tk_dly_tsk(1000);
         motion_get_status(&b);
         (void)tk_get_otm(&kernel_t1);
-        //tm_printf((UB *)"clock check: tk_dly_tsk(1000) took %u ms by the hardware timer; %u control cycles in that time (expect 50)\n",
         tm_printf((UB *)"clock check: kernel %u ms, raw timer %u ms, control "
                         "cycles %u (expect ~1000 ms / ~50 cycles)\n",
                   (uint32_t)(kernel_t1.lo - kernel_t0.lo),

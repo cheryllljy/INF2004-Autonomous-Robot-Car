@@ -14,7 +14,7 @@
 #include "motion_config.h"
 #include "motion_control.h"
 #include "motion_hw.h"
-/* shared dispatcher, owned by Buddy 3 */
+/* shared GPIO interrupt dispatcher */
 #include "../subsystem3/gpio_dispatch.h"
 
 #include <tk/tkernel.h>
@@ -97,8 +97,8 @@ static volatile uint32_t s_min_edge_ticks = ENCODER_MIN_EDGE_US;
 
 /* ---------- Encoder edges ---------- */
 
-/* Called for every edge on an encoder pin (by the shared GPIO dispatcher, or by
- * the local handler below). Counts and returns: nothing that can block. */
+/* Called by the GPIO dispatcher for every edge on an encoder pin (ISR
+ * context): counts and returns, nothing that can block. */
 void motion_encoder_isr(uint32_t gpio)
 {
     uint32_t side;
@@ -118,7 +118,6 @@ void motion_encoder_isr(uint32_t gpio)
     }
 
     now = MH_TIMER_RAWL;
-    // if ((now - s_last_edge_us[side]) >= ENCODER_MIN_EDGE_US)
     if ((now - s_last_edge_us[side]) >= s_min_edge_ticks)
     {
         s_last_edge_us[side] = now;
@@ -253,10 +252,8 @@ bool motion_hw_init(void)
 
     MH_GPIO_CTRL(PIN_ENC_L) = MH_FUNCSEL_SIO;
     MH_GPIO_CTRL(PIN_ENC_R) = MH_FUNCSEL_SIO;
-    /* Buddy 3: the right encoder gave 0 ticks while its
-     * wheel was spinning. RP2040 pads default to a pull-down, which an
-     * open-collector encoder output cannot lift. Use the pull-up instead
-     * (harmless for a push-pull output) and make sure input is enabled. */
+    /* pull-up, not the default pull-down: an open-collector encoder output
+     * cannot lift a pull-down. Also make sure input is enabled. */
     MH_PAD_GPIO(PIN_ENC_L) =
         (MH_PAD_GPIO(PIN_ENC_L) & ~MH_PAD_PDE) | MH_PAD_PUE | MH_PAD_IE;
     MH_PAD_GPIO(PIN_ENC_R) =

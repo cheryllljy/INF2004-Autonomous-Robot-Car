@@ -6,21 +6,21 @@
  *      valid range needs, and the static asserts below fail the build if a
  *      new value no longer fits.  Change this file only by team agreement.
  *
- *      Field         Valid range                 Bits  Used by
- *      ------------  --------------------------  ----  -------------------------
- *      state         vc_state_t, 0..5            3     B1 telemetry controller_state
- *      command       vc_cmd_t, 0..7              3     B1 command byte (IDs 0..7)
- *      fault causes  one bit per source          8     flg_vc bits 0..7,
- *                                                      B1 telemetry fault_flags
- *      pending turn  b3_nav_command_t, 0..4      3     turn waiting for the next junction
- *      symbol        Code 39 character, ASCII    7     Buddy 3 navigation event
- *      nav sequence  wraps at 256                8     detects a missed barcode
- *      junctions     wraps at 8                  3     detects a new junction
+ *      Field         Valid range               Bits  Used by
+ *      ------------  ------------------------  ----  ----------------------
+ *      state         vc_state_t, 0..5          3     B1 controller_state
+ *      command       vc_cmd_t, 0..7            3     B1 command byte
+ *      fault causes  one bit per source        8     flg_vc bits 0..7,
+ *                                                    B1 fault_flags
+ *      pending turn  b3_nav_command_t, 0..4    3     next-junction turn
+ *      symbol        Code 39 character, ASCII  7     Buddy 3 nav event
+ *      nav sequence  wraps at 256              8     detects a missed barcode
+ *      junctions     wraps at 8                3     detects a new junction
  *
  *      All of it travels between tasks as ONE 32-bit status word (layout at
  *      VC_SW_*), built in a local and published with one aligned store, so
- *      readers never see half an update (CR1 race-safety; the M0+ has no
- *      LDREX/STREX, so no read-modify-write is ever done on it).
+ *      readers never see half an update (the M0+ has no LDREX/STREX, so no
+ *      read-modify-write is ever done on it).
  */
 
 #ifndef VC_TYPES_H
@@ -75,7 +75,7 @@ typedef enum
 #define VC_FAULT_MOTOR_STALL B1_FAULT_MOTOR_STALL /* Buddy 2 */
 #define VC_FAULT_ENCODER     B1_FAULT_ENCODER     /* Buddy 2 */
 #define VC_FAULT_IMU         B1_FAULT_IMU         /* Buddy 4 */
-/* Buddy 5 (sets it itself) */
+/* Buddy 5 */
 #define VC_FAULT_NO_ECHO   B1_FAULT_NO_ECHO
 #define VC_FAULT_WIFI_LOSS B1_FAULT_WIFI_LOSS /* Buddy 1 */
 /* Buddy 3: task error, event queue full */

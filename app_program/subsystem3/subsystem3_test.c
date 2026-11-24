@@ -407,9 +407,8 @@ static void buddy3_unit_tests(INT *p_pass, INT *p_fail)
                    r.left_mm_s < r.right_mm_s && r.left_mm_s >= 0,
                "IR_L black (drifted right): steer left, no wheel reverses");
 
-    /* the steering now eases from one side to the other
-     * (B3_STEER_SLEW_CURV per mm), so after U09's left nudge the right side
-     * stays black for 40 ms before the check */
+    /* the steering eases from one side to the other (B3_STEER_SLEW_CURV
+     * per mm), so the right side stays black for 40 ms before the check */
     r = b3_line_step(&line, false, true, 40000U, B3_BASE_SPEED_MM_S);
     r = b3_line_step(&line, false, true, 50000U, B3_BASE_SPEED_MM_S);
     r = b3_line_step(&line, false, true, 60000U, B3_BASE_SPEED_MM_S);
@@ -509,11 +508,10 @@ static void buddy3_task_tests(INT *p_pass, INT *p_fail)
 }
 
 #if B3_TEST_HW
-/* Print the raw IR_B edge log (test build only) and return the number
-   of edges.  Each line shows the colour that ENDED at that edge and how
-   long it lasted.
-   Printed after the capture so USB output cannot delay the Buddy 3 task
-   while it is scanning. */
+/* Print the raw IR_B edge log (test build only) and return the number of
+   edges.  Each line shows the colour that ENDED at that edge and how long
+   it lasted.  Printed after the capture so USB output cannot delay the
+   Buddy 3 task while it is scanning. */
 static UW print_edge_log(const char *id)
 {
     static uint32_t t[B3_EDGE_LOG_SIZE];
@@ -663,9 +661,9 @@ static INT count_steer(b3_line_state_t want)
     return n;
 }
 
-/* B3-H08: Buddy 3 steers, Buddy 2 drives.  This test plays the vehicle
-   controller: every 10 ms it passes Buddy 2's measured speeds to Buddy 3
-   and Buddy 3's wheel speeds to motion_set_wheel_speeds(). */
+/* B3-H08: Buddy 3 steers, Buddy 2 drives.  Plays the vehicle controller:
+   every 10 ms it passes Buddy 2's measured speeds to Buddy 3 and Buddy 3's
+   wheel speeds to motion_set_wheel_speeds(). */
 static void follow_line_test(const char *id, BOOL scan, INT *p_pass,
                              INT *p_fail)
 {
@@ -1008,9 +1006,9 @@ static void buddy3_hw_tests(INT *p_pass, INT *p_fail)
                       : '-',
                   snap.last_barcode.barcode.reversed ? " (reversed)" : "",
                   (uint32_t)snap.rejected_scans);
-        /* Per-wheel check (Buddy 2's encoders): a wheel that drags while
-                   its distance still matches the other one means that encoder
-                   reports movement the wheel is not making. */
+        /* Per-wheel check: a wheel that drags while its distance still
+                   matches the other one means that encoder reports
+                   movement the wheel is not making. */
         tm_printf(
             (UB *)"[TEST] B3-H06   wheels: left %d mm (peak %d mm/s),"
                   " right %d mm (peak %d mm/s), heading %d deg, fault %d\n",

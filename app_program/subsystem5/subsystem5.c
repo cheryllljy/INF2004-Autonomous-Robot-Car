@@ -15,10 +15,10 @@
 
 static ID g_s5_tid;
 
-/* the S5 task is woken every S5_POLL_MS by
- * this cyclic handler, like Buddy 3's. tk_dly_tsk() after each poll
- * would wait for the second 10 ms tick (the kernel adds a tick to every
- * relative wait), so the polls would be 20 ms apart. */
+/* The S5 task is woken every S5_POLL_MS by this cyclic handler.
+ * tk_dly_tsk() after each poll would wait for the second 10 ms tick (the
+ * kernel adds a tick to every relative wait), so polls would be 20 ms
+ * apart. */
 static void s5_cyc(void *p_exinf)
 {
     (void)p_exinf;
@@ -123,7 +123,7 @@ static void s5_task(INT stacd, void *exinf)
     s5_cal_run(); /* never returns */
 #endif
 #if (0 != S5_AUTO_TRIM) && !S5_CAL_BUILD
-    s5_auto_trim(); /* Buddy 5, 2026-11-19 */
+    s5_auto_trim();
 #endif
     for (;;)
     {

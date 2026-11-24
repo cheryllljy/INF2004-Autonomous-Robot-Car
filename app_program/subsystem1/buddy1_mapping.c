@@ -13,19 +13,15 @@
  * - Provide race-free snapshots to VehicleController
  *
  * Synchronization uses a micro T-Kernel semaphore.
- * No barcode-to-movement assignments are hardcoded.
  */
 
 #include "buddy1_mapping.h"
 #include "../app.h"
 
 /*
- * built-in backup mapping, used until one arrives over MQTT (robot.ps1
- * map on test day), which replaces it. 0 = none: until then every letter
- * means "go straight". 1 = start with the table below.
- *
- * Same rules as the MQTT message: 4 different letters A-Z, and each of
- * the 4 movements used once. Change the letters / movements here.
+ * Built-in backup mapping, used until one arrives over MQTT.
+ * 0 = none (every letter means "go straight"), 1 = use the table below.
+ * Same rules as MQTT: 4 different letters A-Z, each movement used once.
  */
 #define B1_DEFAULT_MAPPING_ENABLE 1
 
@@ -266,7 +262,6 @@ int32_t b1_mapping_get_latest(B1_Mapping *output)
         return -1;
     }
 
-    /* Copy the complete mapping while protected. */
     *output = shared_mapping;
 
     tk_sig_sem(mapping_sem, 1);

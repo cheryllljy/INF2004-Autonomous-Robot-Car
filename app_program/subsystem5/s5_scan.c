@@ -1,7 +1,7 @@
 /*
  *      s5_scan.c
- *      Subsystem 5 -- what one sweep says about the object. See s5_scan.h for
- *      the method.
+ *      Subsystem 5 -- what one sweep says about the object.
+ *      See s5_scan.h for the method.
  */
 
 #include "s5_scan.h"
@@ -46,8 +46,8 @@ uint16_t s5_scan_face(const s5_sample_t *p_s, uint32_t n)
     return face;
 }
 
-/* Buddy 5, 2026-11-19: how far behind the face an echo is still the
- * object's: S5_EDGE_DEPTH_MM, or less for one sweep (s5_scan_set_depth()) */
+/* How far behind the face an echo is still the object's:
+ * S5_EDGE_DEPTH_MM, or less for one sweep (s5_scan_set_depth()). */
 static uint16_t g_depth_mm = (uint16_t)S5_EDGE_DEPTH_MM;
 
 void s5_scan_set_depth(uint16_t mm)
@@ -244,11 +244,10 @@ bool s5_scan_corner_echo(float vx, float vy, float look, float half, float mm,
     return (d_lo <= half) && (d_hi >= -half);
 }
 
-/* with the sonar out beside this side of
- * the object (as after going round another one), it can see along the
- * object's flank to its far corner, which answers from further than the
- * face, past the edge. Such a return is the object itself, not something
- * in the way. */
+/* With the sonar out beside this side of the object (as after going round
+ * another one), it can see along the object's flank to its far corner,
+ * which answers from further than the face, past the edge. Such a return
+ * is the object itself, not something in the way. */
 static bool s5_own_far_corner(const s5_sample_t *p_s, int32_t side,
                               int16_t beam, const s5_view_t *p_view,
                               float y_edge, float x_face)
@@ -270,11 +269,10 @@ static bool s5_own_far_corner(const s5_sample_t *p_s, int32_t side,
  * somewhere within the beam of a, at that range; where exactly is not
  * known (the object's own echoes can hide where the other one starts), so
  * every point of that arc is tried: any of them in the car's way blocks
- * the side. */
-/* 2 = an echo whose own direction is in the pass lane,
- * 1 = an echo that reaches it only within its beam (+-beam, it may be
- * further out), 0 = clear. *p_at: the sample (the first one at the level
- * returned). */
+ * the side.
+ * 2 = an echo whose own direction is in the pass lane, 1 = an echo that
+ * reaches it only within its beam (+-beam, it may be further out),
+ * 0 = clear. *p_at: the sample (the first one at the level returned). */
 static int32_t s5_side_blocked(const s5_sample_t *p_s, int32_t n,
                                int32_t first, int32_t side, int16_t beam,
                                const s5_view_t *p_view, float y_edge,
@@ -336,8 +334,8 @@ static int32_t s5_side_blocked(const s5_sample_t *p_s, int32_t n,
     return level;
 }
 
-/* the next object echo inwards (towards the face sample i0) from i that
- * is at least S5_EDGE_PAIR_DDEG away (face_mm 0: the very next one) */
+/* The next object echo inwards (towards the face sample i0) from i that
+ * is at least S5_EDGE_PAIR_DDEG away (face_mm 0: the very next one). */
 static int32_t s5_edge_inner(const s5_sample_t *p_s, int32_t i, int32_t dir,
                              int32_t i0, uint16_t face_mm)
 {
@@ -373,10 +371,9 @@ static bool s5_edge_agree(const s5_sample_t *p_a, const s5_sample_t *p_b)
     return (rise <= limit) && (rise >= -limit);
 }
 
-/* Buddy 5, 2026-11-16: the range method (s5_scan.h). FACE = lower
- * quartile of the object's ranges, EDGE on each side = mean of the two
- * outermost neighbouring ranges that agree. Returns false
- * if there is nothing to work with. */
+/* The range method (s5_scan.h). FACE = lower quartile of the object's
+ * ranges, EDGE on each side = mean of the two outermost neighbouring
+ * ranges that agree. Returns false if there is nothing to work with. */
 static bool s5_range_edges(const s5_sample_t *p_s, uint32_t n,
                            uint16_t face_mm, uint16_t *p_face_q,
                            uint16_t *p_edge_l, uint16_t *p_edge_r)
@@ -440,11 +437,11 @@ static bool s5_range_edges(const s5_sample_t *p_s, uint32_t n,
 
     /* EDGE: from the outermost echo inwards, the first echo that agrees
      * (no jump) with the echo next to it and with the next one at least
-     * S5_EDGE_PAIR_DDEG further in. Echoes that jump are a mix with whatever is behind the object,
-     * heard as the beam leaves the corner: left out. The partner has to
-     * be a few degrees away because the two extra pings of a halving
-     * are 1..3 deg apart and always agree with each other (real sweeps:
-     * 283 at 18 deg, then 369 and 369 at 24 and 25). */
+     * S5_EDGE_PAIR_DDEG further in. Echoes that jump are a mix with
+     * whatever is behind the object, heard as the beam leaves the
+     * corner: left out. The partner has to be a few degrees away
+     * because the two extra pings of a halving are 1..3 deg apart and
+     * always agree with each other. */
     for (dir = 1; dir >= -1; dir -= 2)
     {
         int32_t out = (dir > 0) ? i_l : i_r;
@@ -468,13 +465,11 @@ static bool s5_range_edges(const s5_sample_t *p_s, uint32_t n,
                 uint32_t next = edge;
                 int32_t k;
 #if (0 != S5_EDGE_KNEE)
-                /* Buddy 5, 2026-11-20: a box's echoes go face, then a
-                 * step to its corner, then flat. Ranges that go on
-                 * growing over two steps in a row past S5_EDGE_GROW_MM +
-                 * S5_EDGE_GROW_PER_DEG per degree are something sloping
-                 * away beside it (people round the track: 171 181 197 213
-                 * mm at -20..-45 deg for a 13 cm box from 167): the corner
-                 * is where that growth starts */
+                /* A box's echoes go face, then a step to its corner,
+                 * then flat. Ranges that go on growing over two steps in
+                 * a row past S5_EDGE_GROW_MM + S5_EDGE_GROW_PER_DEG per
+                 * degree are something sloping away beside it: the
+                 * corner is where that growth starts. */
                 {
                     int32_t prev = -1;
                     int32_t prev2 = -1;
@@ -549,8 +544,8 @@ static bool s5_range_edges(const s5_sample_t *p_s, uint32_t n,
     return true;
 }
 
-/* the object is straight ahead: the ping nearest 0 deg is one of its
- * echoes */
+/* The object is straight ahead: the ping nearest 0 deg is one of its
+ * echoes. */
 static bool s5_range_ahead(const s5_sample_t *p_s, uint32_t n,
                            uint16_t face_mm)
 {
@@ -572,7 +567,7 @@ static bool s5_range_ahead(const s5_sample_t *p_s, uint32_t n,
     return (n > 0U) && s5_scan_is_object(p_s[best].mm, face_mm);
 }
 
-/* sideways distance of a corner EDGE away on a face FACE away */
+/* Sideways distance of a corner EDGE away on a face FACE away. */
 static float s5_range_side(uint16_t edge_mm, uint16_t face_mm)
 {
     const float e = (float)edge_mm;
@@ -580,10 +575,9 @@ static float s5_range_side(uint16_t edge_mm, uint16_t face_mm)
 
     float side = (e > f) ? s5_sqrtf((e * e) - (f * f)) : 0.0f;
 
-    /* 2..3 mm of noise in EDGE - FACE moves a near corner a lot (15 mm at
-     * 65 mm out, 7 mm at 150): that much is added, so that the noise does
-     * not put the corner inside the real one (real sweeps of the 210 mm
-     * box read 196 mm without it) */
+    /* 2..3 mm of noise in EDGE - FACE moves a near corner a lot (15 mm
+     * at 65 mm out, 7 mm at 150): that much is added, so that the noise
+     * does not put the corner inside the real one */
     if (side >= (float)S5_EDGE_MIN_MM)
     {
         const float pad = (float)S5_EDGE_PAD_MM2 / side;
@@ -687,9 +681,9 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
         p_out->b_limited = false;
 #if (0 != S5_EDGE_BY_RANGE)
         {
-            /* Buddy 5, 2026-11-16: the corners by range (the face is
-             * square to the line, so FACE is measured along the line
-             * whatever the car's heading) */
+            /* the corners by range (the face is square to the line, so
+             * FACE is measured along the line whatever the car's
+             * heading) */
             uint16_t fq = 0U;
             uint16_t el = 0U;
             uint16_t er = 0U;
@@ -727,9 +721,8 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
                  * closer in than by angle. */
                 const bool b_alone = p_out->b_left_seen &&
                                      p_out->b_right_seen;
-                /* the least a side that range cannot tell is taken to be */
-                /* Buddy 5, 2026-11-19: half the least object (S5_OBJ_MIN_MM),
-                 * was half of S5_EDGE_MIN_MM (22 mm) */
+                /* The least a side that range cannot tell is taken to
+                 * be: half the least object (S5_OBJ_MIN_MM). */
                 const float near = (float)S5_NARROW_HALF_MIN_MM;
 
                 /* a corner closer to the sonar's axis than S5_EDGE_MIN_MM
@@ -766,20 +759,16 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
                 p_out->y_left = p_view->y + side_l;
                 p_out->y_right = p_view->y - side_r;
 
-                /* Buddy 5, 2026-11-19: a narrow object (a 9 cm one), both
-                 * corners too near the sonar's axis to tell by range. Its
-                 * echoes spread out by the beam the same on both sides,
-                 * so the middle of where they start and stop is where the
-                 * object is, whatever the beam (only the servo's trim
-                 * counts, so S5_AUTO_TRIM). Half its width: the two sides
-                 * by range, even if short, kept within
-                 * S5_NARROW_HALF_MIN_MM .. S5_EDGE_MIN_MM. Not when one
-                 * side is told by range (a wider object off centre): a
-                 * servo error would move the middle and cut that object
-                 * short on the other side. Before, the unresolved side came from
-                 * the angle method (beam and servo both off on the car)
-                 * and a 9 cm object 2..4 cm off the line went round the
-                 * long way. */
+                /* A narrow object (a 9 cm one), both corners too near
+                 * the sonar's axis to tell by range. Its echoes spread
+                 * out by the beam the same on both sides, so the middle
+                 * of where they start and stop is where the object is,
+                 * whatever the beam (only the servo's trim counts, so
+                 * S5_AUTO_TRIM). Half its width: the two sides by range,
+                 * even if short, kept within S5_NARROW_HALF_MIN_MM ..
+                 * S5_EDGE_MIN_MM. Not when one side is told by range (a
+                 * wider object off centre): a servo error would move the
+                 * middle and cut that object short on the other side. */
                 if ((0 != S5_NARROW_ON) && b_alone &&
                     (raw_l < (float)S5_EDGE_MIN_MM) &&
                     (raw_r < (float)S5_EDGE_MIN_MM))
@@ -809,8 +798,8 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
                         p_out->y_right = yc - hw;
                     }
                 }
-                /* Buddy 5, 2026-11-19: S5_OBJ_MIN_MM .. S5_OBJ_MAX_MM
-                 * around the middle of the echoes */
+                /* S5_OBJ_MIN_MM .. S5_OBJ_MAX_MM around the middle of
+                 * the echoes */
                 if (b_alone)
                 {
                     const float mid =
@@ -903,10 +892,9 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
             (first_l < (int32_t)n) && (S5_MM_UNKNOWN == p_s[first_l].mm);
         p_out->b_right_hidden =
             (first_r >= 0) && (S5_MM_UNKNOWN == p_s[first_r].mm);
-        /* Buddy 5, 2026-11-16: a side that range could not tell
-         * (S5_EDGE_MIN_MM) may end on the far side of the sonar, where
-         * the angle method puts it: the object's own far corner is looked
-         * for from there */
+        /* A side that range could not tell (S5_EDGE_MIN_MM) may end on
+         * the far side of the sonar, where the angle method puts it: the
+         * object's own far corner is looked for from there. */
         y_own_l = (p_out->b_by_range && (p_out->ya_left < p_out->y_left) &&
                    ((p_out->y_left - p_view->y) < (float)S5_EDGE_MIN_MM))
                       ? p_out->ya_left
@@ -927,9 +915,7 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
         p_out->b_left_maybe = (1 == lev_l);
         p_out->b_right_maybe = (1 == lev_r);
 #else
-        /* Buddy 5, 2026-11-19: S5_SIDE_BLOCK 0, nothing beside the object
-         * blocks a side (on the track the echoes 30..37 cm away were not
-         * objects, and the car backed up and measured worse) */
+        /* S5_SIDE_BLOCK 0: nothing beside the object blocks a side */
         (void)lev_l;
         (void)lev_r;
 #endif
@@ -940,12 +926,12 @@ void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
     }
 }
 
-/* Buddy 5, 2026-11-19: S5_AUTO_TRIM. A sweep taken with the car standing
- * still and an object straight ahead: true and *p_corr (0.1 deg, to add to
- * the trim) if it can be trusted for that: found, both edges inside the
- * sweep, the face S5_AUTO_TRIM_NEAR_MM .. S5_AUTO_TRIM_FAR_MM away, the
- * object S5_OBJ_MIN_MM .. S5_OBJ_MAX_MM wide by angle, the correction
- * under S5_AUTO_TRIM_MAX_DDEG. */
+/* S5_AUTO_TRIM. A sweep taken with the car standing still and an object
+ * straight ahead: true and *p_corr (0.1 deg, to add to the trim) if it
+ * can be trusted for that: found, both edges inside the sweep, the face
+ * S5_AUTO_TRIM_NEAR_MM .. S5_AUTO_TRIM_FAR_MM away, the object
+ * S5_OBJ_MIN_MM .. S5_OBJ_MAX_MM wide by angle, the correction under
+ * S5_AUTO_TRIM_MAX_DDEG. */
 bool s5_scan_trim_from(const s5_profile_t *p_pr, int16_t *p_corr)
 {
     int32_t c;
@@ -972,8 +958,8 @@ bool s5_scan_trim_from(const s5_profile_t *p_pr, int16_t *p_corr)
     return true;
 }
 
-/* Buddy 5, 2026-11-19: S5_TWO_DIST. The angle a face of width w subtends,
- * its middle yc to the side, from d away. */
+/* S5_TWO_DIST. The angle a face of width w subtends, its middle yc to
+ * the side, from d away. */
 static float s5_two_span(float d, float yc, float w)
 {
     return s5_atanf((yc + (0.5f * w)) / d) - s5_atanf((yc - (0.5f * w)) / d);

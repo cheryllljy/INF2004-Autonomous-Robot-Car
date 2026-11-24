@@ -1,9 +1,10 @@
 /*
- * motion_cal.c - Buddy 2 calibration firmware, Step 3 (motor bring-up), v7.
+ * motion_cal.c - MotionControl calibration / motor bring-up firmware.
  *
  * Compiled to NOTHING unless MOTION_CALIBRATION_BUILD is 1.
  *
- * Order of the steps (GP20 starts each one; the prompt repeats every ~3 s):
+ * Steps, each enabled by a CAL_RUN_* switch (GP20 starts each one):
+ *   ISR. Compares the motion_hw.c interrupt counter with a polled count.
  *   0. Hand test (motors OFF): turn each wheel by hand 10 turns and see how
  *      many encoder ticks come out. Shows whether the encoder signal is clean.
  *   1. Dead-zone sweep, each motor, each input (A-driven, B-driven):
@@ -12,19 +13,15 @@
  *   2. Coast vs brake test, each motor: cuts power with both inputs LOW
  *      (coast) and then both HIGH (brake) and reports ticks and ms to stop.
  *
- * Encoders are POLLED in a tight loop (tens of kHz) during each measurement,
- * so fast edges are not missed (a 1 ms poll aliases on a high-resolution
- * encoder). Edges closer together than CAL_MIN_EDGE_US are ignored as chatter.
- * Both counts are printed: "ticks" (filtered) and "raw" (every transition).
- * The task runs at LOW priority, so the busy polling only uses spare CPU time.
- * This does NOT test the real EncoderISR path.
+ * Encoders are POLLED in a tight loop (tens of kHz) so fast edges are not
+ * missed; edges closer than CAL_MIN_EDGE_US are ignored as chatter. "ticks"
+ * is the filtered count, "raw" every transition. The task runs at LOW
+ * priority, so the busy polling only uses spare CPU time.
  *
  * PWM is set up with RP2040 registers, so no Pico SDK library is needed.
  *
  * SAFETY: lift the car so the wheels are free for the first runs. Pressing
  * GP20 while a routine is running aborts it and coasts the motor.
- *
- * NOT compiled against the real kernel/BSP.
  */
 #include <stdint.h>
 #include <stdbool.h>
@@ -38,27 +35,26 @@
 #include <tm/tmonitor.h>
 
 /* ---------- Tunables for the routines ---------- */
-/* duty step, permille                  */
+/* duty step, permille */
 #define CAL_STEP_PM (10U)
-/* give up above this duty              */
+/* give up above this duty */
 #define CAL_SWEEP_MAX_PM (600U)
-/* time at each duty step               */
+/* time at each duty step */
 #define CAL_HOLD_MS (800U)
-/* ticks in one step = "it is moving"   */
+/* ticks in one step = "it is moving" */
 #define CAL_MIN_TICKS (3U)
 /* run this far above start, then step down */
 #define CAL_KICK_PM (100U)
-/* dead-zone runs per motor and input   */
+/* dead-zone runs per motor and input */
 #define CAL_REPEATS (3U)
-/* coast/brake runs per motor           */
+/* coast/brake runs per motor */
 #define CAL_STOP_REPEATS (1U)
 /* after an accepted edge, ignore transitions for this long (chatter).
- * Keep it BELOW the shortest real edge spacing:
- * 2000 us capped the count at ~500 ticks/s. */
+ * Keep it BELOW the shortest real edge spacing. */
 #define CAL_MIN_EDGE_US (100U)
 /* 1 = ISR counter vs polled count (both motors) */
 #define CAL_RUN_ISRCHECK (1U)
-/* 1 = run this part, 0 = skip it       */
+/* 1 = run this part, 0 = skip it */
 #define CAL_RUN_HAND_TEST (0U)
 #define CAL_RUN_DEADZONE  (0U)
 #define CAL_RUN_STOPTEST  (0U)
@@ -69,23 +65,21 @@
 /* duty used before the coast/brake cut */
 #define CAL_TEST_RUN_PM (500U)
 #define CAL_SPINUP_MS   (1500U)
-/* no tick for this long = stopped      */
+/* no tick for this long = stopped */
 #define CAL_IDLE_MS         (300U)
 #define CAL_STOP_TIMEOUT_MS (5000U)
-/* 0 = skip the both-HIGH brake test.
- * Set 0 if the driver datasheet says
- * both inputs HIGH is not allowed.     */
+/* 0 = skip the both-HIGH brake test (use 0 if the driver datasheet says
+ * both inputs HIGH is not allowed) */
 #define CAL_TEST_BRAKE (1U)
-/* GP20, active low (Week 6 pin table)  */
+/* GP20, active low */
 #define CAL_PIN_BUTTON (20U)
-/* TODO: confirm the kernel's clk_sys   */
+/* TODO: confirm the kernel's clk_sys */
 #define CAL_SYS_CLK_HZ (125000000U)
 /* Task priority is chosen in motion_cal_init(): as low as the kernel allows. */
 #define CAL_TASK_STACK (4096U)
 
 /* ---------- RP2040 registers (see the RP2040 datasheet) ----------
- * CAL_ prefix on purpose: the kernel's sysdef.h already defines macros with the
- * plain names (as bare addresses), and redefining them caused warnings. */
+ * CAL_ prefix: the kernel's sysdef.h already defines the plain names. */
 #define CAL_REG32(addr) (*(volatile uint32_t *)(addr))
 
 #define CAL_RESETS_BASE       (0x4000C000U)
@@ -135,8 +129,7 @@ typedef enum
 } cal_motor_t;
 
 /* A: PWM on input A, B low.  B: PWM on input B, A low.
- * COAST: both low.  BRAKE: both high. Which of A / B is "forward" is one of
- * the things this firmware helps you find out: note the wheel direction. */
+ * COAST: both low.  BRAKE: both high. Note which of A / B is "forward". */
 typedef enum
 {
     CAL_MODE_A = 0,
@@ -150,7 +143,7 @@ static const uint32_t s_pin_b[2] = { CAL_PIN_L_B, CAL_PIN_R_B };
 
 /* filtered edge counts, [0] = left, [1] = right */
 static uint32_t s_ticks[2];
-/* every transition seen                         */
+/* every transition seen */
 static uint32_t s_raw[2];
 /* motion_hw_init() result, done in motion_cal_init() on core 0 */
 static bool s_hw_ok;
@@ -392,10 +385,10 @@ static void cal_abort(cal_motor_t motor)
     tm_printf((UB *)"  ABORTED (GP20 pressed), motor off\n");
 }
 
-/* ---------- Routine ISR: does the interrupt counter in motion_hw.c keep up? ----------
- * Both motors run at fixed duties for 1 s each. "polled" is this firmware's own
- * tight-loop count (known good); "ISR" is the counter MotionControl will use.
- * They must agree. The expected value is the floor model 5 * (duty - 50). */
+/* ---------- Routine ISR: does the motion_hw.c interrupt counter keep up? ----
+ * Both motors run at fixed duties for 1 s each. "polled" is this firmware's
+ * own count (known good); "ISR" is the counter MotionControl uses. They must
+ * agree. The expected value is the floor model 5 * (duty - 50). */
 
 static void cal_isr_check(void)
 {
@@ -624,7 +617,7 @@ static void cal_stop_test(cal_motor_t motor, cal_mode_t stop_mode,
 
     ticks_cut = s_ticks[motor];
     t_cut = CAL_TIMER_RAWL;
-    cal_motor_drive(motor, stop_mode, 0U); /* cut power */
+    cal_motor_drive(motor, stop_mode, 0U);
 
     /* record only, print afterwards */
     while (bin < CAL_BINS)
@@ -748,8 +741,8 @@ static ID s_cal_task_id;
 
 void motion_cal_init(void)
 {
-    /* Runs in subsystem2_init(), i.e. usermain on core 0: the encoder interrupt must be
-     * enabled from core 0 (each core has its own interrupt controller). */
+    /* Runs in usermain on core 0: the encoder interrupt must be enabled
+     * from core 0 (each core has its own interrupt controller). */
     s_hw_ok = motion_hw_init();
 
     /* The kernel refuses a priority above its configured maximum with E_PAR.

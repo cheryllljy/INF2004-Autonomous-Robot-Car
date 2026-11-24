@@ -1,7 +1,6 @@
 /*
  * gpio_dispatch.c - one IO_IRQ_BANK0 handler shared by all subsystems.
  * See gpio_dispatch.h. Uses the core 0 (PROC0) interrupt registers.
- * Owner: Buddy 3 (moved from subsystem2/, code written by Buddy 2).
  */
 #include <stdint.h>
 #include <stdbool.h>
@@ -15,9 +14,9 @@
 #define GD_IO_BANK0_BASE (0x40014000U)
 /* latched edge events (write 1 to clear) */
 #define GD_INTR(reg) GD_REG32(GD_IO_BANK0_BASE + 0x0F0U + (4U * (reg)))
-/* core 0 enable  */
+/* core 0 enable */
 #define GD_INTE(reg) GD_REG32(GD_IO_BANK0_BASE + 0x100U + (4U * (reg)))
-/* core 0 status  */
+/* core 0 status */
 #define GD_INTS(reg) GD_REG32(GD_IO_BANK0_BASE + 0x120U + (4U * (reg)))
 
 typedef struct
@@ -33,9 +32,9 @@ static volatile uint32_t s_calls;
 static int32_t s_def_status;
 static bool s_started;
 
-/* The one handler. Runs to completion, so two callbacks never overlap: if two
- * pins fire together, one run serves both; an edge that arrives during the run
- * re-pends the interrupt and the handler runs again. */
+/* The one handler. Runs to completion, so two callbacks never overlap: if
+ * two pins fire together one run serves both; an edge arriving during the
+ * run re-pends the interrupt and the handler runs again. */
 static void gd_handler(UINT intno)
 {
     uint32_t ints[4];

@@ -1,7 +1,7 @@
 /*
  *      s5_path.h
- *      Subsystem 5 -- the path round the object and how the car follows it
- *. Pure: no kernel, the host tests use the same code.
+ *      Subsystem 5 -- the path round the object and how the car follows
+ *      it. Pure: no kernel, the host tests use the same code.
  *
  *      Everything is in the line frame: x along the line (driving
  *      direction), y to its left, origin where the IR pair was when the
@@ -18,9 +18,7 @@
  *      S(t) = 10t^3 - 15t^4 + 6t^5, t = 0..1 along the ramp: the heading
  *      and the curvature are both 0 where a ramp starts and ends, so the
  *      wheels never get a step change, and the steepest heading and the
- *      tightest radius are known in advance (s5_path_ramp_len()). This is
- *      the smooth "go round, come back" shape of a potential field on a
- *      straight track, without its local minima.
+ *      tightest radius are known in advance (s5_path_ramp_len()).
  *
  *      Following it: the car's distance from the path and its heading error
  *      die out together over S5_TRACK_DIST_MM (critically damped), on top
@@ -64,8 +62,8 @@ typedef struct
  * S5_MAX_HEADING_DEG, no tighter than S5_MIN_RADIUS_MM. */
 float s5_path_ramp_len(float dy);
 
-/* the steepest ramp allowed (S5_STEEP_HEADING_DEG,
- * S5_STEEP_RADIUS_MM), for turning out where the gentle one has no room. */
+/* The steepest ramp allowed (S5_STEEP_HEADING_DEG, S5_STEEP_RADIUS_MM),
+ * for turning out where the gentle one has no room. */
 float s5_path_ramp_len_steep(float dy);
 /* the ramp back in (S5_IN_HEADING_DEG, S5_IN_RADIUS_MM) */
 float s5_path_ramp_len_in(float dy);

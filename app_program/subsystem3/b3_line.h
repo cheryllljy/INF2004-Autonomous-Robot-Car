@@ -52,7 +52,7 @@ typedef struct
 typedef struct
 {
     b3_line_state_t state;
-    /* -1 = line under IR_L (steer left); +1 = under IR_R (steer right); 0 = straight. */
+    /* -1 = line under IR_L (steer left), +1 = under IR_R, 0 = straight */
     int8_t error;
     int16_t left_mm_s;
     int16_t right_mm_s;
@@ -69,10 +69,9 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
                               bool right_black, uint32_t now_us,
                               int16_t base_mm_s);
 
-/* the VehicleController drives the wheels itself (a
- * junction turn, an obstacle bypass, a barcode back-up). The sensors are
- * still read, but the steering starts again from straight, so what it
- * learnt while someone else drove does not bend the car at the handover. */
+/* The VehicleController drives the wheels itself (junction turn, bypass,
+ * barcode back-up). Sensors are still read, but steering restarts from
+ * straight so nothing learnt meanwhile bends the car at the handover. */
 void b3_line_hold(b3_line_t *p_line);
 
 #endif

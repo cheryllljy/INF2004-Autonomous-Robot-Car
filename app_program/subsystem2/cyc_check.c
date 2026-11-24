@@ -1,19 +1,9 @@
 /*
  * cyc_check.c - bench check of the 20 ms cyclic handler -> task wake-up path.
  *
- * Shows whether a cyclic handler really fires every 20 ms and how quickly the
- * woken task starts running (NFR5: 20 ms with jitter within +/-2 ms). This is
- * the same trigger pattern MotionControl will use.
- *
- * Put cyc_check.c and cyc_check.h in app_program/subsystem2/ (every .c file
- * there is compiled automatically). In subsystem2.c add #include "cyc_check.h"
- * (the header, NOT the .c file), then call cyc_check_init() from
- * subsystem2_init() and cyc_check_start() from subsystem2_start().
- * Remove both calls when done.
- *
- * NOT compiled against the real kernel: check the micro T-Kernel names and the
- * T_CTSK / T_CCYC fields against tkernel.h and the template's example
- * subsystems before relying on this.
+ * Measures the handler period and the wake-up latency of the woken task
+ * (NFR5: 20 ms with jitter within +/-2 ms). Enable it by calling
+ * cyc_check_init() / cyc_check_start() from subsystem2.c.
  */
 #include <stdint.h>
 #include <stdbool.h>
@@ -22,7 +12,7 @@
 #include "cyc_check.h"
 
 #define CYC_PERIOD_MS     (20U)
-#define CYC_REPORT_CYCLES (250U) /* print about every 5 s              */
+#define CYC_REPORT_CYCLES (250U) /* print about every 5 s */
 /* same as MotionControl (1 = highest) */
 #define CYC_TASK_PRIORITY (1)
 #define CYC_TASK_STACK    (2048U)

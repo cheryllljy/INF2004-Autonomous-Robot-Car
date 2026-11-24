@@ -30,21 +30,17 @@ void b1_cr1_test(void)
 
     tm_printf((UB *)"\n[BUDDY1] CR1 minimum-bit representation tests\n");
 
-    /* B1-C01: binary payload occupies 3 bytes. */
     TEST_CHECK("B1-C01", sizeof(payload) == 3u, "Telemetry payload is 3 bytes");
 
-    /* B1-C02: valid input packs successfully. */
     result = b1_telemetry_pack(&original, payload);
 
     TEST_CHECK("B1-C02", result == 0, "Telemetry packing succeeds");
 
-    /* B1-C03: exact binary layout. */
     TEST_CHECK("B1-C03",
                payload[0] == 0x1Du && payload[1] == 0x82u &&
                    payload[2] == 0x0Cu,
                "Telemetry bit layout is correct");
 
-    /* B1-C04: unpacking restores the values. */
     result = b1_telemetry_unpack(payload, &decoded);
 
     TEST_CHECK("B1-C04",
@@ -56,36 +52,30 @@ void b1_cr1_test(void)
                    decoded.metric_0_100 == original.metric_0_100,
                "Telemetry round-trip preserves values");
 
-    /* B1-C05: reject invalid controller state. */
     original.controller_state = 8;
 
     TEST_CHECK("B1-C05", b1_telemetry_pack(&original, payload) != 0,
                "Invalid controller state rejected");
 
-    /* B1-C06: reject invalid measurement. */
     original.controller_state = 5;
     original.metric_0_100 = 101;
 
     TEST_CHECK("B1-C06", b1_telemetry_pack(&original, payload) != 0,
                "Out-of-range measurement rejected");
 
-    /* B1-C07: encode a compact command. */
     result = b1_command_pack(3, &command_byte);
 
     TEST_CHECK("B1-C07", result == 0 && 3 == command_byte,
                "Command encoded using 3 bits");
 
-    /* B1-C08: decode the command. */
     result = b1_command_unpack(command_byte, &decoded_command);
 
     TEST_CHECK("B1-C08", result == 0 && 3 == decoded_command,
                "Command decoded correctly");
 
-    /* B1-C09: reject invalid command ID. */
     TEST_CHECK("B1-C09", b1_command_pack(8, &command_byte) != 0,
                "Invalid command rejected");
 
-    /* B1-C10: reject invalid reserved bits. */
     TEST_CHECK("B1-C10", b1_command_unpack(0x80u, &decoded_command) != 0,
                "Reserved command bits rejected");
 

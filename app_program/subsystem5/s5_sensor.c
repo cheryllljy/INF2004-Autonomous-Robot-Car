@@ -671,7 +671,7 @@ void s5_sensor_poll(void)
     }
 }
 
-/* Buddy 5, 2026-11-19: S5_AUTO_TRIM (subsystem5.c) */
+/* S5_AUTO_TRIM (subsystem5.c) */
 static volatile bool g_b_trimming = false;
 
 static volatile bool g_b_trim_abort = false;

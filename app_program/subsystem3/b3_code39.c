@@ -1,8 +1,7 @@
-/* Original decoder. Standard Code 39 symbol encodings; see docs/SOURCES.md. */
+/* Code 39 decoder. Standard symbol encodings; see docs/SOURCES.md. */
 #include "b3_code39.h"
 #include <stddef.h>
 
-/* const data is linked into the Pico firmware image, normally flash .rodata. */
 static const char g_symbols[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%*";
 static const uint16_t g_patterns[] = {
     0x034U, 0x121U, 0x061U, 0x160U, 0x031U, 0x130U, 0x070U, 0x025U, 0x124U,
@@ -34,12 +33,11 @@ bool b3_code39_pattern(char symbol, uint16_t *p_pattern)
 }
 
 /*
- * Threshold skew: if the sensor threshold sits nearer white or black, every
- * bar reads longer or shorter by the same amount and every space the
- * opposite way (seen on the car 2026-10-30: narrow bars 15 ms, narrow spaces
- * 40 ms). Every Code 39 character has at least one narrow bar and one narrow
- * space, so half the difference between the shortest space and the shortest
- * bar estimates that shift. Elements 0, 2, 4, 6, 8 are bars.
+ * Threshold skew: a threshold nearer white or black makes every bar read
+ * longer or shorter by the same amount and every space the opposite way.
+ * Every Code 39 character has at least one narrow bar and one narrow
+ * space, so half the difference between the shortest space and the
+ * shortest bar estimates that shift. Elements 0, 2, 4, 6, 8 are bars.
  */
 static int64_t skew_of(const uint32_t widths[9])
 {
@@ -115,19 +113,9 @@ static bool decode_symbol(const uint32_t raw[9], char *p_symbol,
         wide_sum += sorted[i];
     }
 
-    /* Require two clearly separated width groups.
-    *
-    * A Code 39 character contains:
-    *   6 narrow elements
-    *   3 wide elements
-    *
-    * Therefore:
-    *   average_wide / average_narrow
-    * = (wide_sum / 3) / (narrow_sum / 6)
-    * = (2 * wide_sum) / narrow_sum
-    *
-    * The supplied school barcode is approximately 3:1.
-    */
+    /* Require two clearly separated width groups. A character has 6
+     * narrow and 3 wide elements, so average_wide / average_narrow =
+     * (2 * wide_sum) / narrow_sum. */
     if (((uint64_t)sorted[6] * 100U < (uint64_t)sorted[5] * 150U) ||
         ((uint64_t)sorted[5] * 100U >
          (uint64_t)sorted[0] * B3_NARROW_SPREAD_MAX_PCT) ||
@@ -183,9 +171,9 @@ static bool decode_forward(const uint32_t widths[B3_BARCODE_RUNS],
         decode_symbol(&widths[0], &first, &n_first, &s_first) && ('*' == first);
     last_ok =
         decode_symbol(&widths[20], &last, &n_last, &s_last) && ('*' == last);
-    /* B3_NEED_BOTH_STARS 0: the car's speed wobble can
-     * spoil one '*'; the letter is still fully checked and the other '*'
-     * must be valid. A spoiled side borrows the letter's narrow/skew. */
+    /* B3_NEED_BOTH_STARS 0: speed wobble can spoil one '*'; the letter is
+     * still fully checked and the other '*' must be valid. A spoiled side
+     * borrows the letter's narrow/skew. */
     if (!(first_ok && last_ok) &&
         (B3_NEED_BOTH_STARS || !(first_ok || last_ok)))
     {

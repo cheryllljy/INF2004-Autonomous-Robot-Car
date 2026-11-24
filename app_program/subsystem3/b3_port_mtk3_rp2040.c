@@ -1,7 +1,7 @@
 /* Hardware/RTOS adapter for https://github.com/sirfonzie/mtk3smp-rp2040
  *
- * This file intentionally uses the micro T-Kernel BSP and register definitions
- * already present in that port. It does NOT require the Pico SDK runtime.
+ * Uses the micro T-Kernel BSP and register definitions of that port; it
+ * does NOT require the Pico SDK runtime.
  */
 #include "b3_port.h"
 #include "b3_ir.h"
@@ -20,9 +20,8 @@
 #define B3_GPIO_IRQ_PINS_PER_REG 8U
 
 /* The TIMER block (TIMERAWL, used for every barcode timestamp) counts one
- * tick per watchdog tick. The kernel never sets the watchdog tick up (the
- * Pico SDK runtime normally does), so after some resets TIMERAWL stands
- * still or runs at the wrong rate. b3_port_init() starts it at 1 MHz:
+ * tick per watchdog tick, which the kernel never sets up, so TIMERAWL can
+ * stand still or run at the wrong rate. b3_port_init() starts it at 1 MHz:
  * clk_ref is the 12 MHz XOSC (XOSC_MHz, divider 1 in cpu_clock.c). */
 #define B3_WATCHDOG_TICK        0x4005802CU
 #define B3_WATCHDOG_TICK_ENABLE (1U << 9)
@@ -83,8 +82,8 @@ ER b3_port_init(void)
     }
     out_w(B3_WATCHDOG_TICK, B3_WATCHDOG_TICK_ENABLE | B3_WATCHDOG_TICK_CYCLES);
 #if TK_SUPPORT_SMP
-    /* The RP2040 port owns peripheral IRQs on processor 1 (core 0). Start the
-     * subsystem there. The worker task is also pinned there below. */
+    /* The RP2040 port owns peripheral IRQs on processor 1 (core 0), so
+     * start the subsystem there; the worker task is pinned there too. */
     if (1 != tk_get_prc())
     {
         return E_CTX;
@@ -209,8 +208,8 @@ void b3_port_dispatch_barcode_irq(void)
     uint32_t events = b3_port_barcode_irq_pending();
     if (0U != events)
     {
-        /* Capture/clear the hardware flags first; the delegate stays short and
-         * records only timestamp/level/optional odometry into its queue. */
+        /* Capture/clear the hardware flags first; the delegate stays
+         * short and only queues timestamp/level/odometry. */
         b3_port_barcode_irq_ack(events);
         b3_ir_gpio_irq(B3_IR_B_GPIO, events);
     }

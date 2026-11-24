@@ -1,20 +1,18 @@
 /*
- * motion_control.c - Buddy 2 MotionControl task (v1).
+ * motion_control.c - MotionControl task.
  *
- * One task woken every MOTION_CONTROL_PERIOD_MS by a cyclic handler. Each cycle:
+ * One task woken every MOTION_CONTROL_PERIOD_MS by a cyclic handler. Each
+ * cycle:
  *   1. poll the estop flag and cut the motors at once (NFR21)
  *   2. read the encoders: odometry and wheel speeds
  *   3. stall check
- *   4. read commands from the motion_cmd message buffer (VehicleController only)
+ *   4. read commands from the motion_cmd message buffer
  *   5. state logic: moves, turns, stopping -> wheel speed goals
  *   6. ramp the goals, run the speed controller, write the PWM
  *   7. publish the status snapshot and raise events
  *
- * Implemented: MOVE, TURN, SET_SPEED, STOP, RESET, RESET_TRIP, E-stop, stall fault.
- * Not yet: LINE_FOLLOW (needs the LineSense interface) - it is answered with REJECTED.
- *
- * NOT compiled against the real kernel: check the micro T-Kernel calls and the
- * T_C??? structure fields against tkernel.h.
+ * Implemented: MOVE, TURN, SET_SPEED, STOP, RESET, RESET_TRIP, E-stop, stall
+ * fault. LINE_FOLLOW needs the LineSense interface and is answered REJECTED.
  */
 #include <stdint.h>
 #include <stdbool.h>
@@ -66,7 +64,7 @@ static uint32_t s_hist_idx;
 static uint32_t s_hist_t_ms[MC_HIST_LEN];
 static uint32_t s_t_last_ms;
 static uint32_t s_edge_clock_last_raw;
-static bool s_edge_clock_valid; /* compare is timings valid */
+static bool s_edge_clock_valid;
 /* ACTUAL time since the last cycle, from the hardware timer */
 static float s_dt_s = MC_DT_NOMINAL_S;
 static uint32_t s_dt_ms = MOTION_CONTROL_PERIOD_MS;
@@ -78,7 +76,7 @@ static int32_t s_duty[MC_SIDES]; /* last duty written, permille */
 static uint32_t s_stall_ms[MC_SIDES];
 static uint32_t s_runaway_ms[MC_SIDES];
 static uint32_t s_still;
-/* Buddy 5, 2026-11-20: wheel-speed mode ramp state, see mc_ramp_velocity() */
+/* wheel-speed mode ramp state, see mc_ramp_velocity() */
 static bool s_curve_on;
 static float s_curve_mean; /* ramped mean speed of the two wheels, mm/s */
 static float s_curve_ratio; /* (right - left) / (2 * mean): the curve shape */
@@ -110,7 +108,7 @@ static float mc_clampf(float x, float lo, float hi)
     return (x > hi) ? hi : x;
 }
 
-/* Newton iteration; avoids needing libm. Plenty accurate for the speed profile. */
+/* Newton iteration; avoids needing libm. */
 static float mc_sqrt(float x)
 {
     float r;
@@ -233,8 +231,8 @@ static void mc_enter_fault(motion_fault_t fault)
 
 /* ---------- Odometry and speed ---------- */
 
-/* Measure the real time since the last cycle. The kernel tick may not be exactly
- * 20 ms (clock set-up differences), so speed and the PID use this, not 20 ms. */
+/* Measure the real time since the last cycle: the kernel tick may not be
+ * exactly 20 ms, so speed and the PID use this, not the nominal period. */
 static void mc_update_time(void)
 {
     SYSTIM now_tim = { 0 };
@@ -242,10 +240,9 @@ static void mc_update_time(void)
     uint32_t dt_us;
     uint32_t raw_now;
 
-    /* The RP2040 raw timer is used by the encoder ISR, but its rate is not
-     * trusted for control timing: the power-cycle log showed it advancing
-     * 23 ms during a 1000 ms kernel delay. Use the kernel's monotonic clock,
-     * which also paces the cyclic handler, for speed and PID calculations. */
+    /* The RP2040 raw timer (used by the encoder ISR) has been seen running
+     * far off its nominal rate, so control timing uses the kernel's
+     * monotonic clock, which also paces the cyclic handler. */
     if (tk_get_otm(&now_tim) >= E_OK)
     {
         now = now_tim.lo;
@@ -257,9 +254,6 @@ static void mc_update_time(void)
 
     dt_us = (0U == s_t_last_ms) ? (MOTION_CONTROL_PERIOD_MS * 1000U)
                                 : ((now - s_t_last_ms) * 1000U);
-
-    // const uint32_t now = motion_hw_time_us();
-    // uint32_t dt_us = (s_t_last_us == 0U) ? (MOTION_CONTROL_PERIOD_MS * 1000U) : (now - s_t_last_us);
 
     s_t_last_ms = now;
     if (dt_us > ((MOTION_CONTROL_PERIOD_MS + 2U) * 1000U) ||
@@ -319,11 +313,7 @@ static void mc_update_odometry(void)
     s_hist_t_ms[newest] = s_t_last_ms;
     for (side = 0U; side < MC_SIDES; side++)
     {
-        /* Buddy 3 fix (2026-10-28): the history times are kernel ms since the
-         * switch away from TIMERAWL, but this was still used as us. An 80 ms
-         * window read as "80 us" (< 1000), so every wheel speed was 0: the PI
-         * integrator wound up and the car drove faster than asked (~170 mm/s
-         * for 100), and the stop-lag braking used speed 0 (300 mm move -> 362 mm). */
+        /* history times are kernel ms, so scale to us here */
         const uint32_t window_us = (s_t_last_ms - s_hist_t_ms[oldest]) * 1000U;
 
         s_hist[side][newest] = s_pos_ticks[side];
@@ -359,8 +349,8 @@ static void mc_check_stall(void)
             return;
         }
 
-        /* Feedback sanity: full allowed duty but the wheel is far slower than wanted.
-         * Means the encoder is not telling the truth (or the wheel is jammed). */
+        /* Feedback sanity: full allowed duty but the wheel far slower than
+         * wanted means a lying encoder (or a jammed wheel). */
         if ((mag >= (MOTION_DUTY_MAX_PM - 5)) &&
             (mc_absf(s_speed[side]) < (0.5f * mc_absf(s_set[side]))))
         {
@@ -409,9 +399,8 @@ static int32_t mc_speed_control(uint32_t side)
         /* hold the integrator while saturated */
         s_integ[side] = integ;
     }
-    /* Buddy 5, 2026-11-20: optional lowest duty for a wheel that is meant to
-     * move, in wheel-speed mode only (MOVE / TURN / stopping are untouched).
-     * Off by default, see MOTOR_MIN_RUN_PM in motion_config.h. */
+    /* optional lowest duty for a wheel that is meant to move, in wheel-speed
+     * mode only. Off by default, see MOTOR_MIN_RUN_PM. */
     if ((MOTOR_MIN_RUN_PM > 0) && s_vel_mode &&
         (MOTION_STATE_DRIVING == s_state) &&
         (mc_absf(s_goal[side]) >= MC_ZERO_SPEED) &&
@@ -446,8 +435,8 @@ static void mc_apply_outputs(void)
             want = -1;
         }
 
-        /* Single-channel encoders cannot sense direction: only flip the counting
-         * direction while the wheel is (nearly) stopped, never mid-reversal. */
+        /* Single-channel encoders cannot sense direction: only flip the
+         * counting direction while the wheel is (nearly) stopped. */
         if ((0 != want) && (want != s_dir[side]))
         {
             if (mc_absf(s_speed[side]) > (float)MOTION_STOPPED_SPEED_MMPS)
@@ -603,18 +592,13 @@ static void mc_plan_turn(void)
     s_goal[1] = (sgn * v) - trim;
 }
 
-/* Buddy 5, 2026-11-20: ramp for wheel-speed (SET_SPEED) mode.
- * The car's mean speed ramps at MOTION_ACCEL_MMPS2 as before, but the curve
- * shape, ratio = (right - left) / (2 * mean), changes at about
- * MOTION_STEER_ACCEL_MMPS2. So a steering change from Buddy 3 shows up within
- * a cycle or two, while a start from rest into a curve stays soft (the outer
- * wheel gets at most 2x the normal ramp).
- * Each wheel then takes whichever is closer to its goal: this value or the old
- * per-wheel ramp, so no wheel is ever slower than before and none ever
- * moves away from its goal.
- * Not used (returns false, the old per-wheel ramp runs) for MOVE / TURN,
- * stopping, a near-zero mean, or wheels asked to go opposite ways (the
- * vc_turn spins keep exactly the old behaviour). */
+/* Ramp for wheel-speed (SET_SPEED) mode. The mean speed ramps at
+ * MOTION_ACCEL_MMPS2, while the curve shape ratio = (right - left) /
+ * (2 * mean) changes at about MOTION_STEER_ACCEL_MMPS2, so steering changes
+ * show up within a cycle or two and a start from rest stays soft. Each wheel
+ * takes whichever of this value and the plain per-wheel ramp is closer to its
+ * goal. Returns false (plain per-wheel ramp) for MOVE / TURN, stopping, a
+ * near-zero mean, or wheels asked to go opposite ways. */
 #define MC_CURVE_MIN_MEAN (50.0f)
 
 static bool mc_ramp_velocity(float step)
@@ -809,13 +793,10 @@ static void mc_handle_cmd(const motion_cmd_msg_t *m)
             }
             break;
         case MOTION_CMD_SET_SPEED:
-            /* Buddy 5, 2026-11-20: also accepted while STOPPING. Before, a
-             * "go" right after a stop was refused, but motion_set_wheel_speeds()
-             * had already returned OK, so the car sat still until the VC's
-             * next refresh (up to 100 ms). STOPPING is only ever a normal stop
-             * or the end of a MOVE/TURN; faults and E-stop are separate
-             * latched states and still refuse it. The new speeds ramp on from
-             * where the wheels are, like a SET_SPEED while DRIVING. */
+            /* Accepted while STOPPING too, so a "go" right after a stop is
+             * not lost: STOPPING is only a normal stop or the end of a
+             * MOVE/TURN, and the new speeds ramp on from the current wheel
+             * speeds. Faults and E-stop are latched and still refuse it. */
             if ((MOTION_STATE_IDLE == s_state) ||
                 (MOTION_STATE_DRIVING == s_state) ||
                 (MOTION_STATE_STOPPING == s_state))
@@ -885,7 +866,6 @@ static void mc_publish(void)
     st.fault = s_fault;
     st.last_result = s_result;
     st.estop_sources = s_estop_src;
-    // st.timestamp_ms = motion_hw_time_us() / 1000U;
     st.timestamp_ms = s_t_last_ms;
     st.cycle_count = s_cycle_count;
     st.overrun_count = s_overrun_count;
@@ -913,7 +893,7 @@ static void mc_publish(void)
 
 void motion_get_status(motion_status_t *out)
 {
-    /* Buddy 5, 2026-11-20: bounded wait (was TMO_FEVR) */
+    /* bounded wait: never block the caller on a stuck holder */
     if ((s_status_mtx > 0) &&
         (tk_loc_mtx(s_status_mtx, (TMO)MOTION_STATUS_WAIT_MS) == E_OK))
     {
@@ -971,7 +951,6 @@ static void mc_task(INT stacd, void *exinf)
         for (i = 0U; i < MC_HIST_LEN; i++)
         {
             s_hist[side][i] = 0;
-            // s_hist_t_us[i] = motion_hw_time_us();
             SYSTIM now_tim = { 0 };
             if (tk_get_otm(&now_tim) >= E_OK)
             {
@@ -1069,7 +1048,7 @@ void motion_attach_vehicle_evt(int32_t flgid, uint32_t bit_shift)
     s_evt_shift = bit_shift;
 }
 
-/* ---------- Public command API (VehicleController only) ---------- */
+/* ---------- Public command API ---------- */
 
 static motion_err_t mc_post(motion_cmd_type_t type, int32_t p1, int32_t p2)
 {

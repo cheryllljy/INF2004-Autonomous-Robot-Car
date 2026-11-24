@@ -50,7 +50,7 @@ static bool imu_read_regs(uint8_t address, uint8_t reg, UB *p_data, SZ length,
         register_address |= 0x80U;
     }
 
-    /* Give the bus plenty of time, especially when motor noise is present. */
+    /* Retry: motor noise can corrupt a transfer. */
     for (int32_t retry = 0; retry < 3; retry++)
     {
         transfer.sadr = address;

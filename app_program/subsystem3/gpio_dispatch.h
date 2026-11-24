@@ -1,6 +1,5 @@
 /*
  * gpio_dispatch.h - the team's ONE handler for the RP2040 GPIO interrupt.
- * Owner: Buddy 3 (moved here from subsystem2/, code written by Buddy 2).
  *
  * All GPIO pins share one interrupt (IO_IRQ_BANK0, number 13). Only one
  * handler can own it, so every subsystem registers its pin here instead of
@@ -25,31 +24,30 @@
 #define GPIO_DISPATCH_EDGE_HIGH (0x8U)
 #define GPIO_DISPATCH_EDGE_BOTH (0xCU)
 
-/* RP2040 IO_IRQ_BANK0                          */
+/* RP2040 IO_IRQ_BANK0 */
 #define GPIO_DISPATCH_IRQ_NUMBER (13U)
-/* same level Buddy 3 uses                      */
+/* same level Buddy 3 uses */
 #define GPIO_DISPATCH_IRQ_LEVEL (1)
 #define GPIO_DISPATCH_MAX_PINS  (8U)
 
-/* gpio_dispatch_start() reports this in the tk_def_int status when it is called from
- * core 1. Every RP2040 core has its own interrupt controller, and the handler reads
- * the core 0 registers, so the interrupt must be enabled FROM CORE 0: call it from
+/* gpio_dispatch_start() reports this in the tk_def_int status when called
+ * from core 1. Each RP2040 core has its own interrupt controller and the
+ * handler reads core 0's registers, so enable it FROM CORE 0: call it from
  * subsystem init code (usermain runs on core 0), never from a task. */
 #define GPIO_DISPATCH_ERR_WRONG_CORE (-99)
 
 typedef void (*gpio_dispatch_cb_t)(uint32_t pin);
 
-/* events != 0: the dispatcher enables these edge events for the pin, and clears
- *              them before calling cb (use for the encoders).
- * events == 0: the owner enables and clears its own events (Buddy 3 does this);
+/* events != 0: the dispatcher enables these edge events for the pin and
+ *              clears them before calling cb (use for the encoders).
+ * events == 0: the owner enables and clears its own events (Buddy 3);
  *              cb is called whenever the pin shows any event. */
 bool gpio_dispatch_register(uint32_t pin, uint32_t events,
                             gpio_dispatch_cb_t cb);
 
-/* Install the one handler. Safe to call more than once (Buddy 2 and Buddy 3 both
- * call it; the first call installs, later calls return true). Returns false if
- * tk_def_int() failed or it was called from core 1. Pins can be registered
- * before or after this call. */
+/* Install the one handler. Safe to call more than once (the first call
+ * installs, later calls return true). Returns false if tk_def_int() failed
+ * or it was called from core 1. Pins can be registered before or after. */
 bool gpio_dispatch_start(void);
 
 /* Diagnostics: tk_def_int() return value (0 = OK, -41 = already defined),

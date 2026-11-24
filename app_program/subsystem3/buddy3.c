@@ -28,9 +28,9 @@ static int32_t g_max_speed;
 
 static uint32_t g_sequence;
 
-/* junction rule by each line sensor's own run over the
- * tape (junction_update()). Distances are encoder distance driven, in um,
- * read from g_jodo_um, which counts all the time (wraps after 4 km). */
+/* One line sensor's run over the tape (junction_update()). Distances are
+ * encoder distance driven, in um, from g_jodo_um, which counts all the
+ * time (wraps after 4 km). */
 typedef struct
 {
     bool on;         /* black at this pass */
@@ -54,9 +54,8 @@ static uint16_t g_patch_miss_l_mm;
 static uint16_t g_patch_miss_r_mm;
 static uint8_t g_patch_miss_why;
 
-/* Junction notification: counts each new junction (rising edge of
- * junction_candidate) so the VehicleController cannot miss one between
- * snapshot reads. Added 2026-10-30. */
+/* Counts each new junction (rising edge of junction_candidate) so the
+ * VehicleController cannot miss one between snapshot reads. */
 static bool g_prev_junction;
 
 /* Barcode slowdown: set by any IR_B black, cleared after
@@ -76,10 +75,9 @@ static void bar_slow_black(uint32_t time_us)
 }
 static uint32_t g_junction_sequence;
 
-/* the last decoded letter is held here until the car
- * reaches a junction. At the junction it moves to g_junction_symbol and
- * the VehicleController maps it (Buddy 1's MQTT mapping) to the turn.
- * Both are written only by the sensor task. */
+/* The last decoded letter is held until the car reaches a junction, where
+ * it moves to g_junction_symbol and the VehicleController maps it to the
+ * turn. Both are written only by the sensor task. */
 static char g_held_symbol;
 static char g_junction_symbol;
 
@@ -103,9 +101,8 @@ static void note_fault_locked(b3_fault_t source, ER error)
     }
 }
 
-/* Junction speed: the mean of both wheels, or the faster
- * wheel when one reads 0 or less while the other moves (the right encoder
- * on GP3 has read 0 ticks on the car), so a dead encoder does not hide
+/* Junction speed: the mean of both wheels, or the faster wheel when one
+ * reads 0 or less while the other moves, so a dead encoder does not hide
  * every junction. */
 static int32_t junction_speed_mm_s(const b3_context_t *p_context)
 {
@@ -134,18 +131,12 @@ static uint16_t um_to_mm16(uint32_t um)
     return (uint16_t)(((um / 1000U) > 65535U) ? 65535U : (um / 1000U));
 }
 
-/* a junction is IR_L and IR_R each black for
- * B3_JUNCTION_MIN_PATCH_UM of driving, with both black together on at least
- * one pass. The old rule (both black together for that long) missed real
- * junctions: when the car meets the tape at an angle one sensor enters it
- * before the other, and the stretch with both black read 9, 11, 7 and 5 mm
- * on the car. Each sensor's own run over the tape does not shrink with the
- * angle. One sensor alone still never counts, and a square crossing counts
- * at the same point as before (when both have been black for the minimum).
- * Runs that do not overlap never count: following the line, one sensor can
- * leave it just before the other meets it (seen in the turn sim with the
- * IRs 10 mm off the centre). Returns true from the pass that counts the
- * junction until both sensors are white. */
+/* A junction is IR_L and IR_R each black for B3_JUNCTION_MIN_PATCH_UM of
+ * driving, with both black together on at least one pass. Each sensor's
+ * own run is used because the stretch with both black shrinks when the car
+ * meets the tape at an angle. Runs that do not overlap never count: one
+ * sensor can leave the line just before the other meets it. Returns true
+ * from the pass that counts the junction until both sensors are white. */
 static bool junction_update(const bool black[2], int32_t speed, bool driving,
                             bool scan_ok, uint32_t now)
 {
@@ -294,10 +285,7 @@ void buddy3_test_reset_max_gap(void)
 #endif
 
 
-/*
- * Update Buddy3 context from the vehicle controller /
- * bench program.
- */
+/* Update the Buddy 3 context from the vehicle controller. */
 void buddy3_set_context(const b3_context_t *p_context)
 {
     b3_irq_state_t saved;
@@ -311,9 +299,7 @@ void buddy3_set_context(const b3_context_t *p_context)
 }
 
 
-/*
- * Read the latest Buddy3 output snapshot.
- */
+/* Read the latest Buddy 3 output snapshot. */
 void buddy3_get_snapshot(b3_snapshot_t *p_snapshot)
 {
     b3_irq_state_t saved;
@@ -327,9 +313,7 @@ void buddy3_get_snapshot(b3_snapshot_t *p_snapshot)
 }
 
 
-/*
- * Retrieve the next navigation event.
- */
+/* Retrieve the next navigation event. */
 bool buddy3_pop_navigation(b3_nav_event_t *p_event)
 {
     bool available;
@@ -367,18 +351,11 @@ bool buddy3_pop_navigation(b3_nav_event_t *p_event)
 }
 
 
-/*
- * Convert a decoded barcode symbol into
- * a navigation command.
- */
+/* Convert a decoded barcode symbol into a navigation command. */
 b3_nav_command_t buddy3_map_symbol(char symbol)
 {
 #if B3_ENABLE_EXAMPLE_NAV_MAP
 
-    /*
-     * Replace ONLY this mapping when the lecturer
-     * confirms the actual course barcode meanings.
-     */
     switch (symbol)
     {
         case 'A':
@@ -407,20 +384,14 @@ b3_nav_command_t buddy3_map_symbol(char symbol)
 }
 
 
-/*
- * Return absolute magnitude of a bounded
- * signed sensor value.
- */
+/* Absolute magnitude of a bounded signed sensor value. */
 static int32_t magnitude(int32_t value)
 {
     return (value < 0) ? -value : value;
 }
 
 
-/*
- * Record whether robot motion is suitable
- * for timed barcode decoding.
- */
+/* Record whether the motion is suitable for timed barcode decoding. */
 static void record_motion(const b3_context_t *p_context, bool fresh)
 {
     int32_t speed;
@@ -460,9 +431,7 @@ static void record_motion(const b3_context_t *p_context, bool fresh)
 }
 
 
-/*
- * Publish a successfully decoded barcode.
- */
+/* Publish a successfully decoded barcode. */
 static void publish_barcode(b3_snapshot_t *p_output,
                             b3_barcode_result_t barcode,
                             const b3_context_t *p_context, bool fresh)
@@ -486,8 +455,8 @@ static void publish_barcode(b3_snapshot_t *p_output,
 
     event.barcode = barcode;
 
-    /* Hold the letter until the next junction. A newer
-     * barcode replaces an older one that never reached a junction. */
+    /* Hold the letter until the next junction; a newer barcode replaces
+     * one that never reached a junction. */
     g_held_symbol = barcode.symbol;
 
     event.command = buddy3_map_symbol(barcode.symbol);
@@ -528,9 +497,7 @@ static void publish_barcode(b3_snapshot_t *p_output,
 }
 
 
-/*
- * Run one complete Buddy3 service cycle.
- */
+/* Run one complete Buddy 3 service cycle. */
 static void service_once(void)
 {
     b3_snapshot_t output;
@@ -567,9 +534,6 @@ static void service_once(void)
     base_speed = B3_BASE_SPEED_MM_S;
 
 
-    /*
-     * Copy shared context / snapshot.
-     */
     b3_port_lock(&saved);
 
     context = g_context;
@@ -579,9 +543,7 @@ static void service_once(void)
     b3_port_unlock(saved);
 
 
-    /*
-     * The VehicleController asked to forget the held letter (STOP/RESET).
-     */
+    /* the VehicleController asked to forget the held letter (STOP/RESET) */
     if (g_clear_request != g_clear_seen)
     {
         g_clear_seen = g_clear_request;
@@ -590,9 +552,6 @@ static void service_once(void)
     }
 
 
-    /*
-     * Read current IR sensor state.
-     */
     sample = b3_ir_read();
 
 
@@ -602,10 +561,7 @@ static void service_once(void)
     service_gap = now - g_last_service_us;
 
 
-    /*
-     * Context is considered fresh if the controller
-     * updated it recently enough.
-     */
+    /* fresh = the controller updated the context recently enough */
     fresh = (now - context.time_us) <= B3_FEEDBACK_MAX_AGE_US;
 
 
@@ -628,9 +584,6 @@ static void service_once(void)
     g_last_service_us = now;
 
 
-    /*
-     * Reduce speed while reading a barcode.
-     */
     /*
      * Barcode slowdown: hold the slow speed while IR_B is black and until
      * it has read white for B3_SCAN_SLOW_WHITE_US.
@@ -656,8 +609,7 @@ static void service_once(void)
         base_speed = B3_SCAN_SPEED_MM_S;
     }
 
-    /* the VehicleController sets the speed itself (fast,
-     * then slow for the barcode after backing up); no own slowdown then. */
+    /* the VehicleController sets the speed itself; no own slowdown then */
     if (context.base_speed_mm_s > 0)
     {
         g_bar_slow = false;
@@ -672,9 +624,6 @@ static void service_once(void)
     }
 
 
-    /*
-     * Process line-following sensors.
-     */
     output.line = b3_line_step(&g_line, sample.left_black, sample.right_black,
                                now, base_speed);
     output.line_seen_us = g_line.last_seen_us;
@@ -687,22 +636,12 @@ static void service_once(void)
     }
 
 
-    /*
-     * Barcode processing is allowed only when:
-     *
-     * - context is fresh
-     * - scanning has been requested
-     * - stop has not been requested
-     * - terrain is stable
-     */
+    /* scanning needs a fresh context, a scan request, no stop and stable
+     * terrain */
     scan_enabled = fresh && context.scan_enabled && !context.stop_requested &&
                    !context.terrain_unstable;
 
 
-    /*
-     * Reset motion statistics whenever
-     * no barcode is active.
-     */
     if (!b3_barcode_active(&g_scan))
     {
         g_min_speed = INT32_MAX;
@@ -731,23 +670,17 @@ static void service_once(void)
     record_motion(&context, fresh && (service_gap <= B3_OUTPUT_MAX_AGE_US));
 
 
-    /*
-     * If scanning is disabled, discard queued
-     * barcode data and reset the decoder.
-     */
     if (!scan_enabled)
     {
-        /* scanning is off during turns, obstacle bypasses
-         * and stops, and the decoder is reset on every pass. If IR_B had
-         * no edge and is still white, the white before the next barcode
-         * began at the last edge, not now, so that edge is kept. Resetting
-         * it here rejected a barcode soon after line following resumed
-         * (reason 7, white before barcode too short). */
+        /* Scanning is off during turns, bypasses and stops, and the
+         * decoder is reset on every pass. If IR_B had no edge and is still
+         * white, the white before the next barcode began at the last edge,
+         * not now, so keep that edge. */
         b3_edge_t from = sample.barcode;
 
-        /* ... unless the car went backwards since (the
-         * VC backs up to read a barcode slowly): the white then starts
-         * where the reverse ended, as the decoder measures net distance. */
+        /* ... unless the car went backwards since (the VC backs up to read
+         * a barcode slowly): the white then starts where the reverse
+         * ended, as the decoder measures net distance. */
         if (!b3_ir_flush() && !sample.barcode.black && !g_scan.last.black &&
             ((sample.barcode.time_us - g_scan.last.time_us) < 0x80000000U) &&
             !(sample.barcode.position_valid && g_scan.last.position_valid &&
@@ -789,12 +722,8 @@ static void service_once(void)
     }
     else
     {
-        /*
-         * Consume queued barcode edges.
-         *
-         * Processing is bounded so a noisy IR sensor
-         * cannot starve the rest of the task.
-         */
+        /* Consume queued barcode edges, bounded so a noisy IR sensor
+         * cannot starve the rest of the task. */
         for (i = 0U; i < B3_EDGE_QUEUE_SIZE; ++i)
         {
             status = b3_ir_pop(&edge);
@@ -806,10 +735,7 @@ static void service_once(void)
             }
 
 
-            /*
-             * Lost edge timing means the partial
-             * barcode is no longer trustworthy.
-             */
+            /* lost edge timing: the partial barcode is not trustworthy */
             if (B3_IR_DISCONTINUITY == status)
             {
                 sample = b3_ir_read();
@@ -823,10 +749,6 @@ static void service_once(void)
             }
 
 
-            /*
-             * Feed the valid edge into the
-             * barcode state machine.
-             */
             edge.speed_mm_s = scan_speed;
 
             /* A thin bar can start and end between two task passes, so
@@ -845,11 +767,7 @@ static void service_once(void)
         }
 
 
-        /*
-         * Once the edge queue is empty,
-         * poll for completion of the trailing
-         * white quiet zone.
-         */
+        /* with the queue empty, poll for the end of the trailing white */
         if ((B3_IR_EMPTY == status) && b3_ir_read_when_idle(&sample))
         {
             sample.barcode.speed_mm_s = scan_speed;
@@ -893,9 +811,8 @@ static void service_once(void)
 
     if (output.junction_candidate && !g_prev_junction)
     {
-        /* Hand the held letter to this junction. The
-         * sequence goes up last, so a reader that sees the new count also
-         * sees its letter (both are in the same published snapshot). */
+        /* Hand the held letter to this junction. The sequence goes up
+         * last, so a reader that sees the new count also sees its letter. */
         g_junction_symbol = g_held_symbol;
 
         g_held_symbol = '\0';
@@ -985,9 +902,6 @@ static void service_once(void)
     output.max_service_gap_us = g_max_service_gap_us;
 
 
-    /*
-     * Publish updated snapshot.
-     */
     b3_port_lock(&saved);
 
     g_snapshot = output;
@@ -996,9 +910,7 @@ static void service_once(void)
 }
 
 
-/*
- * Buddy3 worker task.
- */
+/* Buddy 3 worker task. */
 static void sensor_task(INT start_code, void *p_extended)
 {
     ER status;
@@ -1011,9 +923,7 @@ static void sensor_task(INT start_code, void *p_extended)
     {
         service_once();
 
-        /*
-         * Sleep until the cyclic handler wakes us (task context).
-         */
+        /* sleep until the cyclic handler wakes us (task context) */
         status = tk_slp_tsk(TMO_FEVR);
 
 
@@ -1050,9 +960,7 @@ static void sensor_task(INT start_code, void *p_extended)
 }
 
 
-/*
- * Cyclic handler: wake the worker every B3_SERVICE_DELAY_MS.
- */
+/* Cyclic handler: wake the worker every B3_SERVICE_DELAY_MS. */
 static void service_cyc_handler(void *p_extended)
 {
     (void)p_extended;
@@ -1061,9 +969,7 @@ static void service_cyc_handler(void *p_extended)
 }
 
 
-/*
- * Start Buddy3 subsystem.
- */
+/* Start the Buddy 3 subsystem. */
 ER buddy3_start(b3_position_reader_t position_reader)
 {
     T_CTSK create = (T_CTSK){ 0 };
@@ -1081,9 +987,6 @@ ER buddy3_start(b3_position_reader_t position_reader)
     }
 
 
-    /*
-     * Initialise IR subsystem.
-     */
     status = b3_ir_init(position_reader);
 
 
@@ -1093,9 +996,7 @@ ER buddy3_start(b3_position_reader_t position_reader)
     }
 
 
-    /*
-     * Capture initial sensor state.
-     */
+    /* initial sensor state */
     sample = b3_ir_read();
 
 
@@ -1105,9 +1006,6 @@ ER buddy3_start(b3_position_reader_t position_reader)
     b3_barcode_init(&g_scan, sample.barcode);
 
 
-    /*
-     * Reset output/context structures.
-     */
     g_snapshot = (b3_snapshot_t){ 0 };
 
     g_context = (b3_context_t){ 0 };
@@ -1169,9 +1067,6 @@ ER buddy3_start(b3_position_reader_t position_reader)
     g_max_service_gap_us = 0U;
 
 
-    /*
-     * Create Buddy3 worker task.
-     */
 #if TK_SUPPORT_SMP
 
     create.tskatr = TA_HLNG | TA_RNG3 | TA_ASSPRC;
@@ -1206,15 +1101,9 @@ ER buddy3_start(b3_position_reader_t position_reader)
     g_started = true;
 
 
-    /*
-     * Enable barcode GPIO interrupt.
-     */
     b3_ir_enable_barcode_irq(true);
 
 
-    /*
-     * Start Buddy3 worker task.
-     */
     status = tk_sta_tsk(task_id, 0);
 
 
@@ -1259,9 +1148,7 @@ ER buddy3_start(b3_position_reader_t position_reader)
     return status;
 }
 
-/*
- * Report a serious fault from another Buddy 3 task.
- */
+/* Report a serious fault from another Buddy 3 task. */
 void buddy3_report_fault(b3_fault_t source, ER error)
 {
     b3_irq_state_t saved;
@@ -1280,9 +1167,7 @@ void buddy3_report_fault(b3_fault_t source, ER error)
 }
 
 
-/*
- * Forget the held barcode letter.
- */
+/* Forget the held barcode letter. */
 void buddy3_clear_held_symbol(void)
 {
     g_clear_request = g_clear_request + 1U;
