@@ -22,8 +22,7 @@ INT buddy1_wifi_test(void)
 
     tm_printf((UB *)"\n[BUDDY1] Starting Wi-Fi integration test...\n");
 
-    /* Wait up to approximately 30 seconds. */
-
+    /* Wait up to about 90 seconds. */
     for (attempt = 0; attempt < 90; attempt++)
     {
         cyw43_utk_get_status(&status);

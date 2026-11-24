@@ -90,7 +90,7 @@ static int32_t clamp32(int32_t v, int32_t limit)
 }
 
 /* line speed for a curve: from the base speed down to
- * B3_CURVE_SPEED_MM_S as |curv| reaches B3_CURVE_FULL_CURV. */
+ * B3_CURVE_SPEED_MM_S as |curv| reaches B3_CURVE_FULL_CURV */
 static int32_t curve_speed(int32_t base, int32_t curv)
 {
     int32_t mag = abs32(curv);
@@ -106,8 +106,8 @@ static int32_t curve_speed(int32_t base, int32_t curv)
     return base - (((base - B3_CURVE_SPEED_MM_S) * mag) / B3_CURVE_FULL_CURV);
 }
 
-/* Tightest curve at speed v that keeps the inner wheel at
- * B3_MIN_WHEEL_MM_S: (v - min) / v = curv x track / 2e6. */
+/* tightest curve at speed v that keeps the inner wheel at
+ * B3_MIN_WHEEL_MM_S: (v - min) / v = curv x track / 2e6 */
 static int32_t curve_limit(int32_t v)
 {
     if (v <= B3_MIN_WHEEL_MM_S)
@@ -182,11 +182,10 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
     }
     p_line->started = true;
     p_line->last_us = now_us;
-    /* both black while a curve is learnt is the bend's
-     * tape seen at a steep angle (or a crossing in the bend), not a cue to
-     * drive straight: keep the curve (B3_STEER_BB_* in b3_config.h). Not
-     * when the side against the curve was black: that is the curve ending,
-     * handled below as before. */
+    /* both black while a curve is learnt is the bend's tape seen at a
+     * steep angle, not a cue to drive straight: keep the curve
+     * (B3_STEER_BB_* in b3_config.h). Not when the side against the curve
+     * was black: that is the curve ending, handled below. */
     bend_bb = (B3_LINE_CROSSING == result.state) &&
               (abs32(p_line->memory) >= B3_STEER_BB_CURV) &&
               (((int64_t)p_line->side * p_line->memory) <= 0);
@@ -196,9 +195,8 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
             (((int64_t)p_line->side * p_line->memory) > 0) &&
             (p_line->black_um >= (B3_STEER_CURVE_END_MM * 1000U)))
         {
-            /* the side against the learnt curve stayed
-             * black, so the curve has ended: keep the steering it left
-             * instead of turning back to the old curve */
+            /* the side against the learnt curve stayed black, so the
+             * curve has ended: keep the steering it left */
             p_line->memory = p_line->steer;
         }
         p_line->side = result.error;
@@ -235,12 +233,9 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
      * error -1 = IR_L black = steer left = + curvature. */
     if (bend_bb)
     {
-        /* the learnt curve stays (no fading, no
-         * learning). The black side's run is broken, so a side black again
-         * afterwards learns, and pivots (B3_STEER_ESCAPE_MM), from 0 as
-         * before. Longer than any crossing, the tape runs across the pair
-         * because the line turns tighter than the car: nudge to the inside
-         * of the curve as a black inner side would. */
+        /* the learnt curve stays (no fading, no learning). Longer than
+         * any crossing means the line turns tighter than the car, so
+         * nudge to the inside of the curve as a black inner side would. */
         target = p_line->memory;
         p_line->black_um = 0U;
         if (p_line->bb_um >= (B3_STEER_BB_CROSS_MM * 1000U))
@@ -259,8 +254,8 @@ b3_line_result_t b3_line_step(b3_line_t *p_line, bool left_black,
         p_line->black_um += (uint32_t)ds_um;
         if (((int64_t)result.error * p_line->memory) > 0)
         {
-            /* the black side is against the learnt
-             * curve: forget it at least as fast as with both sides white */
+            /* the black side is against the learnt curve: forget it at
+             * least as fast as with both sides white */
             p_line->memory -= (int32_t)(((int64_t)p_line->memory * ds_um) /
                                         ((int64_t)B3_STEER_FORGET_MM * 1000));
         }

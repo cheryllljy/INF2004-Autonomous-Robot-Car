@@ -10,8 +10,6 @@
  * - Validate four barcode-to-movement pairs
  * - Provide mappings to VehicleController
  * - Support safe cross-task communication
- *
- * Barcode assignments are NOT hardcoded.
  */
 
 #ifndef BUDDY1_MAPPING_H

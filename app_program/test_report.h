@@ -11,7 +11,7 @@
  *
  *      Usage, inside a test function:
  *          TEST_INIT();
- *          TEST_CHECK("S1-U01", value >= 0 && value <= 4095, "ADC reads in range");
+ *          TEST_CHECK("S1-U01", v >= 0 && v <= 4095, "ADC reads in range");
  *          TEST_SUMMARY("subsystem1");
  *
  *      Test IDs must match the ones in testing/<subsystem>/TEST_LOG.md.

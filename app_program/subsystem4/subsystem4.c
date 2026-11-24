@@ -1,8 +1,6 @@
 /*
  *      subsystem4.c
  *      Subsystem 4 -- IMU and monitor: creates objects and starts its tasks.
- *
- *      APIs shown: tk_cre_flg, tk_cre_mbf, tk_cre_alm
  */
 
 #include "subsystem4.h"
@@ -28,10 +26,7 @@ ER subsystem4_init(void)
         return mtx_imu;
     }
 
-    /* Event flag: a 32-bit pattern of bits.  Tasks wait for a bit (or a
-           combination of bits) to be set. */
     cflg.flgatr = TA_TFIFO | TA_WMUL; /* allow several waiters */
-    /* all bits clear to begin with */
     cflg.iflgptn = 0;
     flg_events = tk_cre_flg(&cflg);
     if (flg_events < E_OK)
@@ -39,8 +34,7 @@ ER subsystem4_init(void)
         return flg_events;
     }
 
-    /* Message buffer: COPIES variable-length data into a kernel ring
-           buffer.  Here it carries short text lines from subsystem 3. */
+    /* Message buffer: short text lines from subsystem 3 (copied). */
     cmbf.mbfatr = TA_TFIFO;
     cmbf.bufsz = 4 * S4_SUMMARY_MAX; /* total buffer size, bytes */
     cmbf.maxmsz = S4_SUMMARY_MAX;    /* largest single message */
@@ -50,8 +44,7 @@ ER subsystem4_init(void)
         return mbf_summary;
     }
 
-    /* Alarm handler: called ONCE, a given time after tk_sta_alm().
-           The monitor task re-arms it each time round its loop. */
+    /* One-shot alarm; the monitor task re-arms it on every loop. */
     calm.almatr = TA_HLNG;
     calm.almhdr = (FP)monitor_alarm_handler;
     alm_monitor = tk_cre_alm(&calm);
@@ -100,8 +93,7 @@ ER subsystem4_start(void)
         return tid;
     }
 #if APP_TEST
-    /* template example, kept for its tests only.
-       No affinity: the scheduler may run it on either core. */
+    /* template example, kept for its tests only */
     tid = app_start_task(monitor_task, S4_PRI_MONITOR, 0, "monitor_task");
 #endif
     return (tid < E_OK) ? tid : E_OK;

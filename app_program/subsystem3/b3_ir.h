@@ -33,8 +33,8 @@ void b3_ir_enable_barcode_irq(bool enabled);
  * IO_BANK0 handler instead of calling this directly. */
 void b3_ir_gpio_irq(uint32_t gpio, uint32_t events);
 b3_ir_pop_status_t b3_ir_pop(b3_edge_t *p_edge);
-/* Clear the edge queue. returns true if it held any edge
- * or a lost-edge mark, so the caller knows IR_B changed meanwhile. */
+/* Clear the edge queue. Returns true if it held any edge or a lost-edge
+ * mark, so the caller knows IR_B changed meanwhile. */
 bool b3_ir_flush(void);
 b3_ir_sample_t b3_ir_read(void);
 /* Atomic queue-empty + GPIO snapshot for checking the trailing quiet zone. */
@@ -43,12 +43,11 @@ uint32_t b3_ir_fault_count(void);
 /* coalesced IR_B interrupts dropped as glitches */
 uint32_t b3_ir_glitch_count(void);
 
-
 #if defined(APP_TEST) && APP_TEST
 /* Test build only: raw log of every barcode interrupt, filled before any
  * filtering. Used by tests B3-H05/H06 to see which edges arrive. events is
- * B3_GPIO_EDGE_RISE/FALL (electrical direction). peak is always 0 since
- * the AO mode was removed (kept so the log format is unchanged). */
+ * B3_GPIO_EDGE_RISE/FALL (electrical direction). peak is always 0 (kept
+ * for the log format). */
 #define B3_EDGE_LOG_SIZE 128U
 void b3_ir_edge_log_reset(void);
 /* Copies up to max entries; returns how many entries were recorded in total

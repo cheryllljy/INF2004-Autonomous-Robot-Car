@@ -1,7 +1,7 @@
 /*
  *      vc_barcode.c
- *      VehicleController -- back up and read a barcode slowly
- *. See vc_barcode.h.
+ *      VehicleController -- back up and read a barcode slowly.
+ *      See vc_barcode.h.
  */
 
 #include "vc_barcode.h"
@@ -161,8 +161,8 @@ bool vc_bar_step(const motion_status_t *p_motion, const b3_snapshot_t *p_line,
         case VB_STOPPING:
             /* No hump check while stopping and backing up: the car has
              * just driven VC_BAR_WAIT_MM over this ground with no hump,
-             * and a short lift spike while reversing (9 mm for 0.3 s on
-             * the car) threw the read away. The slow pass still checks. */
+             * and a lift spike while reversing would throw the read away.
+             * The slow pass still checks. */
             if (MOTION_STATE_IDLE == p_motion->state)
             {
                 /* back past where it was seen, which was a few mm into the

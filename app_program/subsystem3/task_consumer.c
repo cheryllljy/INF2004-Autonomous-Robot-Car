@@ -30,16 +30,15 @@ void consumer_task(INT stacd, void *exinf)
         if (er < E_OK)
         {
             CHECK(er, "tk_rcv_mbx");
-            /* a failed receive is a serious fault:
-                           stop the car (VehicleController E-stop). */
+            /* a failed receive is a serious fault: stop the car */
             buddy3_report_fault(B3_FAULT_MBX_RECEIVE, er);
             /* do not spin on a broken mailbox */
             tk_dly_tsk(100);
             continue;
         }
 
-        /* 2. Update the shared statistics.  Subsystem 4 reads them
-                      too, so lock the mutex around every access (IF-04). */
+        /* 2. Update the shared statistics. Subsystem 4 reads them too, so
+                      lock the mutex around every access (IF-04). */
         tk_loc_mtx(mtx_stats, TMO_FEVR);
         if (0 == app_stats.received || msg->value < app_stats.min)
         {
@@ -58,8 +57,7 @@ void consumer_task(INT stacd, void *exinf)
                       set FLG_BATCH to wake it up (IF-03). */
         if (count % S3_BATCH_SIZE == 0)
         {
-            /* tm_sprintf: like sprintf, returns the length.
-                           The longest line here is ~35 bytes < S4_SUMMARY_MAX. */
+            /* the longest line here is ~35 bytes < S4_SUMMARY_MAX */
             len = tm_sprintf(text, (const UB *)"n=%u last=%d from core %d",
                              count, msg->value, msg->prc - 1);
 
@@ -73,8 +71,8 @@ void consumer_task(INT stacd, void *exinf)
             }
             else if (E_TMOUT == er)
             {
-                /* full. Dropping one line is
-                                   fine; S3_MBF_FULL_LIMIT in a row is a fault. */
+                /* dropping one line is fine; S3_MBF_FULL_LIMIT in a
+                                   row is a fault */
                 if (++full_in_a_row >= S3_MBF_FULL_LIMIT)
                 {
                     buddy3_report_fault(B3_FAULT_MBF_SEND, er);

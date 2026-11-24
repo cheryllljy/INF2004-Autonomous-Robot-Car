@@ -22,30 +22,18 @@ static uint32_t at_base_speed(uint32_t us, uint16_t speed_mm_s)
 }
 
 
-/*
- * Initialise barcode decoder.
- */
+/* Initialise the barcode decoder. */
 void b3_barcode_init(b3_barcode_t *p_scan, b3_edge_t initial)
 {
-    /*
-     * Reset all barcode state.
-     */
     *p_scan = (b3_barcode_t){ 0 };
 
 
-    /*
-     * Remember initial sensor state.
-     *
-     * Normally this should be WHITE before
-     * beginning a barcode scan.
-     */
+    /* initial sensor state, normally WHITE before a scan */
     p_scan->last = initial;
 }
 
 
-/*
- * Abort/reset current barcode attempt.
- */
+/* Abort/reset the current barcode attempt. */
 void b3_barcode_abort(b3_barcode_t *p_scan, b3_edge_t initial)
 {
     p_scan->last = initial;
@@ -64,19 +52,14 @@ void b3_barcode_abort(b3_barcode_t *p_scan, b3_edge_t initial)
 }
 
 
-/*
- * Return true while a barcode is currently
- * being collected or waiting for trailing quiet.
- */
+/* True while a barcode is being collected or waiting for trailing quiet. */
 bool b3_barcode_active(const b3_barcode_t *p_scan)
 {
     return p_scan->collecting || p_scan->pending;
 }
 
 
-/*
- * Abort the scan, noting why for the VC's log when one was under way.
- */
+/* Abort the scan, noting why for the VC's log when one was under way. */
 void b3_barcode_drop(b3_barcode_t *p_scan, b3_edge_t initial,
                      b3_drop_reason_t reason, uint32_t info)
 {
@@ -96,9 +79,7 @@ void b3_barcode_drop(b3_barcode_t *p_scan, b3_edge_t initial,
 }
 
 
-/*
- * Reject the current barcode attempt.
- */
+/* Reject the current barcode attempt. */
 static void note_reject(b3_barcode_t *p_scan, b3_reject_reason_t reason,
                         uint32_t element_us)
 {
@@ -133,10 +114,7 @@ static void reject(b3_barcode_t *p_scan, b3_edge_t edge,
 }
 
 
-/*
- * Check whether the trailing white quiet zone
- * is long enough to finish the barcode.
- */
+/* Finish the barcode once the trailing white quiet zone is long enough. */
 static bool finish(b3_barcode_t *p_scan, b3_edge_t current,
                    b3_barcode_result_t *p_result)
 {
@@ -149,9 +127,7 @@ static bool finish(b3_barcode_t *p_scan, b3_edge_t current,
     }
 
 
-    /*
-     * Encoder-based quiet-zone measurement.
-     */
+    /* encoder-based quiet-zone measurement */
     if (p_scan->used_encoder)
     {
         if (!current.position_valid)
@@ -170,9 +146,7 @@ static bool finish(b3_barcode_t *p_scan, b3_edge_t current,
     }
 
 
-    /*
-     * Time-based quiet-zone measurement.
-     */
+    /* time-based quiet-zone measurement */
     else
     {
         quiet = at_base_speed(current.time_us - p_scan->last.time_us,
@@ -180,18 +154,12 @@ static bool finish(b3_barcode_t *p_scan, b3_edge_t current,
     }
 
 
-    /*
-     * Not enough trailing white yet.
-     */
     if (quiet < p_scan->required_trailing)
     {
         return false;
     }
 
 
-    /*
-     * Complete result.
-     */
     p_result->symbol = p_scan->decoded.symbol;
 
     p_result->reversed = p_scan->decoded.reversed;
@@ -211,10 +179,6 @@ static bool finish(b3_barcode_t *p_scan, b3_edge_t current,
 
 
 /*
- * Once all B3_BARCODE_RUNS widths have been
- * collected, try to decode Code 39.
- */
-/*
  * Decode one set of widths into p_scan->decoded, retrying with the outer
  * bars trimmed (B3_TRIM_OUTER_BARS).
  */
@@ -227,12 +191,11 @@ static bool decode_widths(b3_barcode_t *p_scan, const uint32_t *p_src)
 #if B3_TRIM_OUTER_BARS
     {
         /*
-         * Retry: on the car the first and last bars read
-         * 3-4x too long while every other element was fine (B278 ... B237
-         * with narrow bars ~60 ms). In the start/stop '*' the first, ninth,
-         * 21st and last elements are narrow bars whichever way the car
-         * drives, so the outer bar is trimmed to its partner and decoded
-         * again. The middle letter is still checked in full.
+         * The outer bars can read 3-4x too long while every other element
+         * is fine. The first, ninth, 21st and last elements of the '*'
+         * frames are narrow bars whichever way the car drives, so trim the
+         * outer bar to its partner and decode again. The middle letter is
+         * still checked in full.
          */
         uint32_t trimmed[B3_BARCODE_RUNS];
         size_t i;
@@ -275,10 +238,7 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
     enough_ticks = p_scan->positions_valid;
 
 
-    /*
-     * Encoder widths are only usable if every
-     * element has enough encoder resolution.
-     */
+    /* encoder widths need enough encoder resolution in every element */
     for (i = 0U; i < B3_BARCODE_RUNS; ++i)
     {
         if (p_scan->tick_widths[i] < B3_MIN_NARROW_ENCODER_TICKS)
@@ -291,23 +251,12 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
     p_scan->used_encoder = enough_ticks;
 
 
-    /*
-     * Decode either:
-     *
-     * encoder widths
-     *
-     * OR
-     *
-     * time widths
-     */
     if (!decode_widths(p_scan, enough_ticks ? p_scan->tick_widths
                                             : p_scan->time_widths))
     {
-        /* the car rejected scans (reason 6) whose time
-         * widths decode cleanly ('Z' read back to front): the encoder
-         * distances were off (a wheel missing ticks or slipping at 30
-         * mm/s). Code 39 is ratio-based, so the time widths are tried
-         * before giving up; the quiet zones are then measured in time. */
+        /* Encoder distances can be off (a wheel missing ticks or
+         * slipping). Code 39 is ratio-based, so try the time widths before
+         * giving up; the quiet zones are then measured in time. */
         if (!enough_ticks || !decode_widths(p_scan, p_scan->time_widths))
         {
             return B3_REJECT_DECODE;
@@ -318,16 +267,14 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
     }
 
 
-    /*
-     * Check leading quiet zone.
-     */
+    /* leading quiet zone */
     leading = enough_ticks ? p_scan->leading_ticks : p_scan->leading_us;
 
 
     if ((uint64_t)leading <
         (uint64_t)p_scan->decoded.first_narrow * B3_QUIET_NARROW_MULTIPLE)
     {
-        /* keep the numbers so the VC can print them. */
+        /* keep the numbers so the VC can print them */
         uint64_t need =
             (uint64_t)p_scan->decoded.first_narrow * B3_QUIET_NARROW_MULTIPLE;
 
@@ -339,22 +286,14 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
     }
 
 
-    /*
-     * Required trailing quiet zone is based
-     * on the decoded narrow element.
-     */
-    /* with both '*' read nothing can follow: Code 39 has
-     * no data after the stop '*', and a longer barcode would have put a
-     * letter, not '*', third. The barcode ended with its last bar, so no
-     * trailing white is needed (the car rejected 29/29 decodes because IR_B
-     * met black 4 mm after the last bar). With one '*' spoiled the third
-     * symbol may be a letter of a longer barcode: the white is still
-     * needed. */
+    /* Trailing quiet zone, from the decoded narrow element. With both '*'
+     * read nothing can follow (Code 39 has no data after the stop '*'), so
+     * none is needed. With one '*' spoiled the third symbol may be a
+     * letter of a longer barcode, so the white is still needed. */
     p_scan->required_trailing =
         p_scan->decoded.both_stars
             ? 0U
             : (p_scan->decoded.last_narrow *
-               /* was B3_QUIET_NARROW_MULTIPLE (2026-11-05) */
                B3_TRAILING_NARROW_MULTIPLE);
 
 
@@ -368,19 +307,10 @@ static b3_reject_reason_t prepare_result(b3_barcode_t *p_scan)
 
 
 /*
- * Time mode only: an element far longer than the shortest one seen in this
- * scan cannot be part of the same barcode, whatever its printed size.
- * Encoder mode is skipped because wheel speed may vary between elements.
- */
-/*
- * where to restart after a scan is given up while the
- * sensor still reads the same level as the last edge. A black mark on the
- * floor (or a stray bar) starts a scan; the white after it then lasts longer
- * than B3_MAX_ELEMENT_US and the scan is dropped. Restarting at "now" threw
- * away the first B3_MAX_ELEMENT_US of that white, so a barcode that followed
- * within about B3_MAX_ELEMENT_US x speed + 10 narrow widths (10-13 cm at
- * 50 mm/s, 5-8 cm at 25) was rejected for a short leading white (reason 7).
- * When the level is white, the white started at the last edge: keep it.
+ * Where to restart after a scan is given up while the sensor still reads
+ * the level of the last edge. When that level is white, the white started
+ * at the last edge: keep it, or the leading white of a barcode following
+ * soon after looks too short.
  */
 static b3_edge_t white_start(const b3_barcode_t *p_scan, b3_edge_t current)
 {
@@ -425,9 +355,7 @@ static bool too_long_for_scan(const b3_barcode_t *p_scan, uint32_t elapsed)
 }
 
 
-/*
- * Process one barcode GPIO edge.
- */
+/* Process one barcode GPIO edge. */
 bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
                      b3_barcode_result_t *p_result)
 {
@@ -443,10 +371,9 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
 
 
     /*
-     * Sensor chatter: the DO comparator can flick for tens
-     * of microseconds as a bar edge passes (41 us seen on the car). A blip
-     * shorter than B3_MIN_EDGE_US is removed, so the element around it
-     * carries on, instead of rejecting the whole scan.
+     * Sensor chatter: the DO comparator can flick for tens of microseconds
+     * as a bar edge passes. A blip shorter than B3_MIN_EDGE_US is removed
+     * so the element around it carries on, instead of rejecting the scan.
      */
     if (p_scan->glitch)
     {
@@ -515,11 +442,9 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
 
         if ((0U == p_scan->count) && !edge.black && !p_scan->lead_from.black)
         {
-            /* the "first bar" was only a blip in the white
-             * before the barcode. The white carries on from where it really
-             * started. Restarting it at the blip made the leading white look
-             * short: one flicker in the last 10 narrow widths before the
-             * barcode rejected a good scan (29/29 elements, reason 7). */
+            /* the "first bar" was only a blip in the white before the
+             * barcode: the white carries on from where it really started,
+             * or it looks too short */
             b3_barcode_abort(p_scan, p_scan->lead_from);
 
             return false;
@@ -555,15 +480,8 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
     }
 
 
-    /*
-     * Consecutive edges should alternate:
-     *
-     * BLACK -> WHITE -> BLACK -> WHITE ...
-     *
-     * Receiving the same state twice means
-     * we lost timing continuity or received
-     * duplicate/noisy transitions.
-     */
+    /* Edges must alternate black/white; the same state twice means lost
+     * timing continuity or duplicate/noisy transitions. */
     if (edge.black == p_scan->last.black)
     {
         reject(p_scan, edge, B3_REJECT_SAME_LEVEL, elapsed);
@@ -572,18 +490,10 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
     }
 
 
-    /*
-     * Barcode pattern has already been decoded.
-     *
-     * We are waiting for sufficient trailing
-     * white quiet space.
-     */
+    /* decoded already: waiting for the trailing white quiet zone, which
+     * this black edge ends */
     if (p_scan->pending)
     {
-        /*
-         * Incoming black edge ends the trailing
-         * white quiet zone.
-         */
         if ((edge.time_us - p_scan->started_us) <= B3_MAX_SCAN_US)
         {
             emitted = finish(p_scan, edge, p_result);
@@ -614,14 +524,9 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
     }
 
 
-    /*
-     * Already collecting barcode widths.
-     */
     if (p_scan->collecting)
     {
-        /*
-         * Reject impossible/noisy timing.
-         */
+        /* reject impossible/noisy timing */
         b3_reject_reason_t reason = B3_REJECT_NONE;
 
         if (elapsed < B3_MIN_EDGE_US)
@@ -643,10 +548,10 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
 
         if ((B3_REJECT_NONE != reason) && edge.black && !p_scan->last.black)
         {
-            /* the element that was too long is white, so it
-             * can be the white before a barcode and this black edge its first
-             * bar: keep the white's start and fall through to the start
-             * condition below (see white_start()). */
+            /* the element that was too long is white, so it can be the
+             * white before a barcode and this black edge its first bar:
+             * keep the white's start and fall through to the start
+             * condition below (see white_start()) */
             reject(p_scan, p_scan->last, reason, elapsed);
         }
         else if (B3_REJECT_NONE != reason)
@@ -676,9 +581,6 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
         }
 
 
-        /*
-         * Store width of previous black/white run.
-         */
         p_scan->time_widths[p_scan->count] =
             at_base_speed(elapsed, edge.speed_mm_s);
 
@@ -686,10 +588,7 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
         p_scan->tick_widths[p_scan->count] = ticks;
 
 
-        /*
-         * Encoder measurements remain valid
-         * only if every edge has a valid position.
-         */
+        /* encoder widths are valid only if every edge had a position */
         p_scan->positions_valid = p_scan->positions_valid &&
                                   edge.position_valid &&
                                   (ticks <= B3_MAX_ENCODER_RUN_TICKS);
@@ -705,9 +604,6 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
         p_scan->last = edge;
 
 
-        /*
-         * Full barcode frame collected.
-         */
         if (B3_BARCODE_RUNS == p_scan->count)
         {
             b3_reject_reason_t why = prepare_result(p_scan);
@@ -723,16 +619,8 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
     }
 
 
-    /*
-     * START CONDITION
-     *
-     * A barcode scan begins only when:
-     *
-     * 1. this new edge represents BLACK
-     *
-     * 2. the sensor had previously remained
-     *    WHITE for at least B3_MIN_START_WHITE_US
-     */
+    /* Start condition: this edge is BLACK and the sensor stayed WHITE for
+     * at least B3_MIN_START_WHITE_US before it. */
     if (edge.black && (elapsed >= B3_MIN_START_WHITE_US))
     {
         p_scan->collecting = true;
@@ -744,7 +632,7 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
         p_scan->started_us = edge.time_us;
 
 
-        /* where this white began (see the blip check). */
+        /* where this white began (see the blip check) */
         p_scan->lead_from = p_scan->last;
 
 
@@ -761,9 +649,6 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
     }
 
 
-    /*
-     * Always remember latest valid edge.
-     */
     p_scan->last = edge;
 
 
@@ -771,26 +656,18 @@ bool b3_barcode_edge(b3_barcode_t *p_scan, b3_edge_t edge,
 }
 
 
-/*
- * Poll barcode state when there are no queued
- * GPIO edges remaining.
- */
+/* Poll barcode state when no queued GPIO edges remain. */
 bool b3_barcode_poll(b3_barcode_t *p_scan, b3_edge_t current,
                      b3_barcode_result_t *p_result)
 {
-    /*
-     * If raw sensor level has changed, a queued
-     * GPIO edge must be processed first.
-     */
+    /* a changed raw level means a queued GPIO edge must be handled first */
     if (current.black != p_scan->last.black)
     {
         return false;
     }
 
 
-    /*
-     * Entire scan has taken too long.
-     */
+    /* whole scan took too long */
     if (b3_barcode_active(p_scan) &&
         ((current.time_us - p_scan->started_us) > B3_MAX_SCAN_US))
     {
@@ -801,21 +678,14 @@ bool b3_barcode_poll(b3_barcode_t *p_scan, b3_edge_t current,
     }
 
 
-    /*
-     * Barcode decoded.
-     *
-     * Wait for trailing white quiet zone.
-     */
+    /* decoded: wait for the trailing white quiet zone */
     if (p_scan->pending)
     {
         return finish(p_scan, current, p_result);
     }
 
 
-    /*
-     * Individual black/white element lasted
-     * too long.
-     */
+    /* one black/white element lasted too long */
     if (p_scan->collecting &&
         (((current.time_us - p_scan->last.time_us) > B3_MAX_ELEMENT_US) ||
          too_long_for_scan(p_scan, current.time_us - p_scan->last.time_us)))

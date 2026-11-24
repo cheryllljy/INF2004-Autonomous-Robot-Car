@@ -34,11 +34,8 @@
 #define B1_SENSOR_TASK_PRI 24
 
 /*
- * Hump observation filters.
- *
- * These do not modify Buddy 4's detector.
- * They only determine which observations
- * Buddy 1 counts in its telemetry.
+ * Hump observation filters. They only decide which Buddy 4
+ * observations Buddy 1 counts in telemetry.
  */
 #define B1_HUMP_MIN_SPEED_MM_S 20
 #define B1_HUMP_CONFIRM_SAMPLES 2u
@@ -62,16 +59,9 @@ static bool b1_vc_state_seen = false;
 static vc_state_t b1_previous_vc_state = VC_STATE_IDLE;
 
 /*
- * Sensor cache shared between:
- *
- * Producer: Buddy 1 sensor sampling task.
- * Consumer: MQTT network task.
- *
- * The MQTT side uses TMO_POL so it never
- * waits for the cache mutex.
- *
- * No calls to teammate sensor APIs occur
- * while this cache mutex is held.
+ * Sensor cache: written by the Buddy 1 sensor task, read by the MQTT
+ * task with TMO_POL so it never waits for the mutex. No teammate
+ * sensor API is called while the mutex is held.
  */
 static ID b1_sensor_cache_mutex = 0;
 
@@ -153,14 +143,9 @@ static bool b1_motion_is_driving(
 }
 
 /*
- * Confirm observed hump events.
- *
- * A sustained rise counts once.
- * After clearing, another rise can be counted
- * only after the minimum event interval.
- *
- * Note: Buddy 4 remains the source of the
- * actual hump detection.
+ * Confirm observed hump events: a sustained rise counts once; after
+ * clearing, another rise counts only after the cooldown.
+ * Buddy 4 remains the source of the actual hump detection.
  */
 static void b1_update_hump(
     bool raw_hump,
@@ -251,10 +236,7 @@ static void b1_export_u32(
 }
 
 /*
- * Existing controller interface.
- *
- * This is a quick read of the packed
- * VehicleController status word.
+ * Read the packed VehicleController status word.
  */
 int32_t b1_export_controller_status(
     uint32_t *output)
@@ -273,13 +255,9 @@ int32_t b1_export_controller_status(
 }
 
 /*
- * Build the 42-byte sensor payload from
- * actual teammate APIs.
- *
- * Called only by the Buddy 1 sensor task.
- *
- * Do not call this function inside an
- * lwIP MQTT timer or callback.
+ * Build the 42-byte sensor payload from teammate APIs.
+ * Called only by the Buddy 1 sensor task, never from an lwIP MQTT
+ * timer or callback.
  */
 static int32_t b1_build_sensor_payload(
     uint8_t *output,
@@ -311,10 +289,7 @@ static int32_t b1_build_sensor_payload(
 
         b1_reset_observed_humps_if_controller_reset();
 
-        /*
-         * Buddy 3:
-         * Line-following measurements.
-         */
+        /* Buddy 3: line-following measurements. */
         buddy3_get_snapshot(&line);
 
         if (line.time_us != 0u &&
@@ -363,10 +338,7 @@ static int32_t b1_build_sensor_payload(
             );
         }
 
-        /*
-         * Buddy 2:
-         * Wheel speed, movement and encoders.
-         */
+        /* Buddy 2: wheel speed, movement and encoders. */
         motion_get_status(&motion);
 
         output[1] |= 0x02u;
@@ -409,12 +381,8 @@ static int32_t b1_build_sensor_payload(
         );
 
         /*
-         * Buddy 4:
-         * Actual accelerometer and hump status.
-         *
-         * Reading Buddy 4 may block on its
-         * internal mutex. This function now runs
-         * outside the MQTT network task.
+         * Buddy 4: accelerometer and hump status. May block on
+         * Buddy 4's mutex, so this must not run in the MQTT task.
          */
         {
             ER imu_er =
@@ -480,15 +448,9 @@ static int32_t b1_build_sensor_payload(
 }
 
 /*
- * MQTT-facing sensor export.
- *
- * Copies the last fully prepared snapshot.
- *
- * TMO_POL means that if another task is
- * updating the cache, this function returns
- * immediately instead of blocking.
- *
- * No teammate sensor API is called here.
+ * MQTT-facing sensor export: copies the last prepared snapshot.
+ * TMO_POL returns at once instead of blocking if the cache is being
+ * updated. No teammate sensor API is called here.
  */
 int32_t b1_export_sensor_payload(
     uint8_t *output,
@@ -544,16 +506,8 @@ int32_t b1_export_sensor_payload(
 }
 
 /*
- * Dedicated sensor sampling task.
- *
- * Collects sensor data every 50 ms.
- *
- * MQTT remains free to handle:
- * - FR3 probes and acknowledgements
- * - Incoming START/STOP/RESET/SEARCH
- * - Barcode mapping
- * - Heartbeats
- * - Connection and reconnection
+ * Sensor sampling task: refreshes the cache every 50 ms so the MQTT
+ * task stays free for FR3 probes, commands, mapping and reconnects.
  */
 static void b1_sensor_task(
     INT stacd,
@@ -603,10 +557,7 @@ static void b1_sensor_task(
 }
 
 /*
- * Subsystem 1 initialization.
- *
- * Initialize barcode storage and
- * create the sensor-cache mutex.
+ * Initialize barcode storage and create the sensor-cache mutex.
  */
 ER subsystem1_init(void)
 {
@@ -643,10 +594,8 @@ ER subsystem1_init(void)
 }
 
 /*
- * Start the Buddy 1 sensor task.
- *
- * The task does not own Wi-Fi or MQTT.
- * It cannot command the motors.
+ * Start the Buddy 1 sensor task. It does not own Wi-Fi or MQTT and
+ * cannot command the motors.
  */
 ER subsystem1_start(void)
 {
@@ -663,5 +612,3 @@ ER subsystem1_start(void)
     return E_OK;
 #endif
 }
-
-/* End of subsystem1.c */

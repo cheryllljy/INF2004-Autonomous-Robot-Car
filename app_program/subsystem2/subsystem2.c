@@ -30,8 +30,8 @@ ER subsystem2_init(void)
            the producer can never run out of memory. */
     // cyc_check_init();
     csem.sematr = TA_TFIFO;       /* waiting tasks queue in FIFO order */
-    csem.isemcnt = S2_POOL_COUNT; /* initial count */
-    csem.maxsem = S2_POOL_COUNT;  /* maximum count */
+    csem.isemcnt = S2_POOL_COUNT;
+    csem.maxsem = S2_POOL_COUNT;
     sem_slots = tk_cre_sem(&csem);
     if (sem_slots < E_OK)
     {
@@ -41,8 +41,8 @@ ER subsystem2_init(void)
     /* Fixed-size memory pool: S2_POOL_COUNT blocks, each exactly one
            SAMPLE_MSG.  Faster and more predictable than malloc(). */
     cmpf.mpfatr = TA_TFIFO | TA_RNG3;
-    cmpf.mpfcnt = S2_POOL_COUNT;     /* number of blocks */
-    cmpf.blfsz = sizeof(SAMPLE_MSG); /* size of one block */
+    cmpf.mpfcnt = S2_POOL_COUNT;
+    cmpf.blfsz = sizeof(SAMPLE_MSG);
     mpf_samples = tk_cre_mpf(&cmpf);
     return (mpf_samples < E_OK) ? mpf_samples : E_OK;
 }

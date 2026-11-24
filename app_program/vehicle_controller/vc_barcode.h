@@ -1,7 +1,6 @@
 /*
  *      vc_barcode.h
- *      VehicleController -- back up and read a barcode slowly
- *.
+ *      VehicleController -- back up and read a barcode slowly.
  *
  *      The car line-follows at B3_BASE_SPEED_MM_S (100 mm/s). When IR_B
  *      starts reading a barcode (VC_BAR_DETECT_ELEMENTS elements: bars and
@@ -32,7 +31,7 @@
 #include "../subsystem3/buddy3.h"
 
 #define VC_BAR_DETECT_ELEMENTS 4   /* 4 widths (5 edges) measured: a barcode */
-#define VC_BAR_BACK_MM         150 /* white past its start; was 100 */
+#define VC_BAR_BACK_MM         150 /* white past its start */
 #define VC_BAR_BACK_SPEED_MM_S 150
 #define VC_BAR_SLOW_MAX_MM     400  /* slow pass gives up after this */
 /* the slow pass drives at least this far after the back-up, even when a
@@ -69,10 +68,8 @@ bool vc_bar_busy(void);          /* stopping / backing up */
 bool vc_bar_waiting(void);
 /* a junction came first: stop and back up for the barcode now */
 void vc_bar_back_now(const motion_status_t *p_motion);
-/* Temporary switch. 1: the IMU neither steers nor stops the car: no
- * hump (wheels, hump speed, heading hold, junctions and barcodes as on
- * flat ground) and no jolt pick-up E-stop. Buddy 4's tilt E-stops and its
- * hump log lines stay. 0: as before. */
+/* 1: the IMU neither steers nor stops the car (no hump handling, no jolt
+ * pick-up E-stop); Buddy 4's tilt E-stops stay. 0: normal. */
 #ifndef VC_IMU_OFF
 #define VC_IMU_OFF 0
 #endif

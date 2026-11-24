@@ -14,16 +14,16 @@
 #define S3_PRI_CONSUMER 16 /* priority band 16-17 (TEAM.md) */
 /* report to subsystem 4 every N samples */
 #define S3_BATCH_SIZE 5
-/* summary lines in a row that found subsystem 4's message
- * buffer full. One full buffer is dropped by design (TMO_POL); this many in
- * a row means subsystem 4 has stopped reading, which is a fault. */
+/* summary lines in a row that found subsystem 4's message buffer full.
+ * One is dropped by design (TMO_POL); this many means subsystem 4 has
+ * stopped reading, which is a fault. */
 #define S3_MBF_FULL_LIMIT 3
 
 /* IF-01: send SAMPLE_MSG (subsystem2.h) here with tk_snd_mbx */
 extern ID mbx_samples;
 
-/* IF-04: statistics.  Read them ONLY while holding mtx_stats:
- *      tk_loc_mtx(mtx_stats, TMO_FEVR);  copy = app_stats;  tk_unl_mtx(mtx_stats);
+/* IF-04: statistics. Read them ONLY while holding mtx_stats:
+ *   tk_loc_mtx(mtx_stats, TMO_FEVR); copy = app_stats; tk_unl_mtx(...);
  */
 typedef struct
 {

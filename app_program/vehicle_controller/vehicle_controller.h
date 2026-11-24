@@ -9,11 +9,11 @@
  *
  *      Interfaces
  *      ----------
- *      IF-VC-1  any task / ISR -> VC   vc_raise_fault(cause bits)   flg_vc 0..7
- *      IF-VC-2  Buddy 1 -> VC          vc_post_command(VC_CMD_*)    flg_vc 8..15
- *               (START/STOP/RESET, and TURN_* after MQTT maps a barcode letter)
- *      IF-VC-3  VC -> any task (read)  vc_get_status_word()         one 32-bit read
- *      IF-VC-4  VC -> Buddy 1          vc_fill_telemetry()          B1_Telemetry
+ *      IF-VC-1  any task / ISR -> VC  vc_raise_fault()     flg_vc 0..7
+ *      IF-VC-2  Buddy 1 -> VC         vc_post_command()    flg_vc 8..15
+ *               (START/STOP/RESET, and TURN_* after MQTT maps a letter)
+ *      IF-VC-3  VC -> any task        vc_get_status_word() one 32-bit read
+ *      IF-VC-4  VC -> Buddy 1         vc_fill_telemetry()  B1_Telemetry
  *      Plus the existing ones it consumes: Buddy 2 motion_*(), Buddy 3
  *      buddy3_set_context / get_snapshot / pop_navigation, Buddy 5
  *      s5_avoid_*() (subsystem5/s5_avoid.h: the bypass runs in vc_task).
@@ -25,11 +25,9 @@
 #include "../app.h"
 #include "vc_types.h"
 
-/* 1 = usermain creates and starts the VehicleController.  Off for now:
-   the B3-H08/H09 tests drive the motors themselves, and two tasks
-   commanding Buddy 2 at once would fight. */
+/* 1 = usermain creates and starts the VehicleController (START/STOP over
+   MQTT). 0 for the B3-H08/H09 tests, which drive the motors themselves. */
 #ifndef VC_ENABLE
-/* 1: START/STOP over MQTT (robot.ps1 go/stop). 0 for the B3-H08/H09 tests */
 #define VC_ENABLE 1
 #endif
 

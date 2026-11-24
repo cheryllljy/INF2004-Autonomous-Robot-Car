@@ -171,8 +171,8 @@ bool vc_turn_start(b3_nav_command_t turn, const motion_status_t *p_motion)
             {
                 now = 0;
             }
-            /* was 2 * VC_CORNER_MAX_MM_S; kept at 160 so
-             * the slower arc does not make the U-turn brake at once */
+            /* capped separately from the arc speed so the U-turn does
+             * not brake at once */
             if (now > VC_UTURN_EASE_MAX_MM_S)
             {
                 now = VC_UTURN_EASE_MAX_MM_S;

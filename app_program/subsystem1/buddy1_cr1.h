@@ -5,17 +5,12 @@
 #include <stdint.h>
 
 
-/*
- * CR1: compact binary application data.
- *
- * These are provisional field definitions.
- * Final telemetry fields must be agreed with the team.
- */
+/* CR1: compact binary application data. */
 
 #define B1_TELEMETRY_BYTES 3u
 #define B1_COMMAND_BYTES   1u
 
-/* Shared fault-bit positions: provisional mapping. */
+/* Shared fault-bit positions. */
 #define B1_FAULT_MOTOR_STALL (1u << 0)
 #define B1_FAULT_ENCODER     (1u << 1)
 #define B1_FAULT_IMU         (1u << 2)
@@ -23,10 +18,8 @@
 #define B1_FAULT_WIFI_LOSS   (1u << 4)
 
 /*
- * Application values before packing.
- *
- * This struct is an input format, NOT the wire format.
- * Do not send the struct directly over MQTT.
+ * Application values before packing. This is NOT the wire format;
+ * do not send the struct directly over MQTT.
  */
 typedef struct
 {

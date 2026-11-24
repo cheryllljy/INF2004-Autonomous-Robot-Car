@@ -47,7 +47,6 @@ extern ER subsystem3_init(void);
 extern ER subsystem4_init(void);
 extern ER subsystem5_init(void);
 
-// IMPORT ER subsystem1_start(void);    /* uncommented 2026-11-04 (Buddy 3): app_main.c starts S1 */
 extern ER subsystem2_start(void);
 extern ER subsystem3_start(void);
 extern ER subsystem4_start(void);

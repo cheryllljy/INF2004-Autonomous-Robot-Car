@@ -200,9 +200,6 @@ void subsystem1_test(void)
     TEST_CHECK("B1-P03", b1_mapping_lookup(&mapping, 'Q', &movement) != 0,
                "Unmapped barcode rejected");
 
-    /*
-     * Verify support for all A-Z characters.
-     */
     for (i = 0; i < (size_t)26; i++)
     {
         uint8_t letter_payload[B1_MAPPING_BYTES];
@@ -239,9 +236,6 @@ void subsystem1_test(void)
 
     saved_mapping = mapping;
 
-    /*
-     * Invalid character.
-     */
     for (i = 0; i < (size_t)B1_MAPPING_BYTES; i++)
     {
         invalid_payload[i] = mapping_payload[i];
@@ -255,9 +249,6 @@ void subsystem1_test(void)
             mapping.entries[0].character == saved_mapping.entries[0].character,
         "Invalid character rejected safely");
 
-    /*
-     * Duplicate barcode character.
-     */
     invalid_payload[0] = (uint8_t)'A';
     invalid_payload[2] = (uint8_t)'A';
 
@@ -266,9 +257,6 @@ void subsystem1_test(void)
                    0,
                "Duplicate barcode rejected");
 
-    /*
-     * Duplicate movement.
-     */
     for (i = 0; i < (size_t)B1_MAPPING_BYTES; i++)
     {
         invalid_payload[i] = mapping_payload[i];
@@ -282,9 +270,6 @@ void subsystem1_test(void)
                    0,
                "Duplicate movement rejected");
 
-    /*
-     * Invalid movement ID.
-     */
     invalid_payload[3] = 4u;
 
     TEST_CHECK("B1-P08",
@@ -292,17 +277,11 @@ void subsystem1_test(void)
                    0,
                "Invalid movement ID rejected");
 
-    /*
-     * Incorrect payload length.
-     */
     TEST_CHECK("B1-P09",
                b1_mapping_decode(mapping_payload, B1_MAPPING_BYTES - 1u,
                                  &mapping) != 0,
                "Incorrect mapping size rejected");
 
-    /*
-     * Null input handling.
-     */
     TEST_CHECK("B1-P10",
                b1_mapping_decode(NULL, B1_MAPPING_BYTES, &mapping) != 0 &&
                    b1_mapping_lookup(NULL, 'A', &movement) != 0,
@@ -310,9 +289,7 @@ void subsystem1_test(void)
 
     /*
      * SECTION 5: Shared mapping API tests.
-     *
-     * The mapping store must already be
-     * initialized by subsystem1_init().
+     * The store must already be initialized by subsystem1_init().
      */
     tm_printf((UB *)"\n[BUDDY1] Shared mapping API tests\n");
 

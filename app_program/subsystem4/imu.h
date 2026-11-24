@@ -48,7 +48,7 @@ void imu_calibrate(void);
 /** Scan the I2C bus and print found addresses. Useful for debugging. */
 void imu_scan_bus(void);
 
-/** Read one XYZ accelerometer sample (raw unless imu_calibrate() was called). */
+/** Read one XYZ accelerometer sample (raw unless imu_calibrate() ran). */
 imu_status_t imu_read_accel(imu_vector_t *p_sample);
 
 /** Read calibrated and raw XYZ samples from one accelerometer transaction. */

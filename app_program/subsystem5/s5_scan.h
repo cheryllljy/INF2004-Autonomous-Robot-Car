@@ -1,8 +1,8 @@
 /*
  *      s5_scan.h
- *      Subsystem 5 -- what one sweep says about the object. Pure functions: no
- *      kernel, no hardware, so the host
- *      tests run the same code.
+ *      Subsystem 5 -- what one sweep says about the object. Pure
+ *      functions: no kernel, no hardware, so the host tests run the same
+ *      code.
  *
  *      How the width is measured
  *      -------------------------
@@ -26,15 +26,13 @@
  *      box of known width, at two distances; between them it is
  *      interpolated. Width = left corner - right corner.
  *
- *      Edges by range (Buddy 5, 2026-11-16, S5_EDGE_BY_RANGE)
- *      ------------------------------------------------------
+ *      Edges by range (S5_EDGE_BY_RANGE)
+ *      ---------------------------------
  *      The angle method above needs BEAM and the servo's angle to be
  *      right, and on the car neither is: BEAM changes with the object and
- *      the distance (8..33 deg in the calibration runs), and the servo is
- *      5-10 deg off (its zero, the sweep's lag, the wires holding it back
- *      on the right). 10 deg at 280 mm is 50 mm: the track logs of
- *      2026-11-10 put a 21 cm box on the line "-14 mm left, 179 mm
- *      right", the car went left 96 mm off the line and into the box.
+ *      the distance (8..33 deg), and the servo is 5-10 deg off (its zero,
+ *      the sweep's lag, the wires holding it back on the right). 10 deg
+ *      at 280 mm is 50 mm of error.
  *
  *      The ranges do not have that problem. While the sensor looks at the
  *      face they all read FACE (the nearest point, straight in front).
@@ -44,12 +42,7 @@
  *
  *          corner, sideways from the sonar = sqrt(EDGE^2 - FACE^2)
  *
- *      No angle and no BEAM in it. 29 first sweeps of the 21 cm box in
- *      those logs (testing/subsystem5/host/real_sweeps.inc, S5-H24): the
- *      19 with both ends of the echoes inside the sweep come out 208 mm
- *      wide (median), none under 130 or over 290 mm, none more than 50 mm
- *      off centre; by angle the 29 were 99..366 mm wide (median 261) and
- *      93 mm off centre (median).
+ *      No angle and no BEAM in it.
  *
  *      FACE is the mean of the flat middle of the object's ranges (those
  *      within S5_EDGE_JUMP_MM of their lower quartile). EDGE is the mean
@@ -92,9 +85,8 @@ typedef struct
     uint16_t mm;  /* 0 = nothing came back (clear) */
 } s5_sample_t;
 
-/* a return left out because it may
- * have come from the object just gone round. Neither the object nor
- * clear: an edge next to one is not seen. */
+/* A return left out because it may have come from the object just gone
+ * round. Neither the object nor clear: an edge next to one is not seen. */
 #define S5_MM_UNKNOWN (0xFFFFU)
 
 /* Where the sonar was for the sweep, in the line frame. */
@@ -118,11 +110,11 @@ typedef struct
     float y_left;        /* left corner (line frame, + = left) */
     float y_right;       /* right corner */
     float width;         /* y_left - y_right */
-    /* Buddy 5, 2026-11-16: how the corners were placed (for the log) */
+    /* how the corners were placed (for the log) */
     bool b_by_range;     /* true: by range; false: by angle */
-    bool b_narrow;   /* Buddy 5, 2026-11-19: placed by the middle of its echoes */
-    float y_mid;     /* ... that middle, line frame (mm) */
-    bool b_limited;  /* Buddy 5, 2026-11-19: S5_OBJ_MIN_MM / MAX_MM applied */
+    bool b_narrow;       /* placed by the middle of its echoes */
+    float y_mid;         /* ... that middle, line frame (mm) */
+    bool b_limited;      /* S5_OBJ_MIN_MM / MAX_MM applied */
     uint16_t face_q_mm;  /* FACE used by the range method */
     uint16_t edge_l_mm;  /* EDGE, left and right */
     uint16_t edge_r_mm;
@@ -130,14 +122,13 @@ typedef struct
     float ya_right;      /* before S5_WIDTH_TRIM_MM */
     bool b_left_blocked; /* something else where the car would pass */
     bool b_right_blocked;
-    /* only the edge of the beam of an echo reaches where
-     * the car would pass (its own direction is outside the pass lane):
-     * that side is used only when no side is clear */
+    /* Only the edge of the beam of an echo reaches where the car would
+     * pass (its own direction is outside the pass lane): that side is
+     * used only when no side is clear. */
     bool b_left_maybe;
     bool b_right_maybe;
-    /* that edge is next to returns left
-     * out (S5_MM_UNKNOWN): the object just gone round is that way, and
-     * the edge is not seen */
+    /* That edge is next to returns left out (S5_MM_UNKNOWN): the object
+     * just gone round is that way, and the edge is not seen. */
     bool b_left_hidden;
     bool b_right_hidden;
     /* the echo that blocked a side (for the log) */
@@ -152,8 +143,8 @@ uint16_t s5_scan_face(const s5_sample_t *p_s, uint32_t n);
 
 /* Is a return of mm part of the object whose face is face_mm away? */
 bool s5_scan_is_object(uint16_t mm, uint16_t face_mm);
-/* Buddy 5, 2026-11-19: echoes up to mm behind the face count as the
- * object's (at most S5_EDGE_DEPTH_MM; 0: S5_EDGE_DEPTH_MM again) */
+/* Echoes up to mm behind the face count as the object's (at most
+ * S5_EDGE_DEPTH_MM; 0: S5_EDGE_DEPTH_MM again). */
 void s5_scan_set_depth(uint16_t mm);
 
 /* Where the object's echoes stop on each side. *p_*_obj: outermost angle
@@ -170,19 +161,18 @@ int16_t s5_scan_beam_ddeg(uint16_t face_mm);
 /* Sort by angle, right (-) to left (+). */
 void s5_scan_sort(s5_sample_t *p_s, uint32_t n);
 
-/* The whole profile. Samples sorted by angle. */
-/* Buddy 5, 2026-11-19: S5_AUTO_TRIM. True and *p_corr (0.1 deg, add to
- * the servo trim) if this sweep, taken standing with an object straight
- * ahead, is one to trim by */
+/* S5_AUTO_TRIM. True and *p_corr (0.1 deg, add to the servo trim) if
+ * this sweep, taken standing with an object straight ahead, is one to
+ * trim by. */
 bool s5_scan_trim_from(const s5_profile_t *p_pr, int16_t *p_corr);
 
-/* Buddy 5, 2026-11-19: S5_TWO_DIST. Width (mm) and half beam (rad) from two
- * sweeps d1 < d2 from the face, echoes spanning span1, span2 (rad), the
- * object's middle yc to the side of the sonar (mm). False: no sensible
- * answer. */
+/* S5_TWO_DIST. Width (mm) and half beam (rad) from two sweeps d1 < d2
+ * from the face, echoes spanning span1, span2 (rad), the object's middle
+ * yc to the side of the sonar (mm). False: no sensible answer. */
 bool s5_scan_two_width(float d1, float span1, float d2, float span2,
                        float yc, float *p_w, float *p_beam);
 
+/* The whole profile. Samples sorted by angle. */
 void s5_scan_profile(const s5_sample_t *p_s, uint32_t n,
                      const s5_view_t *p_view, s5_profile_t *p_out);
 

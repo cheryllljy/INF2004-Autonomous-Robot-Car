@@ -61,11 +61,10 @@ typedef struct
     uint32_t tick_widths[B3_BARCODE_RUNS];
     b3_edge_t last;
     b3_edge_t prev; /* edge before last, to undo a sensor blip */
-    uint32_t glitches;
-    /* scans decoded only after trimming the outer bars */ /* blips shorter than B3_MIN_EDGE_US absorbed */
+    uint32_t glitches; /* blips shorter than B3_MIN_EDGE_US absorbed */
+    /* scans decoded only after trimming the outer bars */
     uint32_t trimmed;
-    /* scans decoded from the time widths after the
-     * encoder widths failed */
+    /* scans decoded from time widths after the encoder widths failed */
     uint32_t timed_fallbacks;
     bool prev_valid;
     /* time of a black edge seen in the trailing white */
@@ -73,9 +72,8 @@ typedef struct
     /* that edge is waiting to be confirmed or dropped */
     bool glitch;
     b3_code39_result_t decoded;
-    /* the white edge the leading white started from, so a
-     * blip on the first bar can hand the white back instead of restarting
-     * it (that restart caused reason 7 on the car). */
+    /* the white edge the leading white started from, so a blip on the
+     * first bar can hand the white back instead of restarting it */
     b3_edge_t lead_from;
     uint32_t leading_us;
     uint32_t leading_ticks;
@@ -97,9 +95,8 @@ typedef struct
     uint8_t drop_reason;
     uint8_t drop_count;
     uint32_t drop_info;
-    /* last LEADING_QUIET reject: white measured before the
-     * first bar and the white needed (B3_QUIET_NARROW_MULTIPLE x narrow), in
-     * encoder ticks if reject_encoder, else in us. */
+    /* last LEADING_QUIET reject: white measured before the first bar and
+     * the white needed, in encoder ticks if reject_encoder, else in us */
     uint32_t reject_lead;
     uint32_t reject_need;
     bool reject_encoder;

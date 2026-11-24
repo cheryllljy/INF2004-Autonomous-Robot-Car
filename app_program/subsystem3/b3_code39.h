@@ -11,8 +11,8 @@ typedef struct
     bool reversed;
     uint32_t first_narrow;
     uint32_t last_narrow;
-    /* start and stop '*' both read (B3_NEED_BOTH_STARS 0
-     * lets one be spoiled) */
+    /* start and stop '*' both read (B3_NEED_BOTH_STARS 0 lets one be
+     * spoiled) */
     bool both_stars;
 } b3_code39_result_t;
 

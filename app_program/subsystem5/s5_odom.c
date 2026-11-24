@@ -24,10 +24,11 @@ void s5_odom_init(s5_odom_t *p_o)
     p_o->b_ticks = false;
 }
 
-/* Buddy 5, 2026-11-20: right wheel mm per tick relative to the left's,
- * minus 1 (S5_ODOM_LR_PPM, then learnt) */
+/* right wheel mm per tick relative to the left's, minus 1
+ * (S5_ODOM_LR_PPM, then learnt) */
 static float g_lr = (float)S5_ODOM_LR_PPM * 1.0e-6f;
-static float g_lr_next = (float)S5_ODOM_LR_PPM * 1.0e-6f; /* learnt, for the next bypass */
+/* learnt, for the next bypass */
+static float g_lr_next = (float)S5_ODOM_LR_PPM * 1.0e-6f;
 
 float s5_odom_lr(void)
 {
@@ -86,7 +87,7 @@ void s5_odom_update(s5_odom_t *p_o, int32_t ticks_l, int32_t ticks_r)
         p_o->b_ticks = true;
         return;
     }
-    /* Buddy 5, 2026-11-20: the learnt ratio, split over the two wheels */
+    /* the learnt ratio, split over the two wheels */
     dl = (float)(ticks_l - p_o->ticks_l) * MM_PER_TICK * (1.0f - (0.5f * g_lr));
     dr = (float)(ticks_r - p_o->ticks_r) * MM_PER_TICK * (1.0f + (0.5f * g_lr));
     p_o->ticks_l = ticks_l;

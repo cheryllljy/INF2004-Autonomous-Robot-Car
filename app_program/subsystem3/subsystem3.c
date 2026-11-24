@@ -20,8 +20,8 @@ ID mtx_stats;   /* IF-04 */
 APP_STATS app_stats;
 
 #if !B3_INSTALL_IO_BANK0_HANDLER
-/* GP28 barcode edges, called by the shared GPIO dispatcher (interrupt context).
-   Buddy 3 enables and acknowledges its own edge events. */
+/* GP28 barcode edges, called by the shared GPIO dispatcher in interrupt
+   context. Buddy 3 enables and acknowledges its own edge events. */
 static void s3_barcode_irq(uint32_t pin)
 {
     (void)pin;
@@ -50,9 +50,8 @@ ER subsystem3_init(void)
     T_CMBX cmbx = { 0 };
     T_CMTX cmtx = { 0 };
 
-    /* Mailbox: passes a POINTER to a message (zero copy).  The message
-           memory must stay valid until the receiver is done with it, which
-           is why subsystem 2 takes it from its memory pool. */
+    /* Mailbox: passes a POINTER to a message (zero copy), so the message
+           memory must stay valid until the receiver is done with it. */
     /* FIFO waiters, FIFO messages */
     cmbx.mbxatr = TA_TFIFO | TA_MFIFO;
     mbx_samples = tk_cre_mbx(&cmbx);
@@ -61,9 +60,8 @@ ER subsystem3_init(void)
         return mbx_samples;
     }
 
-    /* Mutex: only one task at a time may touch app_stats.  TA_INHERIT
-           (priority inheritance) avoids priority inversion: a low-priority
-           holder is temporarily raised to the waiter's priority. */
+    /* Mutex: only one task at a time may touch app_stats. TA_INHERIT
+           (priority inheritance) avoids priority inversion. */
     cmtx.mtxatr = TA_INHERIT;
     mtx_stats = tk_cre_mtx(&cmtx);
     if (mtx_stats < E_OK)
@@ -72,9 +70,8 @@ ER subsystem3_init(void)
     }
 
 #if !B3_INSTALL_IO_BANK0_HANDLER
-    /* The team's one GPIO interrupt handler (gpio_dispatch.c, owned by
-           Buddy 3). Runs here in usermain on core 0. If Buddy 2 already
-           started it in subsystem2_init(), this start call just returns true. */
+    /* The team's one GPIO interrupt handler (gpio_dispatch.c). Must run
+           in usermain on core 0; starting it twice is harmless. */
     if (!gpio_dispatch_register(B3_IR_B_GPIO, 0U, s3_barcode_irq))
     {
         return E_SYS;
@@ -92,14 +89,12 @@ ER subsystem3_start(void)
     ID tid = E_OK;
 
 #if APP_TEST
-    /* template example, kept for its tests only.
-       Pinned to core 0 (TP_PRC1): opposite core to the producer */
+    /* Pinned to core 0 (TP_PRC1): opposite core to the producer */
     tid = app_start_task(consumer_task, S3_PRI_CONSUMER, TP_PRC1,
                          "consumer_task");
 #endif
 
-/* Buddy 3 is opt-in until its pins, IRQ ownership and vehicle interface are approved.
-         * No existing consumer/task behaviour is replaced by this hook. */
+/* Buddy 3 is opt-in (buddy3_team_config.h). */
 #if B3_TEAM_AUTOSTART
     if (tid >= E_OK)
     {

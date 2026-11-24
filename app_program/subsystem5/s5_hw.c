@@ -117,7 +117,7 @@ uint32_t s5_hw_us(void)
     return (uint32_t)in_w(TIMER_TIMERAWL);
 }
 
-/* Buddy 5, 2026-11-19: S5_AUTO_TRIM's correction (0.1 deg) */
+/* S5_AUTO_TRIM's correction (0.1 deg) */
 static int32_t g_trim_adj = 0;
 
 void s5_hw_trim_adj(int32_t ddeg)
@@ -145,7 +145,7 @@ void s5_hw_servo(int32_t ddeg)
     {
         a = -S5_SERVO_LIMIT_R_DDEG;
     }
-    a += S5_SERVO_TRIM_DDEG + g_trim_adj; /* Buddy 5, 2026-11-19 */
+    a += S5_SERVO_TRIM_DDEG + g_trim_adj;
 #if (S5_SERVO_INVERT != 0)
     phys = 900 - a;
 #else

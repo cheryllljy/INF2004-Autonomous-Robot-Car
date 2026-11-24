@@ -7,7 +7,7 @@
 /*
  * Buddy 1 - FR2 MQTT command protocol.
  *
- * Provisional binary wire format:
+ * Binary wire format:
  *
  * Byte 0: protocol version (1)
  * Byte 1: command ID

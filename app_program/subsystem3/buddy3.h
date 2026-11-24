@@ -14,9 +14,9 @@ typedef enum
     B3_NAV_UTURN
 } b3_nav_command_t;
 
-/* Serious Buddy 3 faults. Any of these latches
- * stop_required in the snapshot; the VehicleController then E-stops the
- * car (VC_FAULT_LINE). The first cause is kept for the log. */
+/* Serious Buddy 3 faults. Any of these latches stop_required in the
+ * snapshot and the VehicleController E-stops the car (VC_FAULT_LINE).
+ * The first cause is kept for the log. */
 typedef enum
 {
     B3_FAULT_NONE = 0,
@@ -44,13 +44,13 @@ typedef struct
     bool imu_valid;
     int32_t yaw_rate_mdeg_s;
     bool terrain_unstable;
-    /* line speed set by the VehicleController (it backs
-     * up and reads barcodes slowly, vc_barcode.c). 0 = B3_BASE_SPEED_MM_S
-     * with Buddy 3's own barcode slowdown. */
+    /* line speed set by the VehicleController (vc_barcode.c backs up and
+     * reads barcodes slowly). 0 = B3_BASE_SPEED_MM_S with Buddy 3's own
+     * barcode slowdown. */
     int16_t base_speed_mm_s;
-    /* the VehicleController drives the wheels itself
-     * (junction turn, obstacle bypass, barcode back-up): line following
-     * starts again from straight when it hands back (b3_line_hold()). */
+    /* the VehicleController drives the wheels itself (junction turn,
+     * bypass, back-up): line following starts again from straight when it
+     * hands back (b3_line_hold()) */
     bool steer_hold;
 } b3_context_t;
 
@@ -62,8 +62,7 @@ typedef struct
     bool navigation_allowed;
 } b3_nav_event_t;
 
-/* why a black patch under both line sensors was not a
- * junction (2026-11-08: B3_PATCH_SHORT = a sensor's run was short). */
+/* why a black patch under both line sensors was not a junction */
 typedef enum
 {
     B3_PATCH_JUNCTION = 0, /* it was one */
@@ -89,17 +88,16 @@ typedef struct
     /* widths (us) of the elements measured at the last reject */
     uint32_t reject_widths[B3_BARCODE_RUNS];
     /* scans dropped without a reject: count, why the last one was (a
-     * b3_drop_reason_t), its elements and, when the context was late, its
-     * age in ms */
+     * b3_drop_reason_t), its elements and, when late, its age in ms */
     uint32_t scan_drops;
     uint8_t scan_drop_reason;
     uint8_t scan_drop_edges;
     uint32_t scan_drop_info;
     /* IR_B interrupts dropped as flicks (count since start) */
     uint32_t ir_b_flicks;
-    /* last "white before barcode too short" reject: the
-     * white measured and the white needed, in encoder ticks (the mean of
-     * both wheels) if reject_encoder, else in us. */
+    /* last "white before barcode too short" reject: the white measured
+     * and the white needed, in encoder ticks (mean of both wheels) if
+     * reject_encoder, else in us */
     uint32_t reject_lead;
     uint32_t reject_need;
     bool reject_encoder;
@@ -107,8 +105,8 @@ typedef struct
     uint32_t max_service_gap_us;
     int32_t task_error;
     bool scan_active;
-    /* elements measured so far in the scan under way
-     * (0 when none); a crossing line gives at most 1 */
+    /* elements measured so far in the scan under way (0 when none); a
+     * crossing line gives at most 1 */
     uint8_t scan_elements;
     bool junction_candidate;
     /* +1 per junction reached; compare to detect a new one */
@@ -118,11 +116,11 @@ typedef struct
     /* letter handed over at junction_sequence ('\0' = none) */
     char junction_symbol;
     uint8_t fault_source; /* b3_fault_t of the first serious fault */
-    /* the last time both line sensors were black and it
-     * was NOT counted as a junction: how long the patch was and why. The
-     * count goes up once per such patch, so the VC can print each one. */
+    /* the last black patch under both line sensors that was NOT counted
+     * as a junction: how long it was and why. The count goes up once per
+     * such patch, so the VC can print each one. */
     uint32_t patch_misses;
-    uint16_t patch_miss_mm; /* both black together (2026-11-08) */
+    uint16_t patch_miss_mm; /* both black together */
     /* each sensor's own run over the patch */
     uint16_t patch_miss_l_mm;
     uint16_t patch_miss_r_mm;
@@ -145,14 +143,12 @@ void buddy3_get_snapshot(b3_snapshot_t *p_snapshot);
 bool buddy3_pop_navigation(b3_nav_event_t *p_event);
 b3_nav_command_t buddy3_map_symbol(char symbol);
 
-/* Report a serious fault from another Buddy 3 task (the
- * consumer task's message buffer / mailbox). Never blocks; safe from any
- * task. The car stays stopped until the board is reset. */
+/* Report a serious fault from another Buddy 3 task. Never blocks; safe
+ * from any task. The car stays stopped until the board is reset. */
 void buddy3_report_fault(b3_fault_t source, ER error);
 
-/* Forget the held barcode letter (VehicleController calls
- * it on STOP and RESET, so an old letter is not used at the next junction).
- * Single caller (the VehicleController); never blocks. */
+/* Forget the held barcode letter, so an old one is not used at the next
+ * junction. Single caller (the VehicleController); never blocks. */
 void buddy3_clear_held_symbol(void);
 
 #if defined(APP_TEST) && APP_TEST

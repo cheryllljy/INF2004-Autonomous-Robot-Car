@@ -1,7 +1,7 @@
 /*
  *      s5_path.c
- *      Subsystem 5 -- the bypass path and the steering that follows it
- *. See s5_path.h.
+ *      Subsystem 5 -- the bypass path and the steering that follows it.
+ *      See s5_path.h.
  */
 
 #include "s5_path.h"
@@ -178,10 +178,9 @@ bool s5_path_car_hits(float x, float y, float psi, const s5_box_t *p_box,
 bool s5_path_clear(const s5_path_t *p_p, const s5_box_t *p_box, float margin,
                    float x_from, float x_to)
 {
-    /* only where the outline can reach the
-     * box: no part of the car is further ahead of the axle than
-     * S5_REACH_FRONT_MM, nor further behind than S5_REACH_REAR_MM,
-     * whatever its heading */
+    /* Only where the outline can reach the box: no part of the car is
+     * further ahead of the axle than S5_REACH_FRONT_MM, nor further
+     * behind than S5_REACH_REAR_MM, whatever its heading. */
     const float lo = p_box->x_near - margin - S5_REACH_FRONT_MM;
     const float hi = p_box->x_far + margin + S5_REACH_REAR_MM;
     float x = (x_from > lo) ? x_from : lo;
